@@ -1,0 +1,284 @@
+#SET_BACKGROUND "First class cabin"::"piano"
+
+>"Junpei" LEFT
+	Finally we've completed this puzzle.
+
+>"Seven" RIGHT "thinking" CENTER
+	I still don't understand the purpose of this killing game.
+
+#CLEAR_CHARACTER_POSITION CENTER
+#SET_BACKGROUND "First class cabin"::"escape door"
+
+>"Junpei" LEFT
+	I hope nothing happened to the others..
+
+>"Seven" RIGHT "laughing" RIGHT
+	Haha! Don't worry about them, they'll sure be fine!
+
+>"Snake" LEFT "laughing" LEFT
+	I'm pretty confident they're safe too.
+
+>"Junpei" LEFT
+	Well, let's get out of here and confirm this with our own eyes.
+
+>"Snake" LEFT "surprised" LEFT
+	Wait, what about that safe we didn't open ?
+
+>"Seven" RIGHT "surprised" RIGHT
+	I almost forgot it! We didn't need to open that safe to escape this room.
+
+#SET_BACKGROUND "First class cabin"::"safe room"
+
+>"Snake" LEFT "thinking" LEFT
+	Why would Zero put this safe in front of us without giving us any way of opening it?
+
+>"Junpei" LEFT
+	If Zero didn't want us to get what's in this safe, he could've just not put it there.
+
+>"Seven" RIGHT "thinking" RIGHT
+	Then we should've missed something in this room that will permit us to open this safe.
+
+>"Snake" LEFT "thinking" LEFT
+	Or maybe we'll found the way to open that safe later.
+
+>
+	Junpei wanted to..
+	-Search this room again.
+		->search again
+	-Get out of here to meet the others.
+		->get out
+
+@search again
+
+#ASSIGN firstClassSearchedAgain true
+
+>"Junpei" LEFT
+	It cost nothing to check this room again.
+
+>"Seven" RIGHT "idle" RIGHT
+	Ok, I'll search the living room again.
+
+#CLEAR_CHARACTER_POSITION RIGHT
+
+#CLEAR_CHARACTER_POSITION LEFT
+#SET_BACKGROUND "First class cabin"::"piano"
+
+#SET_CHARACTER CENTER "Snake"::"thinking static"
+
+>
+	Seven left Junpei alone with Snake, who still seemed to be thoughtful about the safe thing.
+
+>"Junpei" LEFT
+	Which place do you want to search?
+
+>
+	Snake didn't answered, maybe he didn't heard Junpei at all.
+
+>"Junpei" LEFT
+	I'll check the bathroom then.
+
+>
+	Junpei left Snake alone in his thoughts.
+
+#CLEAR_CHARACTER_POSITION CENTER
+#CLEAR_BACKGROUND
+
+#IF seven's_trust
+	#SET_BACKGROUND "First class cabin"::"hallway"
+
+	>
+		When he entered the hallway, he found Seven, looking at him.
+
+	>"Seven" RIGHT "idle" CENTER
+		Hey Junpei, won't you mind helping me a little ?
+
+	>
+		Junpei found his request weird.
+		Why would Seven need his help to check a room they already explored ?
+		The more he thought about it, the more he found Seven's behaviour strange.
+		-Go help Seven
+			->accept seven's proposition
+		-Search the bathroom
+			->deny seven's proposition
+#ELSE
+	>
+		Junpei searched the bathroom for minutes without success.
+		->end of investigation
+
+@accept seven's proposition
+
+#ASSIGN knows_about_ninth_bracelet true
+
+#CLEAR_CHARACTER_POSITION CENTER
+#CLEAR_BACKGROUND
+
+>
+	Junpei joined Seven in the living room.
+	Seven seemed pleased about it.
+
+#SET_BACKGROUND "First class cabin"::"living room"
+
+>"Seven" RIGHT "idle" CENTER
+	Sorry if I looked suspicious, but I didn't want Snake to know about us talking privately.
+
+>"Junpei" LEFT
+	Snake ?
+
+>"Seven" RIGHT "idle" CENTER
+	He may be blind, but he has sharp ears, he could have heard us in the hallway.
+
+>"Junpei" LEFT
+	I guess, but why don't you want him to hear us ?
+
+>"Seven" RIGHT "thinking" CENTER
+	I want to share you something, something which might be important for later.
+	But I don't trust him, for the moment, so I'll only share it with you.
+
+>"Junpei" LEFT
+	Thanks, but why do I have your trust ?
+
+>"Seven" RIGHT "idle" CENTER
+	Well you followed me in this room despite I sounded suspicious, so I guess you trust me.
+	And you seems like a good boy, so I'll trust you.
+	In our situation, people on whom you can count are precious.
+
+>
+	Junpei indeed felt relieved to consider this mountain as a potential ally.
+
+>"Junpei" LEFT
+	Well then, what do you want to share with me ?
+
+>"Seven" RIGHT "idle" CENTER
+	I want to share you all my love.
+
+>"Junpei" LEFT
+	WHAT??
+
+>"Seven" RIGHT "laughing" CENTER
+	Ah ah ah, I'm joking I'm joking.
+	#SET_CHARACTER CENTER "Seven"::"idle"
+	Come with me.
+
+#CLEAR_CHARACTER_POSITION CENTER
+
+>
+	Seven headed back to the entrance hallway.
+	Junpei felt anxious when he remembered that's where still lied the ninth man corpse.
+	He joined Seven anyway.
+
+#CLEAR_BACKGROUND
+#SET_BACKGROUND "First class cabin"::"ninth man corpse"
+
+>
+	Junpei stood still facing the flesh and blood pile that was several minutes ago a human being.
+	However, Seven didn't seem worried.
+
+>"Seven" RIGHT
+	The ninth man bracelet, I'll pick it.
+	That's what I wanted to share with you.
+
+>
+	Junpei suddendly realized how important this bracelet was.
+	Adding 9 to any number won't change its digital root.
+	Seven could go through any numbered door with one person less than he needed.
+
+>"Seven" RIGHT
+	If I'm telling this to you, it's not for you to spread it to whoever comes to you.
+	But if at one moment you'll need this bracelet, I'll let you borrow it.
+
+>
+	Junpei was happy to hear Seven's sayings.
+
+>"Junpei" LEFT
+	I'll ask you in case.
+	Thank you Seven.
+
+#CLEAR_BACKGROUND
+
+>
+	Junpei and Seven went back to the living room.
+
+#SET_BACKGROUND "First class cabin"::"living room"
+#SET_CHARACTER CENTER "Seven"::"idle static"
+
+>"Junpei" LEFT
+	I'll check the bathroom then.
+
+>"Seven" RIGHT "idle" CENTER
+	Okay, I'll stay here examining this room.
+
+#CLEAR_CHARACTER_POSITION CENTER
+#CLEAR_BACKGROUND
+->end of investigation
+
+@deny seven's proposition
+
+#ASSIGN knows_about_ninth_bracelet false
+
+>"Junpei" LEFT
+	Sorry but we'll be faster by checking one room per person.
+
+>"Seven" RIGHT "idle" CENTER
+	Okay, no problem.
+
+>
+	Seven seemed underwhelmed, and stepped back into the living room.
+
+#CLEAR_CHARACTER_POSITION CENTER
+#CLEAR_BACKGROUND
+->end of investigation
+
+@end of investigation
+
+>
+	After several minutes of intense searching, Junpei and Seven met again in the hallway.
+
+#SET_BACKGROUND "First class cabin"::"hallway"
+
+>"Seven" RIGHT "idle" CENTER
+	So Junpei, did you found anything?
+
+>"Junpei" LEFT
+	Unfortunately not.
+
+>"Seven" RIGHT "disappointed" CENTER
+	Well, I guess it just was a complete waste of time.
+
+#CLEAR_CHARACTER_POSITIONS
+#SET_BACKGROUND "First class cabin"::"escape door"
+
+>"Snake" RIGHT "disappointed" CENTER
+	Indeed, it was a waste of time..
+
+>"Junpei" LEFT
+	Did you hear us in the hallway?
+
+>"Snake" RIGHT "smiling" CENTER
+	Indeed.
+
+>"Seven" RIGHT "idle" CENTER
+	Well then don't waste time anymore, let's go.
+
+->lets go
+
+@get out
+
+>"Junpei" LEFT
+	Let's find the others, maybe we found the safe and they found the key.
+
+>"Snake" LEFT "smiling" LEFT
+	That's a smart theory Junpei.
+
+>"Seven" RIGHT "idle" RIGHT
+	Let's go then.
+
+->lets go
+
+@lets go
+
+#CLEAR_CHARACTER_POSITIONS
+#SET_BACKGROUND "First class cabin"::"escape door"
+#CLEAR_BACKGROUND
+
+>
+	Intrigued by this safe, the three of them ran outside of the room, leading them further and further into the ship.
