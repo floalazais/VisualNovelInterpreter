@@ -38,6 +38,7 @@ typedef ptrdiff_t GLintptr;
 #define GL_DOUBLE                         0x140A
 
 #define GL_RED                            0x1903
+#define GL_RGBA                           0x1908
 
 #define GL_NO_ERROR                       0
 #define GL_INVALID_ENUM                   0x0500
@@ -64,10 +65,12 @@ typedef ptrdiff_t GLintptr;
 #define GL_LINEAR                         0x2601
 #define GL_LINE_STRIP                     0x0003
 #define GL_TEXTURE_2D                     0x0DE1
+#define GL_NEAREST                        0x2600
 #define GL_TEXTURE_MAG_FILTER             0x2800
 #define GL_TEXTURE_MIN_FILTER             0x2801
 #define GL_TEXTURE_WRAP_S                 0x2802
 #define GL_TEXTURE_WRAP_T                 0x2803
+#define GL_REPEAT                         0x2901
 #define GL_BLEND                          0x0BE2
 #define GL_DEPTH_BUFFER_BIT               0x00000100
 #define GL_COLOR_BUFFER_BIT               0x00004000
@@ -119,7 +122,8 @@ typedef ptrdiff_t GLintptr;
 	GL_FUNCTION(void,	glPixelStorei,				GLenum pname, GLint param) \
 	GL_FUNCTION(void,	glTexImage2D, 				GLenum target, GLint level,	GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid* data) \
 	GL_FUNCTION(void,	glTexParameteri, 			GLenum target, GLenum pname, GLint param) \
-	GL_FUNCTION(void,	glViewport,					GLint x, GLint y, GLsizei width, GLsizei height)
+	GL_FUNCTION(void,	glViewport,					GLint x, GLint y, GLsizei width, GLsizei height) \
+	GL_FUNCTION(void,	glGenerateMipmap,			GLenum target)
 
 #define GL_CALL_CONVENTION __stdcall
 

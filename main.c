@@ -50,6 +50,8 @@ char *file_to_string(char *filePath)
     }
     fileString[fileSize - 1] = '\0';
 
+	fclose(file);
+
 	return fileString;
 }
 
@@ -432,8 +434,11 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	init_graphics();
 
 	vec2 position = {0.1f, 0.1f};
+	//char *texturePath = "lol.png";
 	vec3 color = {1.0f, 0.0f, 1.0f};
-	Sprite *sprite = create_color_sprite(position, 0.1f, 0.1f, color);
+	//Sprite *sprite = create_texture_sprite(position, 0.1f, 0.1f, texturePath);
+
+	Text text = create_text(position, 16, "Texte de test.", "arial.ttf", color);
 
 	QueryPerformanceFrequency(&globalPerformanceFrequency);
 
@@ -456,7 +461,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-		add_to_draw_list(sprite, DRAW_LAYER_FOREGROUND);
+		add_text_to_draw_list(text, DRAW_LAYER_FOREGROUND);
 
 		draw_all();
 
