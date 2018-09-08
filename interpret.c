@@ -53,15 +53,21 @@ static void process_command(Command *command)
 	if (command->type == COMMAND_SET_BACKGROUND)
 	{
 		AnimatedSprite *currentBackgroundPack;
+		bool match = false;
 		for (int i = 0; i < buf_len(currentDialog->backgroundPacksNames); i++)
 		{
 			if (strmatch(command->arguments[0].text, currentDialog->backgroundPacksNames[i]))
 			{
 				currentBackgroundPack = currentDialog->backgroundPacks[i];
+				match = true;
 				break;
 			}
 		}
-		bool match = false;
+		if (!match)
+		{
+			error("background pack %s does not exist.", command->arguments[0].text);
+		}
+		match = false;
 		for (int i = 0; i < buf_len(currentBackgroundPack->animationsNames); i++)
 		{
 			if (strmatch(command->arguments[1].text, currentBackgroundPack->animationsNames[i]))
@@ -80,15 +86,21 @@ static void process_command(Command *command)
 		backgroundSprite->textureId = -1;
 	} else if (command->type == COMMAND_SET_CHARACTER) {
 		AnimatedSprite *currentCharacterAnimatedSprite;
+		bool match = false;
 		for (int i = 0; i < buf_len(currentDialog->charactersNames); i++)
 		{
 			if (strmatch(command->arguments[1].text, currentDialog->charactersNames[i]))
 			{
 				currentCharacterAnimatedSprite = currentDialog->charactersAnimatedSprites[i];
+				match = true;
 				break;
 			}
 		}
-		bool match = false;
+		if (!match)
+		{
+			error("character %s does not exist.", command->arguments[1].text);
+		}
+		match = false;
 		for (int i = 0; i < buf_len(currentCharacterAnimatedSprite->animationsNames); i++)
 		{
 			if (strmatch(command->arguments[2].text, currentCharacterAnimatedSprite->animationsNames[i]))
