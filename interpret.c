@@ -41,11 +41,11 @@ void init_dialog_ui()
 
 	vec2 spritePosition = {.x = 0.0f, .y = 0.0f};
 	backgroundSprite = create_texture_sprite(spritePosition, 1.0f, 1.0f, "no texture");
-	spritePosition.y = 0.3f;
+
 	for (int i = 0; i < 7; i++)
 	{
 		spritePosition.x = i * (1.0f / 7.0f);
-		charactersSprites[i] = create_texture_sprite(spritePosition, (1.0f / 7.0f), 0.7f, "no texture");
+		charactersSprites[i] = create_texture_sprite(spritePosition, (1.0f / 5.0f), 0.8f, "no texture");
 	}
 }
 
@@ -53,7 +53,7 @@ static void process_command(Command *command)
 {
 	if (command->type == COMMAND_SET_BACKGROUND)
 	{
-		AnimatedSprite *currentBackgroundPack;
+		AnimatedSprite *currentBackgroundPack = NULL;
 		bool match = false;
 		for (int i = 0; i < buf_len(currentDialog->backgroundPacksNames); i++)
 		{
@@ -86,7 +86,7 @@ static void process_command(Command *command)
 	} else if (command->type == COMMAND_CLEAR_BACKGROUND) {
 		backgroundSprite->textureId = -1;
 	} else if (command->type == COMMAND_SET_CHARACTER) {
-		AnimatedSprite *currentCharacterAnimatedSprite;
+		AnimatedSprite *currentCharacterAnimatedSprite = NULL;
 		bool match = false;
 		for (int i = 0; i < buf_len(currentDialog->charactersNames); i++)
 		{

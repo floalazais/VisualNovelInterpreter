@@ -307,7 +307,7 @@ static int utf8_decode(const char *o)
 
 Text create_text(vec2 position, TextSize textHeight, char *string, char *fontPath, vec3 color)
 {
-	Font *font;
+	Font *font = NULL;
 	bool match = false;
 	for (int i = 0; i < buf_len(fonts); i++)
 	{
