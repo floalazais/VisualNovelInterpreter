@@ -348,8 +348,11 @@ static bool update_cue(Cue *cue)
 			}
 		}
 	}
-	add_sprite_to_draw_list(characterNameBox, DRAW_LAYER_UI);
-	add_text_to_draw_list(currentSpeaker, DRAW_LAYER_UI);
+	if (cue->characterName)
+	{
+		add_sprite_to_draw_list(characterNameBox, DRAW_LAYER_UI);
+		add_text_to_draw_list(currentSpeaker, DRAW_LAYER_UI);
+	}
 	if (choosing)
 	{
 		if (!choicesDisplayed)

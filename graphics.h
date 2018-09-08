@@ -53,8 +53,8 @@ typedef	struct Font
 	int ascent;
 	int descent;
 	int advance;
-	Glyph glyphs[0xFFFF];
-	bool loaded[0xFFFF];
+	Glyph *glyphs;
+	bool *loaded;
 } Font;
 
 unsigned int get_texture_id_from_path(char *texturePath);

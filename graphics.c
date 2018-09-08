@@ -250,7 +250,13 @@ static void load_font(char *fontPath, int textHeight)
 	int descent;
 	stbtt_GetFontVMetrics(&fontInfo, &ascent, &descent, NULL);
 
-	Font font = {.loaded = {}};
+	Font font;
+	font.glyphs = xmalloc(0xFFFF * sizeof (*font.glyphs));
+	font.loaded = xmalloc(0xFFFF * sizeof (*font.loaded));
+	for (int i = 0; i < 0xFFFF; i++)
+	{
+		font.loaded[i] = false;
+	}
 	font.fontInfo = fontInfo;
 	font.fontPath = xmalloc(strlen(fontPath) * sizeof (*font.fontPath));
 	for (int i = 0; i < strlen(fontPath); i++)

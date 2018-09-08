@@ -449,6 +449,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	Token *tokens = lex("Dialogs/dialog.dlg");
 	Dialog dialog = parse("Dialogs/dialog.dlg", tokens);
 
+	/*vec2 position = {.x = 0.0f, .y = 0.0f};
+	vec3 color = {.x = 0.3f, .y = 0.5f, .z = 0.8f};
+	Text text = create_text(position, TEXT_SIZE_NORMAL, "éàüî", "Fonts/arial.ttf", color);*/
+
 	QueryPerformanceFrequency(&globalPerformanceFrequency);
 
 	currentClock = get_clock();
@@ -470,6 +474,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
+
+		//add_text_to_draw_list(text, DRAW_LAYER_FOREGROUND);
 
 		if (!gameEnd)
 		{
