@@ -12,6 +12,15 @@ extern char **variablesNames;
 extern double *variablesValues;
 extern char *nextDialog;
 
+#if __GNUC__
+    #define NO_RETURN __attribute__((noreturn))
+#elif _MSC_VER
+    #define NO_RETURN __declspec(noreturn)
+#else
+    #error "Unsupported compiler"
+	#define NO_RETURN
+#endif
+
 __attribute__((noreturn)) void error(char *string, ...);
 char *file_to_string(char *filePath);
 bool strmatch(char *a, char *b);

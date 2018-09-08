@@ -41,10 +41,11 @@ void init_dialog_ui()
 
 	vec2 spritePosition = {.x = 0.0f, .y = 0.0f};
 	backgroundSprite = create_texture_sprite(spritePosition, 1.0f, 1.0f, "no texture");
+	spritePosition.y = 0.3f;
 	for (int i = 0; i < 7; i++)
 	{
 		spritePosition.x = i * (1.0f / 7.0f);
-		charactersSprites[i] = create_texture_sprite(spritePosition, (1.0f / 7.0f), 1.0f, "no texture");
+		charactersSprites[i] = create_texture_sprite(spritePosition, (1.0f / 7.0f), 0.7f, "no texture");
 	}
 }
 
