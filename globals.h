@@ -21,6 +21,6 @@ extern char *nextDialog;
 	#define NO_RETURN
 #endif
 
-__attribute__((noreturn)) void error(char *string, ...);
+NO_RETURN void error(char *string, ...);
 char *file_to_string(char *filePath);
 bool strmatch(char *a, char *b);
