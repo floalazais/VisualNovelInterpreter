@@ -41,17 +41,17 @@ void print_token(Token token)
 	printf("%s", tokenStrings[token.type]);
 	if (token.type == TOKEN_NUMERIC)
 	{
-		printf(" : %f", token.numeric);
+		printf(" : \"%f\"", token.numeric);
 	} else if (token.type == TOKEN_IDENTIFIER) {
-		printf(" : %s", token.text);
+		printf(" : \"%s\"", token.text);
 	} else if (token.type == TOKEN_STRING) {
-		printf(" : %s", token.text);
+		printf(" : \"%s\"", token.text);
 	} else if (token.type == TOKEN_SENTENCE) {
-		printf(" : %s", token.text);
+		printf(" : \"%s\"", token.text);
 	} else if (token.type == TOKEN_COMMAND) {
-		printf(" : %s", token.text);
+		printf(" : \"%s\"", token.text);
 	} else if (token.type == TOKEN_KNOT) {
-		printf(" : %s", token.text);
+		printf(" : \"%s\"", token.text);
 	}
 	printf("\n");
 }

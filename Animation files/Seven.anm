@@ -1,0 +1,35 @@
+"disappointed"
+	"Textures/Seven/disappointed.png" 0
+
+"angry" loop
+	"Textures/Seven/angry1.gif" 0.1
+	"Textures/Seven/angry2.gif" 0.1
+	"Textures/Seven/angry3.gif" 0.1
+	"Textures/Seven/angry2.gif" 0.1
+
+"idle" loop
+	"Textures/Seven/idle1.gif" 0.1
+	"Textures/Seven/idle2.gif" 0.1
+	"Textures/Seven/idle3.gif" 0.1
+	"Textures/Seven/idle2.gif" 0.1
+
+"laughing" loop
+	"Textures/Seven/laughing1.gif" 0.1
+	"Textures/Seven/laughing2.gif" 0.1
+	"Textures/Seven/laughing3.gif" 0.1
+	"Textures/Seven/laughing2.gif" 0.1
+
+"shocked" loop
+	"Textures/Seven/shocked1.gif" 0.1
+	"Textures/Seven/shocked2.gif" 0.1
+	"Textures/Seven/shocked3.gif" 0.1
+	"Textures/Seven/shocked2.gif" 0.1
+
+"thinking" loop
+	"Textures/Seven/thinking1.gif" 0.1
+	"Textures/Seven/thinking2.gif" 0.1
+	"Textures/Seven/thinking3.gif" 0.1
+	"Textures/Seven/thinking2.gif" 0.1
+
+"idle static"
+	"Textures/Seven/idle1.gif" 0

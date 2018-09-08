@@ -1,7 +1,7 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
-typedef enum TokenType
+typedef enum DialogTokenType
 {
     TOKEN_END_OF_FILE,
 
@@ -31,11 +31,11 @@ typedef enum TokenType
     TOKEN_INFERIOR_EQUALS,
     TOKEN_SUPERIOR,
     TOKEN_SUPERIOR_EQUALS
-} TokenType;
+} DialogTokenType;
 
 typedef struct Token
 {
-    TokenType type;
+    DialogTokenType type;
     int line;
     int indentationLevel;
     union {char *text; double numeric;};

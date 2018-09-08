@@ -8,8 +8,6 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
-#include <stdio.h>
-
 static Sprite **backgroundSprites = NULL;
 static Sprite **middlegroundSprites = NULL;
 static Sprite **foregroundSprites = NULL;
@@ -83,10 +81,10 @@ void init_graphics()
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof (GLfloat), (GLvoid*)(2 * sizeof (GLfloat)));
 
-	unsigned int vertexShaderId = compile_shader("vertex_shader.glsl", GL_VERTEX_SHADER);
-	unsigned int colorFragmentShaderId = compile_shader("color_fragment_shader.glsl", GL_FRAGMENT_SHADER);
-	unsigned int textureFragmentShaderId = compile_shader("texture_fragment_shader.glsl", GL_FRAGMENT_SHADER);
-	unsigned int glyphFragmentShaderId = compile_shader("glyph_fragment_shader.glsl", GL_FRAGMENT_SHADER);
+	unsigned int vertexShaderId = compile_shader("Shaders/vertex_shader.glsl", GL_VERTEX_SHADER);
+	unsigned int colorFragmentShaderId = compile_shader("Shaders/color_fragment_shader.glsl", GL_FRAGMENT_SHADER);
+	unsigned int textureFragmentShaderId = compile_shader("Shaders/texture_fragment_shader.glsl", GL_FRAGMENT_SHADER);
+	unsigned int glyphFragmentShaderId = compile_shader("Shaders/glyph_fragment_shader.glsl", GL_FRAGMENT_SHADER);
 
 	colorShaderProgramId = link_shaders(vertexShaderId, colorFragmentShaderId);
 	textureShaderProgramId = link_shaders(vertexShaderId, textureFragmentShaderId);
@@ -137,6 +135,32 @@ void add_text_to_draw_list(Text text, DrawLayer drawLayer)
 	}
 }
 
+unsigned int get_texture_id_from_path(char *texturePath)
+{
+	unsigned int textureId;
+    glGenTextures(1, &textureId);
+    glBindTexture(GL_TEXTURE_2D, textureId);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    int textureWidth;
+	int textureHeight;
+	int nrChannels;
+    unsigned char *data = stbi_load(texturePath, &textureWidth, &textureHeight, &nrChannels, 4);
+    if (data)
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        stbi_image_free(data);
+		return textureId;
+    } else {
+		error("failed to load texture %s.", texturePath);
+    }
+}
+
 Sprite *create_color_sprite(vec2 position, float width, float height, vec3 color)
 {
 	Sprite *sprite = xmalloc(sizeof (*sprite));
@@ -157,29 +181,12 @@ Sprite *create_texture_sprite(vec2 position, float width, float height, char *te
 	sprite->position = pixelPosition;
 	sprite->width = width * windowDimensions.x;
 	sprite->height = height * windowDimensions.y;
-
-	unsigned int textureId;
-    glGenTextures(1, &textureId);
-    glBindTexture(GL_TEXTURE_2D, textureId);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    int textureWidth;
-	int textureHeight;
-	int nrChannels;
-    unsigned char *data = stbi_load(texturePath, &textureWidth, &textureHeight, &nrChannels, 4);
-    if (data)
-    {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-        stbi_image_free(data);
-        sprite->textureId = textureId;
-    } else {
-		error("failed to load texture %s.", texturePath);
-    }
+	if (strmatch(texturePath, "no texture"))
+	{
+		sprite->textureId = -1;
+	} else {
+		sprite->textureId = get_texture_id_from_path(texturePath);
+	}
 	return sprite;
 }
 
@@ -195,7 +202,72 @@ Sprite *create_glyph(ivec2 position, int width, int height, unsigned int texture
 	return sprite;
 }
 
-#define MAXUNICODE	0x10FFFF
+static Font *fonts = NULL;
+
+static void load_glyph(Font *font, int code)
+{
+	int leftSideBearing;
+	int advance;
+	int x0;
+	int y0;
+	int x1;
+	int y1;
+	stbtt_GetCodepointBitmapBox(&font->fontInfo, code, font->scale, font->scale, &x0, &y0, &x1, &y1);
+	font->glyphs[code].width = x1 - x0;
+	font->glyphs[code].height = y1 - y0;
+
+	unsigned char *bitmap = xmalloc(font->glyphs[code].height * font->glyphs[code].width * sizeof (*bitmap));
+	stbtt_MakeCodepointBitmap(&font->fontInfo, bitmap, font->glyphs[code].width, font->glyphs[code].height, font->glyphs[code].width, font->scale, font->scale, code);
+
+	glGenTextures(1, &font->glyphs[code].textureId);
+	glBindTexture(GL_TEXTURE_2D, font->glyphs[code].textureId);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, font->glyphs[code].width, font->glyphs[code].height, 0, GL_RED, GL_UNSIGNED_BYTE, bitmap);
+	glGenerateMipmap(GL_TEXTURE_2D);
+
+	free(bitmap);
+
+	font->glyphs[code].yOffset = y0 + font->ascent - font->descent;
+
+	stbtt_GetCodepointHMetrics(&font->fontInfo, code, &advance, &leftSideBearing);
+	font->glyphs[code].xOffset = (advance - leftSideBearing) * font->scale;
+
+	font->loaded[code] = true;
+}
+
+static void load_font(char *fontPath, int textHeight)
+{
+	stbtt_fontinfo fontInfo;
+	unsigned char *ttf_buffer = (unsigned char *)file_to_string(fontPath);
+	stbtt_InitFont(&fontInfo, ttf_buffer, stbtt_GetFontOffsetForIndex(ttf_buffer, 0));
+	int ascent;
+	int descent;
+	stbtt_GetFontVMetrics(&fontInfo, &ascent, &descent, NULL);
+
+	Font font = {.loaded = {}};
+	font.fontInfo = fontInfo;
+	font.fontPath = xmalloc(strlen(fontPath) * sizeof (*font.fontPath));
+	for (int i = 0; i < strlen(fontPath); i++)
+	{
+		font.fontPath[i] = fontPath[i];
+	}
+	font.height = textHeight;
+	font.scale = stbtt_ScaleForPixelHeight(&font.fontInfo, textHeight);
+    font.ascent = ascent * font.scale;
+	font.descent = descent * font.scale;
+    for (int code = 0; code < 128; code++)
+    {
+		load_glyph(&font, code);
+	}
+
+	buf_add(fonts, font);
+}
 
 static int offset;
 
@@ -211,7 +283,8 @@ static int utf8_decode(const char *o)
 		offset = 1;
 	} else {
 		int count = 0;  /* to count number of continuation bytes */
-		while (c & 0x40) {  /* still have continuation bytes? */
+		while (c & 0x40)
+		{  /* still have continuation bytes? */
 			int cc = s[++count];  /* read next byte */
 			if ((cc & 0xC0) != 0x80)  /* not a continuation byte? */
 				return -1;  /* invalid byte sequence */
@@ -226,60 +299,72 @@ static int utf8_decode(const char *o)
 	return res;
 }
 
-Text create_text(vec2 position, int textHeight, char *string, char *fontPath, vec3 color)
+Text create_text(vec2 position, TextSize textHeight, char *string, char *fontPath, vec3 color)
 {
+	Font *font;
+	bool match = false;
+	for (int i = 0; i < buf_len(fonts); i++)
+	{
+		if (strmatch(fonts[i].fontPath, fontPath) && fonts[i].height == textHeight)
+		{
+			font = &fonts[i];
+			match = true;
+			break;
+		}
+	}
+	if (!match)
+	{
+		if (textHeight == TEXT_SIZE_SMALL)
+		{
+			load_font(fontPath, TEXT_SIZE_SMALL);
+		} else if (textHeight == TEXT_SIZE_NORMAL) {
+			load_font(fontPath, TEXT_SIZE_NORMAL);
+		} else if (textHeight == TEXT_SIZE_BIG) {
+			load_font(fontPath, TEXT_SIZE_BIG);
+		} else if (textHeight == TEXT_SIZE_HUGE) {
+			load_font(fontPath, TEXT_SIZE_HUGE);
+		} else {
+			error("unsupported text height %d.", textHeight);
+		}
+		font = &fonts[buf_len(fonts) - 1];
+	}
+
+	char *cursor = string;
 	Text text = NULL;
-	stbtt_fontinfo font;
-	unsigned char *ttf_buffer = (unsigned char *)file_to_string(fontPath);
-	stbtt_InitFont(&font, ttf_buffer, stbtt_GetFontOffsetForIndex(ttf_buffer, 0));
-	float scale = stbtt_ScaleForPixelHeight(&font, textHeight);
-	int ascent;
-	int descent;
-    stbtt_GetFontVMetrics(&font, &ascent, &descent, NULL);
-    ascent *= scale;
-	descent *= scale;
-	ivec2 glyphPosition;
-	int x = 0;
-    while (*string != '\0')
+	ivec2 glyphPosition = {.x = position.x * windowDimensions.x, .y = 0.0f};
+    while (*cursor != '\0')
     {
-		int code = utf8_decode(string);
-		string += offset;
-		int x0;
-		int y0;
-		int x1;
-		int y1;
-		stbtt_GetCodepointBitmapBox(&font, code, scale, scale, &x0, &y0, &x1, &y1);
-		int w = x1 - x0;
-		int h = y1 - y0;
+		int code = utf8_decode(cursor);
+		if (code == -1)
+		{
+			error("found incorrect utf-8 sequence in %s.", string);
+		} else if (code > 0xFFFF) {
+			error("unsupported character code %d.", code);
+		}
+		cursor += offset;
 
-		unsigned char *bitmap = xmalloc(h * w * sizeof (*bitmap));
-		stbtt_MakeCodepointBitmap(&font, bitmap, w, h, w, scale, scale, code);
+		if (!font->loaded[code])
+		{
+			load_glyph(font, code);
+		}
 
-		unsigned int glyphTextureId;
-		glGenTextures(1, &glyphTextureId);
-		glBindTexture(GL_TEXTURE_2D, glyphTextureId);
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glyphPosition.y = position.y * windowDimensions.y + font->glyphs[code].yOffset;
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, bitmap);
-		glGenerateMipmap(GL_TEXTURE_2D);
-		free(bitmap);
-
-		glyphPosition.x = position.x * windowDimensions.x + x;
-		glyphPosition.y = position.y * windowDimensions.y + y0 + ascent;
-
-		int advance;
-		stbtt_GetCodepointHMetrics(&font, code, &advance, NULL);
-		x += (advance + stbtt_GetCodepointKernAdvance(&font, code, utf8_decode(string))) * scale + 2;
-
-		Sprite *glyph = create_glyph(glyphPosition, w, h, glyphTextureId, color);
+		Sprite *glyph = create_glyph(glyphPosition, font->glyphs[code].width, font->glyphs[code].height, font->glyphs[code].textureId, color);
 		buf_add(text, glyph);
+
+		glyphPosition.x += font->glyphs[code].xOffset + stbtt_GetCodepointKernAdvance(&font->fontInfo, code, utf8_decode(cursor)) * font->scale;
     }
 	return text;
+}
+
+void free_text(Text text)
+{
+	for (int i = 0; i < buf_len(text); i++)
+	{
+		free(text[i]);
+	}
+	buf_free(text);
 }
 
 static int get_uniform_location(unsigned shaderProgramId, const char *uniformName)
@@ -320,6 +405,10 @@ static void draw(Sprite *sprite)
 		shader_set_mat4_uniform(colorShaderProgramId, "model", &model);
 		shader_set_color_uniform(colorShaderProgramId, "color", sprite->color);
 	} else if (sprite->type == SPRITE_TEXTURE) {
+		if (sprite->textureId == -1)
+		{
+			return;
+		}
 		glUseProgram(textureShaderProgramId);
 		shader_set_mat4_uniform(textureShaderProgramId, "projection", &projection);
 		shader_set_mat4_uniform(textureShaderProgramId, "model", &model);

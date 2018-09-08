@@ -10,6 +10,9 @@
 #include "stretchy_buffer.h"
 #include "gl.h"
 #include "graphics.h"
+#include "lex.h"
+#include "parse.h"
+#include "interpret.h"
 
 static HWND window;
 
@@ -270,6 +273,11 @@ static LRESULT WINAPI WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 	WGL_LIST
 #undef WGL_FUNCTION
 
+char *nextDialog = NULL;
+bool gameEnd = false;
+char **variablesNames = NULL;
+double *variablesValues = NULL;
+
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
 	WNDCLASSA windowClass =
@@ -330,6 +338,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	}
 
 	SetWindowPos(window, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+	SetForegroundWindow(window);
+	SetFocus(window);
+	SetActiveWindow(window);
+	EnableWindow(window, TRUE);
 
 	PIXELFORMATDESCRIPTOR dummyPixelFormatDescriptor =
 	{
@@ -432,13 +444,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	projection = mat4_ortho(0, windowDimensions.x, windowDimensions.y, 0);
 
 	init_graphics();
+	init_dialog_ui();
 
-	vec2 position = {0.1f, 0.1f};
-	//char *texturePath = "lol.png";
-	vec3 color = {1.0f, 0.0f, 1.0f};
-	//Sprite *sprite = create_texture_sprite(position, 0.1f, 0.1f, texturePath);
-
-	Text text = create_text(position, 16, "Texte de test.", "arial.ttf", color);
+	Token *tokens = lex("Dialogs/dialog.dlg");
+	Dialog dialog = parse("Dialogs/dialog.dlg", tokens);
 
 	QueryPerformanceFrequency(&globalPerformanceFrequency);
 
@@ -446,6 +455,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 	while (running)
 	{
+		update_delta_time();
+		update_input_keys();
+
 		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 		{
 			if (msg.message == WM_QUIT)
@@ -455,13 +467,28 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
-		update_input_keys();
-		update_delta_time();
 
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-		add_text_to_draw_list(text, DRAW_LAYER_FOREGROUND);
+		if (!gameEnd)
+		{
+			interpret(&dialog);
+			if (nextDialog)
+			{
+				for (int index = 0; index < buf_len(tokens); index++)
+			    {
+			        free_token(tokens[index]);
+			    }
+			    buf_free(tokens);
+				free_dialog(dialog);
+				tokens = lex(nextDialog);
+				dialog = parse(nextDialog, tokens);
+				nextDialog = NULL;
+			}
+		} else {
+			PostMessageA(window, WM_CLOSE, 0, 0);
+		}
 
 		draw_all();
 

@@ -1,6 +1,8 @@
 #ifndef DIALOG_H
 #define DIALOG_H
 
+#include <stdbool.h>
+
 #include "animated_sprite.h"
 
 typedef enum LogicExpressionType
@@ -79,7 +81,6 @@ typedef enum CommandType
     COMMAND_CLEAR_CHARACTER_POSITION,
     COMMAND_CLEAR_CHARACTER_POSITIONS,
 
-    COMMAND_PAUSE,
     COMMAND_END,
 
     COMMAND_ASSIGN,
@@ -107,10 +108,16 @@ typedef struct Command
     Argument *arguments;
 } Command;
 
+typedef struct Sentence
+{
+	char *string;
+	int currentChar;
+} Sentence;
+
 typedef struct Choice
 {
-    char *sentence;
-	char *knotToGo;
+    Sentence sentence;
+	Command goToCommand;
 } Choice;
 
 struct CueExpression;
@@ -118,8 +125,11 @@ struct CueExpression;
 typedef struct CueCondition
 {
 	LogicExpression *logicExpression;
+	bool resolved;
+	bool result;
 	struct CueExpression *cueExpressionsIf;
 	struct CueExpression *cueExpressionsElse;
+	int currentExpression;
 } CueCondition;
 
 typedef enum CueExpressionType
@@ -135,7 +145,7 @@ typedef struct CueExpression
     CueExpressionType type;
     union
     {
-        char *sentence;
+        Sentence sentence;
         Choice choice;
         Command command;
         CueCondition cueCondition;
@@ -147,6 +157,7 @@ typedef struct Cue
     char *characterName;
 	int characterNamePosition;
     CueExpression *cueExpressions;
+	int currentExpression;
 } Cue;
 
 struct KnotExpression;
@@ -154,8 +165,11 @@ struct KnotExpression;
 typedef struct KnotCondition
 {
     LogicExpression *logicExpression;
+	bool resolved;
+	bool result;
     struct KnotExpression *knotExpressionsIf;
     struct KnotExpression *knotExpressionsElse;
+	int currentExpression;
 } KnotCondition;
 
 typedef enum KnotExpressionType
@@ -180,28 +194,33 @@ typedef struct Knot
 {
 	char *name;
     KnotExpression *knotExpressions;
+	int currentExpression;
 } Knot;
 
 typedef struct Dialog
 {
     char **backgroundPacksNames;
-    struct AnimatedSprite *backgroundPacks;
-    int currentBackgroundPack;
-	int currentBackgroundName;
+    struct AnimatedSprite **backgroundPacks;
     char **charactersNames;
-    struct AnimatedSprite *charactersSprites;
-    int visibleCharacters[7];
+    struct AnimatedSprite **charactersAnimatedSprites;
     Knot *knots;
     int currentKnot;
+	bool end;
 } Dialog;
 
 extern int nbArguments[];
+
+double resolve_variable(char *variableName);
+
+bool resolve_logic_expression(LogicExpression *logicExpression);
 
 void free_logic_expression(LogicExpression *logicExpression);
 
 void free_argument(Argument argument);
 
 void free_command(Command command);
+
+void free_sentence(Sentence sentence);
 
 void free_choice(Choice choice);
 

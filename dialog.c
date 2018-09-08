@@ -1,6 +1,8 @@
 #include <stddef.h>
+
 #include "stretchy_buffer.h"
 #include "dialog.h"
+#include "globals.h"
 
 int nbArguments[] =
 {
@@ -11,13 +13,83 @@ int nbArguments[] =
     [COMMAND_CLEAR_CHARACTER_POSITION] = 1,
     [COMMAND_CLEAR_CHARACTER_POSITIONS] = 0,
 
-    [COMMAND_PAUSE] = 0,
     [COMMAND_END] = 0,
 
     [COMMAND_ASSIGN] = 2,
 
     [COMMAND_GO_TO] = 1
 };
+
+double resolve_variable(char *variableName)
+{
+	for (int i = 0; i < buf_len(variablesNames); i++)
+	{
+		if (strmatch(variablesNames[i], variableName))
+		{
+			return variablesValues[i];
+		}
+	}
+	error("variable %s not found.", variableName);
+}
+
+bool resolve_logic_expression(LogicExpression *logicExpression)
+{
+	if (logicExpression->type == LOGIC_EXPRESSION_LITERAL)
+	{
+		if (logicExpression->literal.type == LOGIC_EXPRESSION_LITERAL_STRING)
+		{
+			return logicExpression->literal.text;
+		} else if (logicExpression->literal.type == LOGIC_EXPRESSION_LITERAL_IDENTIFIER) {
+			return resolve_variable(logicExpression->literal.text);
+		} else if (logicExpression->literal.type == LOGIC_EXPRESSION_LITERAL_NUMERIC) {
+			return logicExpression->literal.numeric;
+		} else {
+			error("unknown literal type %d.", logicExpression->literal.type);
+		}
+	} else if (logicExpression->type == LOGIC_EXPRESSION_UNARY) {
+		if (logicExpression->unary.type == LOGIC_EXPRESSION_UNARY_NEGATION)
+		{
+			return !resolve_logic_expression(logicExpression->unary.expression);
+		} else {
+			error("unknown unary expression type %d.", logicExpression->unary.type);
+		}
+	} else if (logicExpression->type == LOGIC_EXPRESSION_BINARY) {
+		if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_OR)
+		{
+			return resolve_logic_expression(logicExpression->binary.left) || resolve_logic_expression(logicExpression->binary.right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_AND) {
+			return resolve_logic_expression(logicExpression->binary.left) && resolve_logic_expression(logicExpression->binary.right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_ADD) {
+			return resolve_logic_expression(logicExpression->binary.left) + resolve_logic_expression(logicExpression->binary.right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_DIVISE) {
+			return resolve_logic_expression(logicExpression->binary.left) / resolve_logic_expression(logicExpression->binary.right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_EQUALS) {
+			return resolve_logic_expression(logicExpression->binary.left) == resolve_logic_expression(logicExpression->binary.right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_DIFFERS) {
+			return resolve_logic_expression(logicExpression->binary.left) != resolve_logic_expression(logicExpression->binary.right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_INFERIOR) {
+			return resolve_logic_expression(logicExpression->binary.left) < resolve_logic_expression(logicExpression->binary.right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_MULTIPLY) {
+			return resolve_logic_expression(logicExpression->binary.left) * resolve_logic_expression(logicExpression->binary.right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_MULTIPLY) {
+			return resolve_logic_expression(logicExpression->binary.left) * resolve_logic_expression(logicExpression->binary.right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_SUBTRACT) {
+			return resolve_logic_expression(logicExpression->binary.left) - resolve_logic_expression(logicExpression->binary.right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_SUPERIOR) {
+			return resolve_logic_expression(logicExpression->binary.left) > resolve_logic_expression(logicExpression->binary.right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_SUPERIOR_EQUALS) {
+			return resolve_logic_expression(logicExpression->binary.left) >= resolve_logic_expression(logicExpression->binary.right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_INFERIOR_EQUALS) {
+			return resolve_logic_expression(logicExpression->binary.left) <= resolve_logic_expression(logicExpression->binary.right);
+		} else {
+			error("unknown operation %d.", logicExpression->binary.operation);
+		}
+	} else if (logicExpression->type == LOGIC_EXPRESSION_GROUPING) {
+		return resolve_logic_expression(logicExpression->grouping.expression);
+	} else {
+		error("unknown logic expression type %d.", logicExpression->type);
+	}
+}
 
 void free_logic_expression(LogicExpression *logicExpression)
 {
@@ -61,10 +133,15 @@ void free_command(Command command)
 	free(command.arguments);
 }
 
+void free_sentence(Sentence sentence)
+{
+	buf_free(sentence.string);
+}
+
 void free_choice(Choice choice)
 {
-	buf_free(choice.sentence);
-	buf_free(choice.knotToGo);
+	free_sentence(choice.sentence);
+	free_command(choice.goToCommand);
 }
 
 void free_cue_condition(CueCondition cueCondition)
@@ -90,7 +167,7 @@ void free_cue_expression(CueExpression cueExpression)
 	} else if (cueExpression.type == CUE_EXPRESSION_COMMAND) {
 		free_command(cueExpression.command);
 	} else if (cueExpression.type == CUE_EXPRESSION_SENTENCE) {
-		buf_free(cueExpression.sentence);
+		free_sentence(cueExpression.sentence);
 	} else if (cueExpression.type == CUE_EXPRESSION_CUE_CONDITION) {
 		free_cue_condition(cueExpression.cueCondition);
 	}
@@ -160,11 +237,11 @@ void free_dialog(Dialog dialog)
 		buf_free(dialog.charactersNames[index]);
 	}
 	buf_free(dialog.charactersNames);
-	for (int index = 0; index < buf_len(dialog.charactersSprites); index++)
+	for (int index = 0; index < buf_len(dialog.charactersAnimatedSprites); index++)
     {
-		free_animated_sprite(dialog.charactersSprites[index]);
+		free_animated_sprite(dialog.charactersAnimatedSprites[index]);
 	}
-	buf_free(dialog.charactersSprites);
+	buf_free(dialog.charactersAnimatedSprites);
 	for (int index = 0; index < buf_len(dialog.knots); index++)
     {
 		free_knot(dialog.knots[index]);

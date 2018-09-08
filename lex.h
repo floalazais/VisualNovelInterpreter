@@ -3,6 +3,6 @@
 
 #include "token.h"
 
-Token *lex(char *_fileString);
+Token *lex(char *_filePath);
 
 #endif /* end of include guard: LEX_H */

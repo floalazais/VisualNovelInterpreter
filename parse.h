@@ -4,6 +4,6 @@
 #include "token.h"
 #include "dialog.h"
 
-Dialog parse(Token *_tokens);
+Dialog parse(char *_filePath, Token *_tokens);
 
 #endif /* end of include guard: PARSE_H */

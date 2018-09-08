@@ -14,6 +14,7 @@ typedef enum LexMode
 	LEX_MODE_CODE
 } LexMode;
 
+static char *filePath;
 static char *fileString;
 static Token *tokens;
 
@@ -27,7 +28,7 @@ static void step_in_source()
 {
     if (fileString[currentChar++] == '\0')
     {
-        error("stepped after end of file.");
+        error("in %s at line %d stepped after end of file.", filePath, currentLine);
     }
 }
 
@@ -55,7 +56,7 @@ static Token get_next_token()
 			{
 				currentIndentationLevel++;
 			} else {
-				error("tab character is reserved for indentation, its use in the middle of line %d is forbidden.", currentLine);
+				error("in %s at line %d tab character is reserved for indentation, its use in the middle of a line is forbidden.", filePath, currentLine);
 			}
         }
         step_in_source();
@@ -86,11 +87,10 @@ static Token get_next_token()
             steps_in_source(2);
             token.type = TOKEN_COMMAND;
 			token.text = NULL;
-			buf_add(token.text, 'G');
-			buf_add(token.text, 'O');
-			buf_add(token.text, '_');
-			buf_add(token.text, 'T');
-			buf_add(token.text, 'O');
+			for (int i = 0; i < strlen("GO_TO"); i++)
+			{
+				buf_add(token.text, "GO_TO"[i]);
+			}
 			buf_add(token.text, '\0');
         } else {
             step_in_source();
@@ -137,6 +137,10 @@ static Token get_next_token()
         steps_in_source(2);
         token.type = TOKEN_OR;
     } else if (fileString[currentChar] == '"') {
+		if (currentLexMode == LEX_MODE_TEXT)
+		{
+        	currentLexMode = LEX_MODE_CODE;
+		}
         step_in_source();
         char *string = NULL;
         char charToAdd;
@@ -155,9 +159,9 @@ static Token get_next_token()
             }
             if (fileString[currentChar] == '\0')
             {
-                error("unclosed string at line %d.", currentLine);
+                error("in %s at line %d unclosed string found.", filePath, currentLine);
             } else if (fileString[currentChar] == '\n') {
-                error("unclosed string at line %d.", currentLine);
+                error("in %s at line %d unclosed string found.", filePath, currentLine);
             } else {
                 charToAdd = fileString[currentChar];
                 step_in_source();
@@ -203,19 +207,19 @@ static Token get_next_token()
 	        token.type = TOKEN_COMMAND;
 	        token.text = command;
 		}
-    } else if (isdigit(fileString[currentChar] && currentLexMode == LEX_MODE_CODE)) {
+    } else if (isdigit(fileString[currentChar]) && currentLexMode == LEX_MODE_CODE) {
         char *begin = fileString + currentChar;
         char *end = begin;
         do {
             step_in_source();
             end++;
-        } while (isdigit(fileString[currentChar]));
+        } while (isdigit(fileString[currentChar]) || fileString[currentChar] == '.');
         token.type = TOKEN_NUMERIC;
         token.numeric = strtod(begin, &end);
     } else if (fileString[currentChar] == '\\') {
         if (currentLexMode == LEX_MODE_CODE)
         {
-            error("stray \\ at line %d.", currentLine);
+            error("in %s at line %d stray \\ found.", filePath, currentLine);
         }
         step_in_source();
         char *sentence = NULL;
@@ -258,14 +262,20 @@ static Token get_next_token()
             token.text = identifier;
         }
     } else {
-		error("unexpected char %c at line %d", fileString[currentChar], currentLine);
+		error("in %s at line %d unexpected char %c found.", fileString[currentChar], currentLine);
 	}
     return token;
 }
 
-Token *lex(char *_fileString)
+Token *lex(char *_filePath)
 {
-	fileString = _fileString;
+	currentLine = 1;
+	currentIndentationLevel = 0;
+	currentChar = 0;
+
+	currentLexMode = LEX_MODE_TEXT;
+	filePath = _filePath;
+	fileString = file_to_string(filePath);
 	tokens = NULL;
 
     Token token = get_next_token();
@@ -276,6 +286,8 @@ Token *lex(char *_fileString)
         token = get_next_token();
     }
 	buf_add(tokens, token);
+
+	free(fileString);
 
 	return tokens;
 }

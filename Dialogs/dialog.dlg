@@ -1,3 +1,5 @@
+#ASSIGN seven's_trust true
+
 #SET_BACKGROUND "First class cabin"::"piano"
 
 >"Junpei" LEFT
@@ -15,16 +17,16 @@
 >"Seven" RIGHT "laughing" RIGHT
 	Haha! Don't worry about them, they'll sure be fine!
 
->"Snake" LEFT "laughing" LEFT
+>"Snake" LEFT "smiling" LEFT
 	I'm pretty confident they're safe too.
 
 >"Junpei" LEFT
 	Well, let's get out of here and confirm this with our own eyes.
 
->"Snake" LEFT "surprised" LEFT
+>"Snake" LEFT "shocked" LEFT
 	Wait, what about that safe we didn't open ?
 
->"Seven" RIGHT "surprised" RIGHT
+>"Seven" RIGHT "shocked" RIGHT
 	I almost forgot it! We didn't need to open that safe to escape this room.
 
 #SET_BACKGROUND "First class cabin"::"safe room"
@@ -96,6 +98,7 @@
 		Junpei found his request weird.
 		Why would Seven need his help to check a room they already explored ?
 		The more he thought about it, the more he found Seven's behaviour strange.
+		He decided to...
 		-Go help Seven
 			->accept seven's proposition
 		-Search the bathroom
@@ -247,7 +250,7 @@
 #CLEAR_CHARACTER_POSITIONS
 #SET_BACKGROUND "First class cabin"::"escape door"
 
->"Snake" RIGHT "disappointed" CENTER
+>"Snake" RIGHT "disapproving" CENTER
 	Indeed, it was a waste of time..
 
 >"Junpei" LEFT

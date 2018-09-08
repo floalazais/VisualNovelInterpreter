@@ -20,4 +20,6 @@ void* sbuffer_create_or_grow_if_needed(void *buffer, size_t elementSize);
 
 #define buf_add(b, item) ((b) = sbuffer_create_or_grow_if_needed(b, sizeof(*b)), (b)[_buf_header(b)->count++] = item)
 
+//void buf_string_add(char *destination, char * source);
+
 #endif /* end of include guard: STRETCHY_BUFFER_H */
