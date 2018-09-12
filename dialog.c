@@ -1,5 +1,7 @@
 #include <stddef.h>
 
+#include <stdio.h>
+
 #include "stretchy_buffer.h"
 #include "dialog.h"
 #include "globals.h"
@@ -22,7 +24,7 @@ int nbArguments[] =
 
 double resolve_variable(char *variableName)
 {
-	for (int i = 0; i < buf_len(variablesNames); i++)
+	for (unsigned int i = 0; i < buf_len(variablesNames); i++)
 	{
 		if (strmatch(variablesNames[i], variableName))
 		{
@@ -126,9 +128,9 @@ void free_argument(Argument argument)
 
 void free_command(Command command)
 {
-	for (int index = 0; index < nbArguments[command.type]; index++)
+	for (int i = 0; i < nbArguments[command.type]; i++)
 	{
-		free_argument(command.arguments[index]);
+		free_argument(command.arguments[i]);
 	}
 	free(command.arguments);
 }
@@ -147,12 +149,12 @@ void free_choice(Choice choice)
 void free_cue_condition(CueCondition cueCondition)
 {
 	free_logic_expression(cueCondition.logicExpression);
-	for (int index = 0; index < buf_len(cueCondition.cueExpressionsIf); index++)
+	for (unsigned int index = 0; index < buf_len(cueCondition.cueExpressionsIf); index++)
 	{
 		free_cue_expression(cueCondition.cueExpressionsIf[index]);
 	}
 	buf_free(cueCondition.cueExpressionsIf);
-	for (int index = 0; index < buf_len(cueCondition.cueExpressionsElse); index++)
+	for (unsigned int index = 0; index < buf_len(cueCondition.cueExpressionsElse); index++)
 	{
 		free_cue_expression(cueCondition.cueExpressionsElse[index]);
 	}
@@ -176,7 +178,7 @@ void free_cue_expression(CueExpression cueExpression)
 void free_cue(Cue cue)
 {
 	buf_free(cue.characterName);
-	for (int index = 0; index < buf_len(cue.cueExpressions); index++)
+	for (unsigned int index = 0; index < buf_len(cue.cueExpressions); index++)
 	{
 		free_cue_expression(cue.cueExpressions[index]);
 	}
@@ -186,12 +188,12 @@ void free_cue(Cue cue)
 void free_knot_condition(KnotCondition knotCondition)
 {
 	free_logic_expression(knotCondition.logicExpression);
-	for (int index = 0; index < buf_len(knotCondition.knotExpressionsIf); index++)
+	for (unsigned int index = 0; index < buf_len(knotCondition.knotExpressionsIf); index++)
 	{
 		free_knot_expression(knotCondition.knotExpressionsIf[index]);
 	}
 	buf_free(knotCondition.knotExpressionsIf);
-	for (int index = 0; index < buf_len(knotCondition.knotExpressionsElse); index++)
+	for (unsigned int index = 0; index < buf_len(knotCondition.knotExpressionsElse); index++)
 	{
 		free_knot_expression(knotCondition.knotExpressionsElse[index]);
 	}
@@ -213,7 +215,7 @@ void free_knot_expression(KnotExpression knotExpression)
 void free_knot(Knot knot)
 {
 	buf_free(knot.name);
-	for (int index = 0; index < buf_len(knot.knotExpressions); index++)
+	for (unsigned int index = 0; index < buf_len(knot.knotExpressions); index++)
 	{
 		free_knot_expression(knot.knotExpressions[index]);
 	}
@@ -222,27 +224,28 @@ void free_knot(Knot knot)
 
 void free_dialog(Dialog dialog)
 {
-	for (int index = 0; index < buf_len(dialog.backgroundPacksNames); index++)
+	for (unsigned int index = 0; index < buf_len(dialog.backgroundPacksNames); index++)
     {
 		buf_free(dialog.backgroundPacksNames[index]);
 	}
 	buf_free(dialog.backgroundPacksNames);
-	for (int index = 0; index < buf_len(dialog.backgroundPacks); index++)
+	for (unsigned int index = 0; index < buf_len(dialog.backgroundPacks); index++)
     {
 		free_animated_sprite(dialog.backgroundPacks[index]);
 	}
 	buf_free(dialog.backgroundPacks);
-	for (int index = 0; index < buf_len(dialog.charactersNames); index++)
+	for (unsigned int index = 0; index < buf_len(dialog.charactersNames); index++)
     {
 		buf_free(dialog.charactersNames[index]);
 	}
 	buf_free(dialog.charactersNames);
-	for (int index = 0; index < buf_len(dialog.charactersAnimatedSprites); index++)
+	for (unsigned int index = 0; index < buf_len(dialog.charactersAnimatedSprites); index++)
     {
 		free_animated_sprite(dialog.charactersAnimatedSprites[index]);
 	}
 	buf_free(dialog.charactersAnimatedSprites);
-	for (int index = 0; index < buf_len(dialog.knots); index++)
+	fprintf(stderr, "wut\n");
+	for (unsigned int index = 0; index < buf_len(dialog.knots); index++)
     {
 		free_knot(dialog.knots[index]);
 	}

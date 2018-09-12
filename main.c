@@ -64,6 +64,7 @@ bool strmatch(char *a, char *b)
 }
 
 ivec2 windowDimensions = {.x = 1600, .y = 900};
+//ivec2 windowDimensions = {.x = 256, .y = 192};
 
 mat4 projection;
 
@@ -441,7 +442,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	projection = mat4_ortho(0, windowDimensions.x, windowDimensions.y, 0);
+	projection = mat4_ortho((float)(0), (float)(windowDimensions.x), (float)(windowDimensions.y), (float)(0));
 
 	init_graphics();
 	init_dialog_ui();
@@ -482,7 +483,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 			interpret(&dialog);
 			if (nextDialog)
 			{
-				for (int index = 0; index < buf_len(tokens); index++)
+				for (unsigned int index = 0; index < buf_len(tokens); index++)
 			    {
 			        free_token(tokens[index]);
 			    }

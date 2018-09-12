@@ -158,6 +158,7 @@ typedef struct Cue
 	int characterNamePosition;
     CueExpression *cueExpressions;
 	int currentExpression;
+	bool setCharacterInDeclaration;
 } Cue;
 
 struct KnotExpression;

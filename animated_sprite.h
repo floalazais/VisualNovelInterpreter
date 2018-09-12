@@ -6,6 +6,8 @@
 typedef struct AnimationPhase
 {
 	int textureId;
+	int width;
+	int height;
 	double length;
 } AnimationPhase;
 

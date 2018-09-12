@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <stdarg.h>
 
+#include <stdio.h>
+
 #include "parse.h"
 #include "xalloc.h"
 #include "stretchy_buffer.h"
@@ -25,7 +27,7 @@ static struct AnimatedSprite **backgroundPacksLoaded;
 void add_to_background_list(char *backgroundPackName)
 {
 	bool match = false;
-	for (int index = 0; index < buf_len(backgroundPacksUsed); index++)
+	for (unsigned int index = 0; index < buf_len(backgroundPacksUsed); index++)
 	{
 		if (strmatch(backgroundPackName, backgroundPacksUsed[index]))
 		{
@@ -46,7 +48,7 @@ static struct AnimatedSprite **charactersLoaded;
 void add_to_character_list(char *characterName)
 {
 	bool match = false;
-	for (int index = 0; index < buf_len(charactersUsed); index++)
+	for (unsigned int index = 0; index < buf_len(charactersUsed); index++)
 	{
 		if (strmatch(characterName, charactersUsed[index]))
 		{
@@ -118,12 +120,12 @@ static bool token_match_on_line(int line, int nb, ...)
     return match;
 }
 
-static LogicExpression *create_logic_expression_literal_int(int integer)
+static LogicExpression *create_logic_expression_literal_numeric(double value)
 {
 	LogicExpression *logicExpression = xmalloc(sizeof (*logicExpression));
 	logicExpression->type = LOGIC_EXPRESSION_LITERAL;
 	logicExpression->literal.type = LOGIC_EXPRESSION_LITERAL_NUMERIC;
-	logicExpression->literal.numeric = integer;
+	logicExpression->literal.numeric = value;
 	return logicExpression;
 }
 
@@ -178,7 +180,7 @@ static LogicExpression *parse_logic_expression_base(int line)
 {
 	LogicExpression *logicExpression;
 	if (token_match_on_line(line, 1, TOKEN_NUMERIC)) {
-		logicExpression = create_logic_expression_literal_int(tokens[currentToken].numeric);
+		logicExpression = create_logic_expression_literal_numeric(tokens[currentToken].numeric);
 	} else if (token_match_on_line(line, 1, TOKEN_STRING)) {
 		logicExpression = create_logic_expression_literal_string(tokens[currentToken].text);
 	} else if (token_match_on_line(line, 1, TOKEN_IDENTIFIER)) {
@@ -192,7 +194,7 @@ static LogicExpression *parse_logic_expression_base(int line)
 			error("in %s at line %d, expected close parenthesis token before %s token.", filePath, line, tokenStrings[tokens[currentToken].type]);
 		}
 	} else {
-		error("in %s at line %d, unexpected token %s in logic expression.", filePath, tokenStrings[tokens[currentToken].type], line);
+		error("in %s at line %d, unexpected token %s in logic expression.", filePath, line, tokenStrings[tokens[currentToken].type]);
 	}
 	step_in_tokens();
 	return logicExpression;
@@ -327,7 +329,7 @@ static int position_identifier_to_int(char *identifier, int line)
 	} else if (strmatch(identifier, "FULL_RIGHT")) {
 		return 6;
 	} else {
-		error("in %s at line %d, \"%s\" identifier is not a position identifier.", filePath, identifier, line);
+		error("in %s at line %d, \"%s\" identifier is not a position identifier.", filePath, line, identifier);
 	}
 }
 
@@ -348,7 +350,7 @@ static Command parse_command()
 			steps_in_tokens(3);
 			add_to_background_list(command.arguments[0].text);
 		} else {
-			error("in %s at line %d, bad argument for #%s command , usage is #%s background-pack-identifier::background-identifier.", filePath, tokens[currentToken - 1].text, tokens[currentToken - 1].line, tokens[currentToken - 1].text);
+			error("in %s at line %d, bad argument for #%s command , usage is #%s background-pack-identifier::background-identifier.", filePath, tokens[currentToken - 1].line, tokens[currentToken - 1].text, tokens[currentToken - 1].text);
 		}
 	} else if (strmatch(tokens[currentToken].text, "CLEAR_BACKGROUND")) {
 		step_in_tokens();
@@ -368,7 +370,7 @@ static Command parse_command()
 			steps_in_tokens(4);
 			add_to_character_list(command.arguments[1].text);
 		} else {
-			error("in %s at line %d, bad arguments for #%s command, usage is #%s position-identifier character-identifier::animation-identifier.", filePath, tokens[currentToken - 1].text, tokens[currentToken - 1].line, tokens[currentToken - 1].text);
+			error("in %s at line %d, bad arguments for #%s command, usage is #%s position-identifier character-identifier::animation-identifier.", filePath, tokens[currentToken - 1].line, tokens[currentToken - 1].text, tokens[currentToken - 1].text);
 		}
 	} else if (strmatch(tokens[currentToken].text, "CLEAR_CHARACTER_POSITION")) {
 		step_in_tokens();
@@ -380,7 +382,7 @@ static Command parse_command()
 			command.arguments[0].numeric = position_identifier_to_int(tokens[currentToken].text, tokens[currentToken - 1].line);
 			step_in_tokens();
 		} else {
-			error("in %s at line %d, bad argument for #%s command, expected position identifier token.", filePath, tokens[currentToken - 1].text, tokens[currentToken - 1].line);
+			error("in %s at line %d, bad argument for #%s command, expected position identifier token.", filePath, tokens[currentToken - 1].line, tokens[currentToken - 1].text);
 		}
 	} else if (strmatch(tokens[currentToken].text, "CLEAR_CHARACTER_POSITIONS")) {
 		step_in_tokens();
@@ -400,7 +402,7 @@ static Command parse_command()
 			command.arguments[1].type = PARAMETER_LOGIC_EXPRESSION;
 			command.arguments[1].logicExpression = parse_logic_expression(tokens[currentToken - 1].line);
 		} else {
-			error("in %s at line %d, bad arguments for #%s command, expected variable identifier token first.", filePath, tokens[currentToken - 1].text, tokens[currentToken - 1].line);
+			error("in %s at line %d, bad arguments for #%s command, expected variable identifier token first.", filePath, tokens[currentToken - 1].line, tokens[currentToken - 1].text);
 		}
 	} else if (strmatch(tokens[currentToken].text, "GO_TO")) {
 		step_in_tokens();
@@ -412,10 +414,10 @@ static Command parse_command()
 			command.arguments[0].text = tokens[currentToken].text;
 			step_in_tokens();
 		} else {
-			error("in %s at line %d, bad argument for #%s command, expected knot name token.", filePath, tokens[currentToken - 1].text, tokens[currentToken - 1].line);
+			error("in %s at line %d, bad argument for #%s command, expected knot name token.", filePath, tokens[currentToken - 1].line, tokens[currentToken - 1].text);
 		}
 	} else {
-		error("in %s at line %d, unknown command #%s found.", filePath, tokens[currentToken].text, tokens[currentToken].line);
+		error("in %s at line %d, unknown command #%s found.", filePath, tokens[currentToken].line, tokens[currentToken].text);
 	}
 	return command;
 }
@@ -443,7 +445,7 @@ static Choice parse_choice()
 	}
 	if (tokens[currentToken].indentationLevel != currentIndentationLevel + 1)
 	{
-		error("in %s at line %d, expected an indentation level of %d after a choice declaration, got an indentation level of %d instead.", filePath, currentIndentationLevel + 1, tokens[currentToken].line, tokens[currentToken].indentationLevel);
+		error("in %s at line %d, expected an indentation level of %d after a choice declaration, got an indentation level of %d instead.", filePath, tokens[currentToken].line, currentIndentationLevel + 1, tokens[currentToken].indentationLevel);
 	}
 	if (tokens[currentToken].line != tokens[currentToken + 1].line)
 	{
@@ -480,7 +482,11 @@ static CueCondition parse_cue_condition()
 	cueCondition.cueExpressionsIf = NULL;
 	while (tokens[currentToken].indentationLevel == currentIndentationLevel)
 	{
-		buf_add(cueCondition.cueExpressionsIf,  parse_cue_expression());
+		buf_add(cueCondition.cueExpressionsIf, parse_cue_expression());
+	}
+	if (!cueCondition.cueExpressionsIf)
+	{
+		error("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1].line);
 	}
 	currentIndentationLevel--;
 	if (tokens[currentToken].type == TOKEN_ELSE)
@@ -493,6 +499,10 @@ static CueCondition parse_cue_condition()
 			while (tokens[currentToken].indentationLevel == currentIndentationLevel)
 			{
 				buf_add(cueCondition.cueExpressionsElse, parse_cue_expression());
+			}
+			if (!cueCondition.cueExpressionsElse)
+			{
+				error("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1].line);
 			}
 			currentIndentationLevel--;
 		} else {
@@ -562,7 +572,7 @@ static Cue parse_cue()
 	} else {
 		if (!token_match(2, TOKEN_STRING, TOKEN_IDENTIFIER))
 		{
-			error("in %s at line %d, expected a speaker name identifier and a position identifier after \">\" speaker indicator token, found %s token instead.", filePath, tokenStrings[tokens[currentToken].type], tokens[currentToken - 1].line);
+			error("in %s at line %d, expected a speaker name identifier and a position identifier after \">\" speaker indicator token, found %s token instead.", filePath, tokens[currentToken].line, tokenStrings[tokens[currentToken].type]);
 		}
 		if (tokens[currentToken - 1].line != tokens[currentToken + 1].line)
 		{
@@ -574,11 +584,12 @@ static Cue parse_cue()
 
 		if (token_match_on_line(tokens[currentToken - 1].line, 2, TOKEN_STRING, TOKEN_IDENTIFIER))
 		{
+			cue.setCharacterInDeclaration = true;
 			CueExpression cueExpression;
 			cueExpression.type = CUE_EXPRESSION_COMMAND;
 			Command set_character_command;
 			set_character_command.type = COMMAND_SET_CHARACTER;
-			set_character_command.arguments = xmalloc(sizeof (*set_character_command.arguments) * 3);
+			set_character_command.arguments = xmalloc(sizeof (*set_character_command.arguments) * nbArguments[COMMAND_SET_CHARACTER]);
 			set_character_command.arguments[0].type = PARAMETER_NUMERIC;
 			set_character_command.arguments[0].numeric = position_identifier_to_int(tokens[currentToken + 1].text, tokens[currentToken - 1].line);
 			set_character_command.arguments[1].type = PARAMETER_STRING;
@@ -589,6 +600,8 @@ static Cue parse_cue()
 			buf_add(cue.cueExpressions, cueExpression);
 			steps_in_tokens(2);
 			add_to_character_list(set_character_command.arguments[1].text);
+		} else {
+			cue.setCharacterInDeclaration = false;
 		}
 	}
 
@@ -623,6 +636,10 @@ static KnotCondition parse_knot_condition()
 	{
 		buf_add(knotCondition.knotExpressionsIf, parse_knot_expression());
 	}
+	if (!knotCondition.knotExpressionsIf)
+	{
+		error("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1].line);
+	}
 	currentIndentationLevel--;
 	if (tokens[currentToken].type == TOKEN_ELSE)
 	{
@@ -635,6 +652,10 @@ static KnotCondition parse_knot_condition()
 			while (tokens[currentToken].indentationLevel == currentIndentationLevel)
 			{
 				buf_add(knotCondition.knotExpressionsElse, parse_knot_expression());
+			}
+			if (!knotCondition.knotExpressionsElse)
+			{
+				error("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1].line);
 			}
 			currentIndentationLevel--;
 		} else {
@@ -667,7 +688,6 @@ static KnotExpression parse_knot_expression()
 		knotExpression.type = KNOT_EXPRESSION_KNOT_CONDITION;
 		knotExpression.knotCondition = parse_knot_condition();
 	} else {
-		print_token(tokens[currentToken]);
 		error("in %s at line %d, expected a knot expression, got a %s token instead.", filePath, tokens[currentToken].line, tokenStrings[tokens[currentToken].type]);
 	}
 	return knotExpression;
@@ -682,7 +702,7 @@ static Knot parse_knot()
     {
         firstKnot = false;
     	knot.name = NULL;
-		for (int i = 0; i < strlen("start"); i++)
+		for (unsigned int i = 0; i < strlen("start"); i++)
 		{
 			buf_add(knot.name, "start"[i]);
 		}

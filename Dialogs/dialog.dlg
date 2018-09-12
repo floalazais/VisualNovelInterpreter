@@ -40,7 +40,7 @@
 >"Seven" RIGHT "thinking" RIGHT
 	Then we should've missed something in this room that will permit us to open this safe.
 
->"Snake" LEFT "thinking" LEFT
+>"Snake" LEFT
 	Or maybe we'll found the way to open that safe later.
 
 >
@@ -104,6 +104,7 @@
 		-Search the bathroom
 			->deny seven's proposition
 #ELSE
+	#ASSIGN knows_about_ninth_bracelet false
 	>
 		Junpei searched the bathroom for minutes without success.
 		->end of investigation
@@ -127,7 +128,7 @@
 >"Junpei" LEFT
 	Snake ?
 
->"Seven" RIGHT "idle" CENTER
+>"Seven" RIGHT
 	He may be blind, but he has sharp ears, he could have heard us in the hallway.
 
 >"Junpei" LEFT
@@ -141,9 +142,8 @@
 	Thanks, but why do I have your trust ?
 
 >"Seven" RIGHT "idle" CENTER
-	Well you followed me in this room despite I sounded suspicious, so I guess you trust me.
-	And you seems like a good boy, so I'll trust you.
-	In our situation, people on whom you can count are precious.
+	When you chose to get into door 5 in order to spare Clover to have to look at the ninth man corpse, you appeared to me like a good boy.
+	In our situation, people on whom you can count are precious, and you seem to be trustworthy, so I'll trust you.
 
 >
 	Junpei indeed felt relieved to consider this mountain as a potential ally.
@@ -151,7 +151,7 @@
 >"Junpei" LEFT
 	Well then, what do you want to share with me ?
 
->"Seven" RIGHT "idle" CENTER
+>"Seven" RIGHT
 	I want to share you all my love.
 
 >"Junpei" LEFT
@@ -195,11 +195,14 @@
 >"Junpei" LEFT
 	I'll ask you in case.
 	Thank you Seven.
+	
+>"Seven" RIGHT
+	Let's get back into the living room, I don't want Snake to find us here.
 
 #CLEAR_BACKGROUND
 
 >
-	Junpei and Seven went back to the living room.
+	On these words, Seven went back to the living room, followed by Junpei.
 
 #SET_BACKGROUND "First class cabin"::"living room"
 #SET_CHARACTER CENTER "Seven"::"idle static"
@@ -259,6 +262,10 @@
 >"Snake" RIGHT "smiling" CENTER
 	Indeed.
 
+#IF knows_about_ninth_bracelet
+	>
+		Junpei hoped that he didn't hear Seven and him talking in the living room.
+
 >"Seven" RIGHT "idle" CENTER
 	Well then don't waste time anymore, let's go.
 
@@ -285,3 +292,6 @@
 
 >
 	Intrigued by this safe, the three of them ran outside of the room, leading them further and further into the ship.
+	#IF knows_about_ninth_bracelet
+		Junpei asked himself if it was a good idea to not to tell Snake about the ninth bracelet.
+		He decided he'll think about it when Seven won't be around them.

@@ -71,7 +71,7 @@ AnimationPhase *parse_animation_phase()
 
 	if (token_match_on_line(tokens[currentToken].line, 2, TOKEN_STRING, TOKEN_NUMERIC))
 	{
-		animationPhase->textureId = get_texture_id_from_path(tokens[currentToken].text);
+		animationPhase->textureId = get_texture_id_from_path_ex(tokens[currentToken].text, &animationPhase->width, &animationPhase->height);
 		animationPhase->length = tokens[currentToken + 1].numeric;
 	} else {
 		error("in %s at line %d, invalid syntax for animation phase declaration, expected texture as a string followed by a length as a number, got %s and %s instead.", filePath, tokens[currentToken].line, tokenStrings[tokens[currentToken].type], tokenStrings[tokens[currentToken + 1].type]);
@@ -137,15 +137,15 @@ AnimatedSprite *create_animated_sprite(char *animatedSpriteName)
 
 	filePath = NULL;
 
-	for (int i = 0; i < strlen("Animation files/"); i++)
+	for (unsigned int i = 0; i < strlen("Animation files/"); i++)
 	{
 		buf_add(filePath, "Animation files/"[i]);
 	}
-	for (int i = 0; i < buf_len(animatedSpriteName) - 1; i++)
+	for (unsigned int i = 0; i < buf_len(animatedSpriteName) - 1; i++)
 	{
 		buf_add(filePath, animatedSpriteName[i]);
 	}
-	for (int i = 0; i < strlen(".anm"); i++)
+	for (unsigned int i = 0; i < strlen(".anm"); i++)
 	{
 		buf_add(filePath, ".anm"[i]);
 	}
@@ -189,7 +189,7 @@ void stop_animated_sprite(AnimatedSprite *animatedSprite)
 
 static void free_animation(Animation *animation)
 {
-	for (int i = 0; i < buf_len(animation->animationPhases); i++)
+	for (unsigned int i = 0; i < buf_len(animation->animationPhases); i++)
 	{
 		free(animation->animationPhases[i]);
 	}
@@ -199,12 +199,12 @@ static void free_animation(Animation *animation)
 
 void free_animated_sprite(AnimatedSprite *animatedSprite)
 {
-	for (int i = 0; i < buf_len(animatedSprite->animationsNames); i++)
+	for (unsigned int i = 0; i < buf_len(animatedSprite->animationsNames); i++)
 	{
 		buf_free(animatedSprite->animationsNames[i]);
 	}
 	buf_free(animatedSprite->animationsNames);
-	for (int i = 0; i < buf_len(animatedSprite->animations); i++)
+	for (unsigned int i = 0; i < buf_len(animatedSprite->animations); i++)
 	{
 		free_animation(animatedSprite->animations[i]);
 	}

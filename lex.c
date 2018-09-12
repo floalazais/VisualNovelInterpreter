@@ -87,7 +87,7 @@ static Token get_next_token()
             steps_in_source(2);
             token.type = TOKEN_COMMAND;
 			token.text = NULL;
-			for (int i = 0; i < strlen("GO_TO"); i++)
+			for (unsigned int i = 0; i < strlen("GO_TO"); i++)
 			{
 				buf_add(token.text, "GO_TO"[i]);
 			}
