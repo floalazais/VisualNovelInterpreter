@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 
+#include "token.h"
 #include "graphics.h"
 
 typedef enum LogicExpressionType
@@ -213,7 +214,7 @@ typedef struct Dialog
 
 double resolve_variable(char *variableName);
 bool resolve_logic_expression(LogicExpression *logicExpression);
-Dialog *create_dialog();
+Dialog *create_dialog(char *_filePath, Token **_tokens);
 void free_dialog(Dialog *dialog);
 void free_command(Command *command);
 

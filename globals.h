@@ -3,6 +3,7 @@
 #include "maths.h"
 #include "user_input.h"
 
+extern char *windowName;
 extern ivec2 windowDimensions;
 extern mat4 projection;
 extern float deltaTime;

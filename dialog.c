@@ -4,12 +4,11 @@
 
 #include "stretchy_buffer.h"
 #include "xalloc.h"
-#include "token.h"
 #include "globals.h"
 #include "dialog.h"
 
 static char *filePath;
-static Token *tokens;
+static Token **tokens;
 static Dialog *currentDialog;
 static int currentToken;
 static int currentIndentationLevel;
@@ -150,7 +149,7 @@ static LogicExpression *create_logic_expression_binary(LogicExpression *left, Lo
 
 static void step_in_tokens()
 {
-    if (tokens[currentToken++].type == TOKEN_END_OF_FILE)
+    if (tokens[currentToken++]->type == TOKEN_END_OF_FILE)
     {
         error("in %s stepped after end of tokens.", filePath);
     }
@@ -171,7 +170,7 @@ static bool token_match(int nb, ...)
 	va_start(arg, nb);
     for (int i = 0; i < nb; i++)
     {
-		if (tokens[currentToken + i].type != va_arg(arg, int))
+		if (tokens[currentToken + i]->type != va_arg(arg, int))
         {
             match = false;
             break;
@@ -188,7 +187,7 @@ static bool token_match_on_line(int line, int nb, ...)
 	va_start(arg, nb);
     for (int i = 0; i < nb; i++)
     {
-        if (tokens[currentToken + i].type != va_arg(arg, int) || tokens[currentToken + i].line != line)
+        if (tokens[currentToken + i]->type != va_arg(arg, int) || tokens[currentToken + i]->line != line)
         {
             match = false;
             break;
@@ -204,21 +203,21 @@ static LogicExpression *parse_logic_expression_base(int line)
 {
 	LogicExpression *logicExpression;
 	if (token_match_on_line(line, 1, TOKEN_NUMERIC)) {
-		logicExpression = create_logic_expression_literal_numeric(tokens[currentToken].numeric);
+		logicExpression = create_logic_expression_literal_numeric(tokens[currentToken]->numeric);
 	} else if (token_match_on_line(line, 1, TOKEN_STRING)) {
-		logicExpression = create_logic_expression_literal_string(tokens[currentToken].text);
+		logicExpression = create_logic_expression_literal_string(tokens[currentToken]->text);
 	} else if (token_match_on_line(line, 1, TOKEN_IDENTIFIER)) {
-		logicExpression = create_logic_expression_literal_identifier(tokens[currentToken].text);
+		logicExpression = create_logic_expression_literal_identifier(tokens[currentToken]->text);
 	} else if (token_match_on_line(line, 1, TOKEN_OPEN_PARENTHESIS)) {
 		LogicExpression *groupedLogicExpression = parse_logic_expression(line);
 		if (token_match_on_line(line, 1, TOKEN_CLOSE_PARENTHESIS))
 		{
 			logicExpression = create_logic_expression_grouping(groupedLogicExpression);
 		} else {
-			error("in %s at line %d, expected close parenthesis token before %s token.", filePath, line, tokenStrings[tokens[currentToken].type]);
+			error("in %s at line %d, expected close parenthesis token before %s token.", filePath, line, tokenStrings[tokens[currentToken]->type]);
 		}
 	} else {
-		error("in %s at line %d, unexpected token %s in logic expression.", filePath, line, tokenStrings[tokens[currentToken].type]);
+		error("in %s at line %d, unexpected token %s in logic expression.", filePath, line, tokenStrings[tokens[currentToken]->type]);
 	}
 	step_in_tokens();
 	return logicExpression;
@@ -241,13 +240,13 @@ static LogicExpression *parse_logic_expression_multiplication(int line)
 	while (token_match_on_line(line, 1, TOKEN_STAR) || token_match_on_line(line, 1, TOKEN_SLASH))
 	{
 		LogicExpressionBinaryOperation operation;
-		if (tokens[currentToken].type == TOKEN_STAR)
+		if (tokens[currentToken]->type == TOKEN_STAR)
 		{
 			operation = LOGIC_EXPRESSION_BINARY_MULTIPLY;
-		} else if (tokens[currentToken].type == TOKEN_SLASH) {
+		} else if (tokens[currentToken]->type == TOKEN_SLASH) {
 			operation = LOGIC_EXPRESSION_BINARY_DIVISE;
 		} else {
-			error("in %s at line %d, expected a multiplication or division operator token, got a %s token instead.", filePath, line, tokenStrings[tokens[currentToken].type]);
+			error("in %s at line %d, expected a multiplication or division operator token, got a %s token instead.", filePath, line, tokenStrings[tokens[currentToken]->type]);
 		}
 		step_in_tokens();
 		LogicExpression *right = parse_logic_expression_unary(line);
@@ -262,13 +261,13 @@ static LogicExpression *parse_logic_expression_addition(int line)
 	while (token_match_on_line(line, 1, TOKEN_PLUS) || token_match_on_line(line, 1, TOKEN_MINUS))
 	{
 		LogicExpressionBinaryOperation operation;
-		if (tokens[currentToken].type == TOKEN_PLUS)
+		if (tokens[currentToken]->type == TOKEN_PLUS)
 		{
 			operation = LOGIC_EXPRESSION_BINARY_ADD;
-		} else if (tokens[currentToken].type == TOKEN_MINUS) {
+		} else if (tokens[currentToken]->type == TOKEN_MINUS) {
 			operation = LOGIC_EXPRESSION_BINARY_SUBTRACT;
 		} else {
-			error("in %s at line %d, expected an addition or subtraction operator token, got a %s token instead.", filePath, line, tokenStrings[tokens[currentToken].type]);
+			error("in %s at line %d, expected an addition or subtraction operator token, got a %s token instead.", filePath, line, tokenStrings[tokens[currentToken]->type]);
 		}
 		step_in_tokens();
 		LogicExpression *right = parse_logic_expression_multiplication(line);
@@ -283,21 +282,21 @@ static LogicExpression *parse_logic_expression_comparison(int line)
 	while (token_match_on_line(line, 1, TOKEN_EQUALS) || token_match_on_line(line, 1, TOKEN_DIFFERS) || token_match_on_line(line, 1, TOKEN_INFERIOR_EQUALS) || token_match_on_line(line, 1, TOKEN_INFERIOR) || token_match_on_line(line, 1, TOKEN_SUPERIOR_EQUALS) || token_match_on_line(line, 1, TOKEN_SUPERIOR))
 	{
 		LogicExpressionBinaryOperation operation;
-		if (tokens[currentToken].type == TOKEN_EQUALS)
+		if (tokens[currentToken]->type == TOKEN_EQUALS)
 		{
 			operation = LOGIC_EXPRESSION_BINARY_EQUALS;
-		} else if (tokens[currentToken].type == TOKEN_DIFFERS) {
+		} else if (tokens[currentToken]->type == TOKEN_DIFFERS) {
 			operation = LOGIC_EXPRESSION_BINARY_DIFFERS;
-		} else if (tokens[currentToken].type == TOKEN_INFERIOR_EQUALS) {
+		} else if (tokens[currentToken]->type == TOKEN_INFERIOR_EQUALS) {
 			operation = LOGIC_EXPRESSION_BINARY_INFERIOR_EQUALS;
-		} else if (tokens[currentToken].type == TOKEN_INFERIOR) {
+		} else if (tokens[currentToken]->type == TOKEN_INFERIOR) {
 			operation = LOGIC_EXPRESSION_BINARY_INFERIOR;
-		} else if (tokens[currentToken].type == TOKEN_SUPERIOR_EQUALS) {
+		} else if (tokens[currentToken]->type == TOKEN_SUPERIOR_EQUALS) {
 			operation = LOGIC_EXPRESSION_BINARY_SUPERIOR_EQUALS;
-		} else if (tokens[currentToken].type == TOKEN_SUPERIOR) {
+		} else if (tokens[currentToken]->type == TOKEN_SUPERIOR) {
 			operation = LOGIC_EXPRESSION_BINARY_SUPERIOR;
 		} else {
-			error("in %s at line %d, expected a comparison operator token, got a %s token instead.", filePath, line, tokenStrings[tokens[currentToken].type]);
+			error("in %s at line %d, expected a comparison operator token, got a %s token instead.", filePath, line, tokenStrings[tokens[currentToken]->type]);
 		}
 		step_in_tokens();
 		LogicExpression *right = parse_logic_expression_addition(line);
@@ -394,6 +393,7 @@ static void add_to_background_list(char *backgroundPackName)
 		buf_add(animationFilePath, '\0');
 		set_animations_to_animated_sprite(newBackgroundPack, animationFilePath);
 		buf_add(currentDialog->backgroundPacks, newBackgroundPack);
+		buf_free(animationFilePath);
 	}
 }
 
@@ -429,6 +429,7 @@ static void add_to_character_list(char *characterName)
 		}
 		buf_add(animationFilePath, '\0');
 		set_animations_to_animated_sprite(currentDialog->charactersSprites[buf_len(currentDialog->charactersSprites) - 1], animationFilePath);
+		buf_free(animationFilePath);
 	}
 }
 
@@ -452,9 +453,9 @@ static Command *parse_command()
 {
 	Command *command = xmalloc(sizeof (*command));
 
-	if (strmatch(tokens[currentToken].text, "SET_BACKGROUND")) {
+	if (strmatch(tokens[currentToken]->text, "SET_BACKGROUND")) {
 		step_in_tokens();
-		if (token_match_on_line(tokens[currentToken - 1].line, 3, TOKEN_STRING, TOKEN_SCOPE, TOKEN_STRING))
+		if (token_match_on_line(tokens[currentToken - 1]->line, 3, TOKEN_STRING, TOKEN_SCOPE, TOKEN_STRING))
 		{
 			command->type = COMMAND_SET_BACKGROUND;
 			command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
@@ -463,24 +464,25 @@ static Command *parse_command()
 				command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 			}
 			command->arguments[0]->type = PARAMETER_STRING;
-			command->arguments[0]->text = tokens[currentToken].text;
+			command->arguments[0]->text = tokens[currentToken]->text;
 			command->arguments[1]->type = PARAMETER_STRING;
-			command->arguments[1]->text = tokens[currentToken + 2].text;
+			command->arguments[1]->text = tokens[currentToken + 2]->text;
 			steps_in_tokens(3);
 			add_to_background_list(command->arguments[0]->text);
 		} else {
-			error("in %s at line %d, bad argument for #%s command , usage is #%s background-pack-identifier::background-identifier.", filePath, tokens[currentToken - 1].line, tokens[currentToken - 1].text, tokens[currentToken - 1].text);
+			error("in %s at line %d, bad argument for #%s command , usage is #%s background-pack-identifier::background-identifier.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->text, tokens[currentToken - 1]->text);
 		}
-	} else if (strmatch(tokens[currentToken].text, "CLEAR_BACKGROUND")) {
+	} else if (strmatch(tokens[currentToken]->text, "CLEAR_BACKGROUND")) {
 		step_in_tokens();
 		command->type = COMMAND_CLEAR_BACKGROUND;
+		command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
 		for (int i = 0; i < nbArguments[COMMAND_CLEAR_BACKGROUND]; i++)
 		{
 			command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 		}
-	} else if (strmatch(tokens[currentToken].text, "SET_CHARACTER")) {
+	} else if (strmatch(tokens[currentToken]->text, "SET_CHARACTER")) {
 		step_in_tokens();
-		if (token_match_on_line(tokens[currentToken - 1].line, 4, TOKEN_IDENTIFIER, TOKEN_STRING, TOKEN_SCOPE, TOKEN_STRING))
+		if (token_match_on_line(tokens[currentToken - 1]->line, 4, TOKEN_IDENTIFIER, TOKEN_STRING, TOKEN_SCOPE, TOKEN_STRING))
 		{
 			command->type = COMMAND_SET_CHARACTER;
 			command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
@@ -489,19 +491,19 @@ static Command *parse_command()
 				command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 			}
 			command->arguments[0]->type = PARAMETER_NUMERIC;
-			command->arguments[0]->numeric = position_identifier_to_int(tokens[currentToken].text, tokens[currentToken - 1].line);
+			command->arguments[0]->numeric = position_identifier_to_int(tokens[currentToken]->text, tokens[currentToken - 1]->line);
 			command->arguments[1]->type = PARAMETER_STRING;
-			command->arguments[1]->text = tokens[currentToken + 1].text;
+			command->arguments[1]->text = tokens[currentToken + 1]->text;
 			command->arguments[2]->type = PARAMETER_STRING;
-			command->arguments[2]->text = tokens[currentToken + 3].text;
+			command->arguments[2]->text = tokens[currentToken + 3]->text;
 			steps_in_tokens(4);
 			add_to_character_list(command->arguments[1]->text);
 		} else {
-			error("in %s at line %d, bad arguments for #%s command, usage is #%s position-identifier character-identifier::animation-identifier.", filePath, tokens[currentToken - 1].line, tokens[currentToken - 1].text, tokens[currentToken - 1].text);
+			error("in %s at line %d, bad arguments for #%s command, usage is #%s position-identifier character-identifier::animation-identifier.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->text, tokens[currentToken - 1]->text);
 		}
-	} else if (strmatch(tokens[currentToken].text, "CLEAR_CHARACTER_POSITION")) {
+	} else if (strmatch(tokens[currentToken]->text, "CLEAR_CHARACTER_POSITION")) {
 		step_in_tokens();
-		if (token_match_on_line(tokens[currentToken - 1].line, 1, TOKEN_IDENTIFIER))
+		if (token_match_on_line(tokens[currentToken - 1]->line, 1, TOKEN_IDENTIFIER))
 		{
 			command->type = COMMAND_CLEAR_CHARACTER_POSITION;
 			command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
@@ -510,36 +512,38 @@ static Command *parse_command()
 				command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 			}
 			command->arguments[0]->type = PARAMETER_NUMERIC;
-			command->arguments[0]->numeric = position_identifier_to_int(tokens[currentToken].text, tokens[currentToken - 1].line);
+			command->arguments[0]->numeric = position_identifier_to_int(tokens[currentToken]->text, tokens[currentToken - 1]->line);
 			step_in_tokens();
 		} else {
-			error("in %s at line %d, bad argument for #%s command, expected position identifier token.", filePath, tokens[currentToken - 1].line, tokens[currentToken - 1].text);
+			error("in %s at line %d, bad argument for #%s command, expected position identifier token.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->text);
 		}
-	} else if (strmatch(tokens[currentToken].text, "CLEAR_CHARACTER_POSITIONS")) {
+	} else if (strmatch(tokens[currentToken]->text, "CLEAR_CHARACTER_POSITIONS")) {
 		step_in_tokens();
 		command->type = COMMAND_CLEAR_CHARACTER_POSITIONS;
+		command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
 		for (int i = 0; i < nbArguments[COMMAND_CLEAR_CHARACTER_POSITIONS]; i++)
 		{
 			command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 		}
-	} else if (strmatch(tokens[currentToken].text, "END")) {
+	} else if (strmatch(tokens[currentToken]->text, "END")) {
 		step_in_tokens();
 		command->type = COMMAND_END;
+		command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
 		for (int i = 0; i < nbArguments[COMMAND_END]; i++)
 		{
 			command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 		}
 		command->arguments[0]->type = PARAMETER_STRING;
-		if (token_match_on_line(tokens[currentToken - 1].line, 1, TOKEN_STRING))
+		if (token_match_on_line(tokens[currentToken - 1]->line, 1, TOKEN_STRING))
 		{
-			command->arguments[0]->text = tokens[currentToken].text;
+			command->arguments[0]->text = tokens[currentToken]->text;
 			step_in_tokens();
 		} else {
 			command->arguments[0]->text = NULL;
 		}
-	} else if (strmatch(tokens[currentToken].text, "ASSIGN")) {
+	} else if (strmatch(tokens[currentToken]->text, "ASSIGN")) {
 		step_in_tokens();
-		if (token_match_on_line(tokens[currentToken - 1].line, 1, TOKEN_IDENTIFIER))
+		if (token_match_on_line(tokens[currentToken - 1]->line, 1, TOKEN_IDENTIFIER))
 		{
 			command->type = COMMAND_ASSIGN;
 			command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
@@ -548,16 +552,16 @@ static Command *parse_command()
 				command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 			}
 			command->arguments[0]->type = PARAMETER_IDENTIFIER;
-			command->arguments[0]->text = tokens[currentToken].text;
+			command->arguments[0]->text = tokens[currentToken]->text;
 			step_in_tokens();
 			command->arguments[1]->type = PARAMETER_LOGIC_EXPRESSION;
-			command->arguments[1]->logicExpression = parse_logic_expression(tokens[currentToken - 1].line);
+			command->arguments[1]->logicExpression = parse_logic_expression(tokens[currentToken - 1]->line);
 		} else {
-			error("in %s at line %d, bad arguments for #%s command, expected variable identifier token first.", filePath, tokens[currentToken - 1].line, tokens[currentToken - 1].text);
+			error("in %s at line %d, bad arguments for #%s command, expected variable identifier token first.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->text);
 		}
-	} else if (strmatch(tokens[currentToken].text, "GO_TO")) {
+	} else if (strmatch(tokens[currentToken]->text, "GO_TO")) {
 		step_in_tokens();
-		if (token_match_on_line(tokens[currentToken - 1].line, 1, TOKEN_SENTENCE))
+		if (token_match_on_line(tokens[currentToken - 1]->line, 1, TOKEN_SENTENCE))
 		{
 			command->type = COMMAND_GO_TO;
 			command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
@@ -566,13 +570,13 @@ static Command *parse_command()
 				command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 			}
 			command->arguments[0]->type = PARAMETER_STRING;
-			command->arguments[0]->text = tokens[currentToken].text;
+			command->arguments[0]->text = tokens[currentToken]->text;
 			step_in_tokens();
 		} else {
-			error("in %s at line %d, bad argument for #%s command, expected knot name token.", filePath, tokens[currentToken - 1].line, tokens[currentToken - 1].text);
+			error("in %s at line %d, bad argument for #%s command, expected knot name token.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->text);
 		}
 	} else {
-		error("in %s at line %d, unknown command #%s found.", filePath, tokens[currentToken].line, tokens[currentToken].text);
+		error("in %s at line %d, unknown command #%s found.", filePath, tokens[currentToken]->line, tokens[currentToken]->text);
 	}
 	return command;
 }
@@ -581,33 +585,33 @@ static Choice *parse_choice()
 {
 	Choice *choice = xmalloc(sizeof (*choice));
 
-	if (tokens[currentToken + 1].type != TOKEN_SENTENCE)
+	if (tokens[currentToken + 1]->type != TOKEN_SENTENCE)
 	{
-		error("in %s at line %d, expected sentence after \"-\" choice indicator, got a %s token instead.", filePath, tokens[currentToken - 1].line, tokenStrings[tokens[currentToken].type]);
+		error("in %s at line %d, expected sentence after \"-\" choice indicator, got a %s token instead.", filePath, tokens[currentToken - 1]->line, tokenStrings[tokens[currentToken]->type]);
 	}
-	if (tokens[currentToken].line != tokens[currentToken + 1].line)
+	if (tokens[currentToken]->line != tokens[currentToken + 1]->line)
 	{
-		error("in %s at line %d, the \"-\" choice indicator and its corresponding sentence must be on the same line.", filePath, tokens[currentToken - 1].line);
+		error("in %s at line %d, the \"-\" choice indicator and its corresponding sentence must be on the same line.", filePath, tokens[currentToken - 1]->line);
 	}
 	steps_in_tokens(2);
 	if (!token_match(2, TOKEN_COMMAND, TOKEN_SENTENCE))
 	{
-		error("in %s at line %d, expected a \"->\" go to indicator and a sentence after a choice declaration.", filePath, tokens[currentToken].line);
+		error("in %s at line %d, expected a \"->\" go to indicator and a sentence after a choice declaration.", filePath, tokens[currentToken]->line);
 	}
-	if (!strmatch(tokens[currentToken].text, "GO_TO"))
+	if (!strmatch(tokens[currentToken]->text, "GO_TO"))
 	{
-		error("in %s at line %d, expected \"->\" go to indicator and sentence after a choice declaration, got a %s token instead.", filePath, tokens[currentToken].line, tokenStrings[tokens[currentToken].type]);
+		error("in %s at line %d, expected \"->\" go to indicator and sentence after a choice declaration, got a %s token instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type]);
 	}
-	if (tokens[currentToken].indentationLevel != currentIndentationLevel + 1)
+	if (tokens[currentToken]->indentationLevel != currentIndentationLevel + 1)
 	{
-		error("in %s at line %d, expected an indentation level of %d after a choice declaration, got an indentation level of %d instead.", filePath, tokens[currentToken].line, currentIndentationLevel + 1, tokens[currentToken].indentationLevel);
+		error("in %s at line %d, expected an indentation level of %d after a choice declaration, got an indentation level of %d instead.", filePath, tokens[currentToken]->line, currentIndentationLevel + 1, tokens[currentToken]->indentationLevel);
 	}
-	if (tokens[currentToken].line != tokens[currentToken + 1].line)
+	if (tokens[currentToken]->line != tokens[currentToken + 1]->line)
 	{
-		error("in %s at line %d, the \"->\" go to indicator and its corresponding sentence must be on the same line.", filePath, tokens[currentToken + 1].line);
+		error("in %s at line %d, the \"->\" go to indicator and its corresponding sentence must be on the same line.", filePath, tokens[currentToken + 1]->line);
 	}
 	choice->sentence = xmalloc(sizeof (*choice->sentence));
-	choice->sentence->string = tokens[currentToken - 1].text;
+	choice->sentence->string = tokens[currentToken - 1]->text;
 	choice->sentence->currentChar = 0;
 	choice->goToCommand = xmalloc(sizeof (*choice->goToCommand));
 	choice->goToCommand->type = COMMAND_GO_TO;
@@ -617,7 +621,7 @@ static Choice *parse_choice()
 		choice->goToCommand->arguments[i] = xmalloc(sizeof (*choice->goToCommand->arguments[i]));
 	}
 	choice->goToCommand->arguments[0]->type = PARAMETER_STRING;
-	choice->goToCommand->arguments[0]->text = tokens[currentToken + 1].text;
+	choice->goToCommand->arguments[0]->text = tokens[currentToken + 1]->text;
 	steps_in_tokens(2);
 	return choice;
 }
@@ -630,7 +634,7 @@ static CueCondition *parse_cue_condition()
 
 	step_in_tokens();
 
-	cueCondition->logicExpression = parse_logic_expression(tokens[currentToken - 1].line);
+	cueCondition->logicExpression = parse_logic_expression(tokens[currentToken - 1]->line);
 
 	cueCondition->resolved = false;
 
@@ -639,33 +643,33 @@ static CueCondition *parse_cue_condition()
 	currentIndentationLevel++;
 
 	cueCondition->cueExpressionsIf = NULL;
-	while (tokens[currentToken].indentationLevel == currentIndentationLevel)
+	while (tokens[currentToken]->indentationLevel == currentIndentationLevel && tokens[currentToken]->type != TOKEN_END_OF_FILE)
 	{
 		buf_add(cueCondition->cueExpressionsIf, parse_cue_expression());
 	}
 	if (!cueCondition->cueExpressionsIf)
 	{
-		error("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1].line);
+		error("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1]->line);
 	}
 	currentIndentationLevel--;
 	cueCondition->cueExpressionsElse = NULL;
-	if (tokens[currentToken].type == TOKEN_ELSE)
+	if (tokens[currentToken]->type == TOKEN_ELSE)
 	{
-		if (tokens[currentToken].indentationLevel == currentIndentationLevel && tokens[currentToken].line != tokens[currentToken - 1].line)
+		if (tokens[currentToken]->indentationLevel == currentIndentationLevel && tokens[currentToken]->line != tokens[currentToken - 1]->line)
 		{
 			currentIndentationLevel++;
 
-			while (tokens[currentToken].indentationLevel == currentIndentationLevel)
+			while (tokens[currentToken]->indentationLevel == currentIndentationLevel && tokens[currentToken]->type != TOKEN_END_OF_FILE)
 			{
 				buf_add(cueCondition->cueExpressionsElse, parse_cue_expression());
 			}
 			if (!cueCondition->cueExpressionsElse)
 			{
-				error("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1].line);
+				error("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1]->line);
 			}
 			currentIndentationLevel--;
 		} else {
-			error("in %s at line %d, token \"else\" must have the same indentation level as its corresponding \"if\" token.", filePath, tokens[currentToken].line);
+			error("in %s at line %d, token \"else\" must have the same indentation level as its corresponding \"if\" token.", filePath, tokens[currentToken]->line);
 		}
 	}
 	return cueCondition;
@@ -675,42 +679,42 @@ static CueExpression *parse_cue_expression()
 {
 	CueExpression *cueExpression = xmalloc(sizeof (*cueExpression));
 
-	if (tokens[currentToken - 1].line == tokens[currentToken].line)
+	if (tokens[currentToken - 1]->line == tokens[currentToken]->line)
 	{
-		error("in %s at line %d, current expression is followed by a %s token on the same line.", filePath, tokens[currentToken - 1].line, tokenStrings[tokens[currentToken].type]);
+		error("in %s at line %d, current expression is followed by a %s token on the same line.", filePath, tokens[currentToken - 1]->line, tokenStrings[tokens[currentToken]->type]);
 	}
-	if (tokens[currentToken].type == TOKEN_COMMAND)
+	if (tokens[currentToken]->type == TOKEN_COMMAND)
 	{
 		if (currentCueMode == CUE_MODE_SENTENCE)
 		{
 			cueExpression->type = CUE_EXPRESSION_COMMAND;
 			cueExpression->command = parse_command();
 		} else {
-			error("in %s at line %d, found command after a choice.", filePath, tokens[currentToken].line);
+			error("in %s at line %d, found command after a choice.", filePath, tokens[currentToken]->line);
 		}
-	} else if (tokens[currentToken].type == TOKEN_MINUS) {
+	} else if (tokens[currentToken]->type == TOKEN_MINUS) {
 		if (currentCueMode == CUE_MODE_SENTENCE)
 		{
 			currentCueMode = CUE_MODE_CHOICE;
 		}
 		cueExpression->type = CUE_EXPRESSION_CHOICE;
 		cueExpression->choice = parse_choice();
-	} else if (tokens[currentToken].type == TOKEN_SENTENCE) {
+	} else if (tokens[currentToken]->type == TOKEN_SENTENCE) {
 		if (currentCueMode == CUE_MODE_SENTENCE)
 		{
 			cueExpression->type = CUE_EXPRESSION_SENTENCE;
 			cueExpression->sentence = xmalloc(sizeof (*cueExpression->sentence));
-			cueExpression->sentence->string = tokens[currentToken].text;
+			cueExpression->sentence->string = tokens[currentToken]->text;
 			cueExpression->sentence->currentChar = 0;
 			step_in_tokens();
 		} else {
-			error("in %s at line %d, found sentence after a choice.", filePath, tokens[currentToken].line);
+			error("in %s at line %d, found sentence after a choice.", filePath, tokens[currentToken]->line);
 		}
-	} else if (tokens[currentToken].type == TOKEN_IF) {
+	} else if (tokens[currentToken]->type == TOKEN_IF) {
 		cueExpression->type = CUE_EXPRESSION_CUE_CONDITION;
 		cueExpression->cueCondition = parse_cue_condition();
 	} else {
-		error("in %s at line %d, expected a cue expression, got a %s token instead.", filePath, tokens[currentToken].line, tokenStrings[tokens[currentToken].type]);
+		error("in %s at line %d, expected a cue expression, got a %s token instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type]);
 	}
 	return cueExpression;
 }
@@ -726,23 +730,23 @@ static Cue *parse_cue()
 	cue->cueExpressions = NULL;
 
 	step_in_tokens();
-	if (tokens[currentToken - 1].line != tokens[currentToken].line)
+	if (tokens[currentToken - 1]->line != tokens[currentToken]->line)
 	{
 		cue->characterName = NULL;
 	} else {
 		if (!token_match(2, TOKEN_STRING, TOKEN_IDENTIFIER))
 		{
-			error("in %s at line %d, expected a speaker name identifier and a position identifier after \">\" speaker indicator token, found %s token instead.", filePath, tokens[currentToken].line, tokenStrings[tokens[currentToken].type]);
+			error("in %s at line %d, expected a speaker name identifier and a position identifier after \">\" speaker indicator token, found %s token instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type]);
 		}
-		if (tokens[currentToken - 1].line != tokens[currentToken + 1].line)
+		if (tokens[currentToken - 1]->line != tokens[currentToken + 1]->line)
 		{
-			error("in %s at line %d, the speaker name identifier and the position identifier must be on the same line as their corresponding \">\" speaker indicator token.", filePath, tokens[currentToken].line);
+			error("in %s at line %d, the speaker name identifier and the position identifier must be on the same line as their corresponding \">\" speaker indicator token.", filePath, tokens[currentToken]->line);
 		}
-		cue->characterName = tokens[currentToken].text;
-		cue->characterNamePosition = position_identifier_to_int(tokens[currentToken + 1].text, tokens[currentToken - 1].line);
+		cue->characterName = tokens[currentToken]->text;
+		cue->characterNamePosition = position_identifier_to_int(tokens[currentToken + 1]->text, tokens[currentToken - 1]->line);
 		steps_in_tokens(2);
 
-		if (token_match_on_line(tokens[currentToken - 1].line, 2, TOKEN_STRING, TOKEN_IDENTIFIER))
+		if (token_match_on_line(tokens[currentToken - 1]->line, 2, TOKEN_STRING, TOKEN_IDENTIFIER))
 		{
 			cue->setCharacterInDeclaration = true;
 			CueExpression *cueExpression = xmalloc(sizeof (*cueExpression));
@@ -755,11 +759,11 @@ static Cue *parse_cue()
 				set_character_command->arguments[i] = xmalloc(sizeof (*set_character_command->arguments[i]));
 			}
 			set_character_command->arguments[0]->type = PARAMETER_NUMERIC;
-			set_character_command->arguments[0]->numeric = position_identifier_to_int(tokens[currentToken + 1].text, tokens[currentToken - 1].line);
+			set_character_command->arguments[0]->numeric = position_identifier_to_int(tokens[currentToken + 1]->text, tokens[currentToken - 1]->line);
 			set_character_command->arguments[1]->type = PARAMETER_STRING;
-			set_character_command->arguments[1]->text = tokens[currentToken - 2].text;
+			set_character_command->arguments[1]->text = tokens[currentToken - 2]->text;
 			set_character_command->arguments[2]->type = PARAMETER_STRING;
-			set_character_command->arguments[2]->text = tokens[currentToken].text;
+			set_character_command->arguments[2]->text = tokens[currentToken]->text;
 			cueExpression->command = set_character_command;
 			buf_add(cue->cueExpressions, cueExpression);
 			steps_in_tokens(2);
@@ -771,7 +775,7 @@ static Cue *parse_cue()
 
 	currentIndentationLevel++;
 
-	while (tokens[currentToken].indentationLevel == currentIndentationLevel)
+	while (tokens[currentToken]->indentationLevel == currentIndentationLevel && tokens[currentToken]->type != TOKEN_END_OF_FILE)
 	{
 		buf_add(cue->cueExpressions, parse_cue_expression());
 	}
@@ -787,41 +791,41 @@ static KnotCondition *parse_knot_condition()
 
 	step_in_tokens();
 
-	knotCondition->logicExpression = parse_logic_expression(tokens[currentToken - 1].line);
+	knotCondition->logicExpression = parse_logic_expression(tokens[currentToken - 1]->line);
 	knotCondition->resolved = false;
 	knotCondition->currentExpression = 0;
 
 	currentIndentationLevel++;
 
 	knotCondition->knotExpressionsIf = NULL;
-	while (tokens[currentToken].indentationLevel == currentIndentationLevel)
+	while (tokens[currentToken]->indentationLevel == currentIndentationLevel && tokens[currentToken]->type != TOKEN_END_OF_FILE)
 	{
 		buf_add(knotCondition->knotExpressionsIf, parse_knot_expression());
 	}
 	if (!knotCondition->knotExpressionsIf)
 	{
-		error("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1].line);
+		error("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1]->line);
 	}
 	currentIndentationLevel--;
 	knotCondition->knotExpressionsElse = NULL;
-	if (tokens[currentToken].type == TOKEN_ELSE)
+	if (tokens[currentToken]->type == TOKEN_ELSE)
 	{
-		if (tokens[currentToken].indentationLevel == currentIndentationLevel && tokens[currentToken].line != tokens[currentToken - 1].line)
+		if (tokens[currentToken]->indentationLevel == currentIndentationLevel && tokens[currentToken]->line != tokens[currentToken - 1]->line)
 		{
 			step_in_tokens();
 			currentIndentationLevel++;
 
-			while (tokens[currentToken].indentationLevel == currentIndentationLevel)
+			while (tokens[currentToken]->indentationLevel == currentIndentationLevel && tokens[currentToken]->type != TOKEN_END_OF_FILE)
 			{
 				buf_add(knotCondition->knotExpressionsElse, parse_knot_expression());
 			}
 			if (!knotCondition->knotExpressionsElse)
 			{
-				error("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1].line);
+				error("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1]->line);
 			}
 			currentIndentationLevel--;
 		} else {
-			error("in %s at line %d, token \"else\" must have the same indentation level as its corresponding \"if\" token.", filePath, tokens[currentToken].line);
+			error("in %s at line %d, token \"else\" must have the same indentation level as its corresponding \"if\" token.", filePath, tokens[currentToken]->line);
 		}
 	}
 	return knotCondition;
@@ -831,26 +835,26 @@ static KnotExpression *parse_knot_expression()
 {
 	KnotExpression *knotExpression = xmalloc(sizeof (*knotExpression));
 
-	if (tokens[currentToken - 1].line == tokens[currentToken].line)
+	if (tokens[currentToken - 1]->line == tokens[currentToken]->line)
 	{
-		error("in %s at line %d, current expression is followed by a %s token on the same line.", filePath, tokens[currentToken - 1].line, tokenStrings[tokens[currentToken].type]);
+		error("in %s at line %d, current expression is followed by a %s token on the same line.", filePath, tokens[currentToken - 1]->line, tokenStrings[tokens[currentToken]->type]);
 	}
-	if (tokens[currentToken].indentationLevel != currentIndentationLevel)
+	if (tokens[currentToken]->indentationLevel != currentIndentationLevel)
 	{
-		error("in %s at line %d, indentation level is %d, expected an indentation level of %d.", filePath, tokens[currentToken].line, tokens[currentToken].indentationLevel, currentIndentationLevel);
+		error("in %s at line %d, indentation level is %d, expected an indentation level of %d.", filePath, tokens[currentToken]->line, tokens[currentToken]->indentationLevel, currentIndentationLevel);
 	}
-	if (tokens[currentToken].type == TOKEN_COMMAND)
+	if (tokens[currentToken]->type == TOKEN_COMMAND)
 	{
 		knotExpression->type = KNOT_EXPRESSION_COMMAND;
 		knotExpression->command = parse_command();
-	} else if (tokens[currentToken].type == TOKEN_SUPERIOR) {
+	} else if (tokens[currentToken]->type == TOKEN_SUPERIOR) {
 		knotExpression->type = KNOT_EXPRESSION_CUE;
 		knotExpression->cue = parse_cue();
-	} else if (tokens[currentToken].type == TOKEN_IF) {
+	} else if (tokens[currentToken]->type == TOKEN_IF) {
 		knotExpression->type = KNOT_EXPRESSION_KNOT_CONDITION;
 		knotExpression->knotCondition = parse_knot_condition();
 	} else {
-		error("in %s at line %d, expected a knot expression, got a %s token instead.", filePath, tokens[currentToken].line, tokenStrings[tokens[currentToken].type]);
+		error("in %s at line %d, expected a knot expression, got a %s token instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type]);
 	}
 	return knotExpression;
 }
@@ -871,28 +875,28 @@ static Knot *parse_knot()
 		}
 		buf_add(knot->name, '\0');
     } else {
-        if (tokens[currentToken].type == TOKEN_KNOT)
+        if (tokens[currentToken]->type == TOKEN_KNOT)
         {
-			if (tokens[currentToken].indentationLevel != 0)
+			if (tokens[currentToken]->indentationLevel != 0)
 			{
-				error("in %s at line %d, knot declarations must have an indentation level of 0, indentation level is %d.", filePath, tokens[currentToken].line, tokens[currentToken].indentationLevel);
+				error("in %s at line %d, knot declarations must have an indentation level of 0, indentation level is %d.", filePath, tokens[currentToken]->line, tokens[currentToken]->indentationLevel);
 			}
-			knot->name = tokens[currentToken].text;
+			knot->name = tokens[currentToken]->text;
 			step_in_tokens();
         } else {
-			error("in %s at line %d, expected knot token, got a %s token instead.", filePath, tokens[currentToken].line, tokenStrings[tokens[currentToken].type]);
+			error("in %s at line %d, expected knot token, got a %s token instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type]);
 		}
     }
 
 	knot->knotExpressions = NULL;
-	while (tokens[currentToken].type != TOKEN_KNOT && tokens[currentToken].type != TOKEN_END_OF_FILE)
+	while (tokens[currentToken]->type != TOKEN_KNOT && tokens[currentToken]->type != TOKEN_END_OF_FILE)
 	{
 		buf_add(knot->knotExpressions, parse_knot_expression());
 	}
 	return knot;
 }
 
-Dialog *create_dialog(char *_filePath, Token *_tokens)
+Dialog *create_dialog(char *_filePath, Token **_tokens)
 {
 	filePath = _filePath;
 	tokens = _tokens;
@@ -905,6 +909,16 @@ Dialog *create_dialog(char *_filePath, Token *_tokens)
 
 	currentCueMode = CUE_MODE_SENTENCE;
 
+	if (strmatch(filePath, "Dialogs/start.dlg"))
+	{
+		if (token_match(1, TOKEN_SENTENCE))
+		{
+			windowName = tokens[currentToken]->text;
+			step_in_tokens();
+		} else {
+			error("expected game name at beginning of start.dlg, got %s token instead.", tokenStrings[tokens[currentToken]->type]);
+		}
+	}
 
 	dialog->backgroundPacksNames = NULL;
 	dialog->backgroundPacks = NULL;
@@ -913,12 +927,19 @@ Dialog *create_dialog(char *_filePath, Token *_tokens)
 	dialog->charactersSprites = NULL;
 
 	dialog->knots = NULL;
-    while (tokens[currentToken].type != TOKEN_END_OF_FILE)
+    while (tokens[currentToken]->type != TOKEN_END_OF_FILE)
     {
         buf_add(dialog->knots, parse_knot());
     }
 	dialog->currentKnot = 0;
 	dialog->end = false;
+
+	for (unsigned int index = 0; index < buf_len(tokens); index++)
+	{
+		free_token(tokens[index]);
+	}
+	buf_free(tokens);
+
 	return dialog;
 }
 
@@ -1067,21 +1088,11 @@ static void free_knot(Knot *knot)
 
 void free_dialog(Dialog *dialog)
 {
-	for (unsigned int index = 0; index < buf_len(dialog->backgroundPacksNames); index++)
-    {
-		buf_free(dialog->backgroundPacksNames[index]);
-	}
-	buf_free(dialog->backgroundPacksNames);
 	for (unsigned int index = 0; index < buf_len(dialog->backgroundPacks); index++)
     {
 		free_sprite(dialog->backgroundPacks[index]);
 	}
 	buf_free(dialog->backgroundPacks);
-	for (unsigned int index = 0; index < buf_len(dialog->charactersNames); index++)
-    {
-		buf_free(dialog->charactersNames[index]);
-	}
-	buf_free(dialog->charactersNames);
 	for (unsigned int index = 0; index < buf_len(dialog->charactersSprites); index++)
     {
 		free_sprite(dialog->charactersSprites[index]);

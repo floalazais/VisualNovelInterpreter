@@ -10,7 +10,7 @@
 #include "graphics.h"
 
 static char *filePath;
-static Token *tokens;
+static Token **tokens;
 static int currentToken;
 
 static Sprite **backgroundSprites;
@@ -169,7 +169,7 @@ Sprite *create_sprite(SpriteType spriteType)
 
 static void step_in_tokens()
 {
-    if (tokens[currentToken++].type == TOKEN_END_OF_FILE)
+    if (tokens[currentToken++]->type == TOKEN_END_OF_FILE)
     {
         error("in %s stepped after end of tokens.", filePath);
     }
@@ -190,7 +190,7 @@ static bool token_match(int nb, ...)
 	va_start(arg, nb);
     for (int i = 0; i < nb; i++)
     {
-		if (tokens[currentToken + i].type != va_arg(arg, int))
+		if (tokens[currentToken + i]->type != va_arg(arg, int))
         {
             match = false;
             break;
@@ -207,7 +207,7 @@ static bool token_match_on_line(int line, int nb, ...)
 	va_start(arg, nb);
     for (int i = 0; i < nb; i++)
     {
-        if (tokens[currentToken + i].type != va_arg(arg, int) || tokens[currentToken + i].line != line)
+        if (tokens[currentToken + i]->type != va_arg(arg, int) || tokens[currentToken + i]->line != line)
         {
             match = false;
             break;
@@ -221,17 +221,17 @@ AnimationPhase *parse_animation_phase()
 {
 	AnimationPhase *animationPhase = xmalloc(sizeof (*animationPhase));
 
-	if (token_match_on_line(tokens[currentToken].line, 2, TOKEN_STRING, TOKEN_NUMERIC))
+	if (token_match_on_line(tokens[currentToken]->line, 2, TOKEN_STRING, TOKEN_NUMERIC))
 	{
-		animationPhase->textureId = get_texture_id_from_path(tokens[currentToken].text, &animationPhase->width, &animationPhase->height);
-		animationPhase->length = tokens[currentToken + 1].numeric;
+		animationPhase->textureId = get_texture_id_from_path(tokens[currentToken]->text, &animationPhase->width, &animationPhase->height);
+		animationPhase->length = tokens[currentToken + 1]->numeric;
 	} else {
-		error("in %s at line %d, invalid syntax for animation phase declaration, expected texture as a string followed by a length as a number, got %s and %s instead.", filePath, tokens[currentToken].line, tokenStrings[tokens[currentToken].type], tokenStrings[tokens[currentToken + 1].type]);
+		error("in %s at line %d, invalid syntax for animation phase declaration, expected texture as a string followed by a length as a number, got %s and %s instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type], tokenStrings[tokens[currentToken + 1]->type]);
 	}
 	steps_in_tokens(2);
-	if (tokens[currentToken - 1].line == tokens[currentToken].line && tokens[currentToken].type != TOKEN_END_OF_FILE)
+	if (tokens[currentToken - 1]->line == tokens[currentToken]->line && tokens[currentToken]->type != TOKEN_END_OF_FILE)
 	{
-		error("in %s at line %d, expected end of line after animation phase declaration.", filePath, tokens[currentToken].line);
+		error("in %s at line %d, expected end of line after animation phase declaration.", filePath, tokens[currentToken]->line);
 	}
 	return animationPhase;
 }
@@ -240,38 +240,38 @@ Animation *parse_animation()
 {
 	Animation *animation = xmalloc(sizeof (*animation));
 
-	if (tokens[currentToken].indentationLevel != 0)
+	if (tokens[currentToken]->indentationLevel != 0)
 	{
-		error("in %s at line %d, indentation level of animation name must be 0, the indentation level is %d.", filePath, tokens[currentToken].line, tokens[currentToken].indentationLevel);
+		error("in %s at line %d, indentation level of animation name must be 0, the indentation level is %d.", filePath, tokens[currentToken]->line, tokens[currentToken]->indentationLevel);
 	}
-	if (token_match_on_line(tokens[currentToken].line, 2, TOKEN_STRING, TOKEN_IDENTIFIER))
+	if (token_match_on_line(tokens[currentToken]->line, 2, TOKEN_STRING, TOKEN_IDENTIFIER))
 	{
-		animation->name = tokens[currentToken].text;
-		if (strmatch(tokens[currentToken + 1].text, "loop"))
+		animation->name = tokens[currentToken]->text;
+		if (strmatch(tokens[currentToken + 1]->text, "loop"))
 		{
 			animation->looping = true;
 		} else {
-			error("in %s at line %d, expected optional \"loop\" identifier or nothing after animation name, got %s identifier instead.", filePath, tokens[currentToken].line, tokens[currentToken + 1].text);
+			error("in %s at line %d, expected optional \"loop\" identifier or nothing after animation name, got %s identifier instead.", filePath, tokens[currentToken]->line, tokens[currentToken + 1]->text);
 		}
 		steps_in_tokens(2);
 	} else if (token_match(1, TOKEN_STRING)) {
-		animation->name = tokens[currentToken].text;
+		animation->name = tokens[currentToken]->text;
 		animation->looping = false;
 		step_in_tokens();
 	} else {
-		error("in %s at line %d, expected animation name as a string, got a %s token instead.", filePath, tokens[currentToken].line, tokenStrings[tokens[currentToken].type]);
+		error("in %s at line %d, expected animation name as a string, got a %s token instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type]);
 	}
 
-	if (tokens[currentToken - 1].line == tokens[currentToken].line)
+	if (tokens[currentToken - 1]->line == tokens[currentToken]->line)
 	{
-		error("in %s at line %d, expected end of line after animation declaration.", filePath, tokens[currentToken].line);
+		error("in %s at line %d, expected end of line after animation declaration.", filePath, tokens[currentToken]->line);
 	}
-	if (tokens[currentToken].indentationLevel != 1)
+	if (tokens[currentToken]->indentationLevel != 1)
 	{
-		error("in %s at line %d, expected indentation level of 1 for animation phases declarations after animation declaration, got an indentation level of %d instead.", filePath, tokens[currentToken].line, tokens[currentToken].indentationLevel);
+		error("in %s at line %d, expected indentation level of 1 for animation phases declarations after animation declaration, got an indentation level of %d instead.", filePath, tokens[currentToken]->line, tokens[currentToken]->indentationLevel);
 	}
 	animation->animationPhases = NULL;
-	while (tokens[currentToken].indentationLevel == 1 && tokens[currentToken].type != TOKEN_END_OF_FILE)
+	while (tokens[currentToken]->indentationLevel == 1 && tokens[currentToken]->type != TOKEN_END_OF_FILE)
 	{
 		buf_add(animation->animationPhases, parse_animation_phase());
 	}
@@ -310,11 +310,17 @@ void set_animations_to_animated_sprite(Sprite *sprite, char *animationFilePath)
 	}
 	buf_free(sprite->animations);
 	sprite->animations = NULL;
-	while (tokens[currentToken].type != TOKEN_END_OF_FILE)
+	while (tokens[currentToken]->type != TOKEN_END_OF_FILE)
 	{
 		buf_add(sprite->animations, parse_animation());
 	}
 	sprite->currentAnimation = 0;
+
+	for (unsigned int index = 0; index < buf_len(tokens); index++)
+	{
+		free_token(tokens[index]);
+	}
+	buf_free(tokens);
 }
 
 void free_sprite(Sprite *sprite)

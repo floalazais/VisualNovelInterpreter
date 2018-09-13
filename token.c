@@ -36,30 +36,30 @@ const char *tokenStrings[] =
     [TOKEN_SUPERIOR_EQUALS] = "superior equals"
 };
 
-void print_token(Token token)
+void print_token(Token *token)
 {
-	printf("%s", tokenStrings[token.type]);
-	if (token.type == TOKEN_NUMERIC)
+	printf("%s", tokenStrings[token->type]);
+	if (token->type == TOKEN_NUMERIC)
 	{
-		printf(" : \"%f\"", token.numeric);
-	} else if (token.type == TOKEN_IDENTIFIER) {
-		printf(" : \"%s\"", token.text);
-	} else if (token.type == TOKEN_STRING) {
-		printf(" : \"%s\"", token.text);
-	} else if (token.type == TOKEN_SENTENCE) {
-		printf(" : \"%s\"", token.text);
-	} else if (token.type == TOKEN_COMMAND) {
-		printf(" : \"%s\"", token.text);
-	} else if (token.type == TOKEN_KNOT) {
-		printf(" : \"%s\"", token.text);
+		printf(" : \"%f\"", token->numeric);
+	} else if (token->type == TOKEN_IDENTIFIER) {
+		printf(" : \"%s\"", token->text);
+	} else if (token->type == TOKEN_STRING) {
+		printf(" : \"%s\"", token->text);
+	} else if (token->type == TOKEN_SENTENCE) {
+		printf(" : \"%s\"", token->text);
+	} else if (token->type == TOKEN_COMMAND) {
+		printf(" : \"%s\"", token->text);
+	} else if (token->type == TOKEN_KNOT) {
+		printf(" : \"%s\"", token->text);
 	}
 	printf("\n");
 }
 
-void free_token(Token token)
+void free_token(Token *token)
 {
-	if (token.type == TOKEN_COMMAND)
+	if (token->type == TOKEN_COMMAND)
 	{
-		buf_free(token.text);
+		buf_free(token->text);
 	}
 }

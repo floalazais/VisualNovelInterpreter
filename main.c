@@ -62,6 +62,7 @@ bool strmatch(char *a, char *b)
 	return !strcmp(a, b);
 }
 
+char *windowName;
 ivec2 windowDimensions = {.x = 1600, .y = 900};
 
 mat4 projection;
@@ -291,7 +292,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 		error("could not register window class.");
 	}
 
-	window = CreateWindowEx(0, windowClass.lpszClassName, "Visual Novel Interpreter Window", WS_OVERLAPPEDWINDOW | WS_VISIBLE | WS_POPUP, 0, 0, windowDimensions.x, windowDimensions.y, NULL, NULL, hInstance, NULL);
+	window = CreateWindowEx(0, windowClass.lpszClassName, NULL, (WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME) | WS_VISIBLE | WS_POPUP, 0, 0, windowDimensions.x, windowDimensions.y, NULL, NULL, hInstance, NULL);
 	if (!window)
 	{
 		error("could not create window.");
@@ -341,6 +342,13 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	SetFocus(window);
 	SetActiveWindow(window);
 	EnableWindow(window, TRUE);
+
+	HCURSOR hCursor = LoadCursor(NULL, IDC_ARROW);
+	if (!hCursor)
+	{
+		error("could not load system arrow cursor.");
+	}
+    SetCursor(hCursor);
 
 	PIXELFORMATDESCRIPTOR dummyPixelFormatDescriptor =
 	{
@@ -445,8 +453,13 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	init_graphics();
 	init_dialog_ui();
 
-	Token *tokens = lex("Dialogs/dialog.dlg");
-	Dialog *dialog = create_dialog("Dialogs/dialog.dlg", tokens);
+	Token **tokens = lex("Dialogs/start.dlg");
+	Dialog *dialog = create_dialog("Dialogs/start.dlg", tokens);
+
+	if (!SetWindowTextA(window, windowName))
+	{
+		error("could not set the game name to the window.");
+	}
 
 	/*vec2 position = {.x = 0.0f, .y = 0.0f};
 	vec3 color = {.x = 0.3f, .y = 0.5f, .z = 0.8f};
@@ -460,6 +473,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	{
 		update_delta_time();
 		update_input_keys();
+
+	    SetCursor(hCursor);
 
 		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 		{
@@ -481,14 +496,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 			interpret(dialog);
 			if (nextDialog)
 			{
-				for (unsigned int index = 0; index < buf_len(tokens); index++)
-			    {
-			        free_token(tokens[index]);
-			    }
-			    buf_free(tokens);
 				free_dialog(dialog);
 				tokens = lex(nextDialog);
 				dialog = create_dialog(nextDialog, tokens);
+				buf_free(nextDialog);
 				nextDialog = NULL;
 			}
 		} else {

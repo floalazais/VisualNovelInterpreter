@@ -3,10 +3,11 @@
 
 #include <stdio.h>
 
-#include "interpret.h"
 #include "graphics.h"
 #include "globals.h"
 #include "stretchy_buffer.h"
+#include "xalloc.h"
+#include "interpret.h"
 
 static Dialog *currentDialog = NULL;
 
@@ -152,9 +153,16 @@ static void process_command(Command *command)
 		moving = true;
 		if (command->arguments[0]->text)
 		{
-			nextDialog = command->arguments[0]->text;
-		} else {
-			nextDialog = NULL;
+			char *prefix = "Dialogs/";
+			for (unsigned int i = 0; i < strlen(prefix); i++)
+			{
+				buf_add(nextDialog, prefix[i]);
+			}
+			for (unsigned int i = 0; i < strlen(command->arguments[0]->text); i++)
+			{
+				buf_add(nextDialog, command->arguments[0]->text[i]);
+			}
+			buf_add(nextDialog, '\0');
 		}
 	} else if (command->type == COMMAND_ASSIGN) {
 		for (unsigned int i = 0; i < buf_len(variablesNames); i++)
@@ -469,10 +477,6 @@ static bool update_cue(Cue *cue)
 			choiceMarker->position.y = currentChoices[currentChoice]->position.y + ((currentChoices[currentChoice]->height - choiceMarker->height) / 2) - currentChoices[currentChoice]->font->descent;
 		} else if (is_input_key_pressed(INPUT_KEY_ENTER)) {
 			process_command(goToCommands[currentChoice]);
-			for (unsigned int i = 0; i < buf_len(goToCommands); i++)
-			{
-				free_command(goToCommands[i]);
-			}
 			buf_free(goToCommands);
 			goToCommands = NULL;
 			cue->currentExpression = 0;

@@ -43,8 +43,8 @@ typedef struct Token
 
 extern const char *tokenStrings[];
 
-void print_token(Token token);
+void print_token(Token *token);
 
-void free_token(Token token);
+void free_token(Token *token);
 
 #endif /* end of include guard: TOKEN_H */
