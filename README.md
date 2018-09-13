@@ -1,1 +1,1 @@
-# VisualNovelInterpreter
+# Visual Novel Interpreter
