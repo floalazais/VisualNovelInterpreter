@@ -6,11 +6,31 @@
 #include "stb_truetype.h"
 #include "maths.h"
 
+typedef struct AnimationPhase
+{
+	int textureId;
+	int width;
+	int height;
+	double length;
+} AnimationPhase;
+
+typedef struct Animation
+{
+	char *name;
+	AnimationPhase **animationPhases;
+	int currentAnimationPhase;
+	double timeDuringCurrentAnimationPhase;
+	bool looping;
+	bool updating;
+	bool stopping;
+} Animation;
+
 typedef enum SpriteType
 {
 	SPRITE_COLOR,
 	SPRITE_TEXTURE,
-	SPRITE_GLYPH
+	SPRITE_GLYPH,
+	SPRITE_ANIMATED
 } SpriteType;
 
 typedef struct Sprite
@@ -21,6 +41,8 @@ typedef struct Sprite
 	int height;
 	vec3 color;
 	unsigned int textureId;
+	Animation **animations;
+	int currentAnimation;
 } Sprite;
 
 typedef struct Glyph
@@ -65,9 +87,10 @@ typedef enum TextSize
 	TEXT_SIZE_HUGE = 128
 } TextSize;
 
-unsigned int get_texture_id_from_path(char *texturePath);
-unsigned int get_texture_id_from_path_ex(char *texturePath, int *width, int *height);
+unsigned int get_texture_id_from_path(char *texturePath, int *width, int *height);
 Sprite *create_sprite(SpriteType spriteType);
+void set_animations_to_animated_sprite(Sprite *sprite, char *animationFilePath);
+void free_sprite(Sprite *sprite);
 Text *create_text();
 void set_position_to_text(Text *text, ivec2 position);
 void set_font_to_text(Text *text, char *fontPath, int textHeight);

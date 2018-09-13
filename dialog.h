@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#include "animated_sprite.h"
+#include "graphics.h"
 
 typedef enum LogicExpressionType
 {
@@ -41,6 +41,8 @@ typedef enum LogicExpressionBinaryOperation
 	LOGIC_EXPRESSION_BINARY_DIFFERS,
 } LogicExpressionBinaryOperation;
 
+typedef struct LogicExpression LogicExpression;
+
 typedef struct LogicExpression
 {
 	LogicExpressionType type;
@@ -55,19 +57,19 @@ typedef struct LogicExpression
 		struct
 		{
 			LogicExpressionUnaryType type;
-			struct LogicExpression *expression;
+			LogicExpression *expression;
 		} unary;
 
 		struct
 		{
-			struct LogicExpression *left;
+			LogicExpression *left;
 			LogicExpressionBinaryOperation operation;
-			struct LogicExpression *right;
+			LogicExpression *right;
 		} binary;
 
 		struct
 		{
-			struct LogicExpression *expression;
+			LogicExpression *expression;
 		} grouping;
 	};
 } LogicExpression;
@@ -105,7 +107,7 @@ typedef struct Argument
 typedef struct Command
 {
     CommandType type;
-    Argument *arguments;
+    Argument **arguments;
 } Command;
 
 typedef struct Sentence
@@ -116,19 +118,19 @@ typedef struct Sentence
 
 typedef struct Choice
 {
-    Sentence sentence;
-	Command goToCommand;
+    Sentence *sentence;
+	Command *goToCommand;
 } Choice;
 
-struct CueExpression;
+typedef struct CueExpression CueExpression;
 
 typedef struct CueCondition
 {
 	LogicExpression *logicExpression;
 	bool resolved;
 	bool result;
-	struct CueExpression *cueExpressionsIf;
-	struct CueExpression *cueExpressionsElse;
+	CueExpression **cueExpressionsIf;
+	CueExpression **cueExpressionsElse;
 	int currentExpression;
 } CueCondition;
 
@@ -145,10 +147,10 @@ typedef struct CueExpression
     CueExpressionType type;
     union
     {
-        Sentence sentence;
-        Choice choice;
-        Command command;
-        CueCondition cueCondition;
+        Sentence *sentence;
+        Choice *choice;
+        Command *command;
+        CueCondition *cueCondition;
     };
 } CueExpression;
 
@@ -156,20 +158,20 @@ typedef struct Cue
 {
     char *characterName;
 	int characterNamePosition;
-    CueExpression *cueExpressions;
+    CueExpression **cueExpressions;
 	int currentExpression;
 	bool setCharacterInDeclaration;
 } Cue;
 
-struct KnotExpression;
+typedef struct KnotExpression KnotExpression;
 
 typedef struct KnotCondition
 {
     LogicExpression *logicExpression;
 	bool resolved;
 	bool result;
-    struct KnotExpression *knotExpressionsIf;
-    struct KnotExpression *knotExpressionsElse;
+    KnotExpression **knotExpressionsIf;
+    KnotExpression **knotExpressionsElse;
 	int currentExpression;
 } KnotCondition;
 
@@ -185,58 +187,34 @@ typedef struct KnotExpression
     KnotExpressionType type;
     union
     {
-        Cue cue;
-        Command command;
-        KnotCondition knotCondition;
+        Cue *cue;
+        Command *command;
+        KnotCondition *knotCondition;
     };
 } KnotExpression;
 
 typedef struct Knot
 {
 	char *name;
-    KnotExpression *knotExpressions;
+    KnotExpression **knotExpressions;
 	int currentExpression;
 } Knot;
 
 typedef struct Dialog
 {
     char **backgroundPacksNames;
-    struct AnimatedSprite **backgroundPacks;
+    Sprite **backgroundPacks;
     char **charactersNames;
-    struct AnimatedSprite **charactersAnimatedSprites;
-    Knot *knots;
+    Sprite **charactersSprites;
+    Knot **knots;
     int currentKnot;
 	bool end;
 } Dialog;
 
-extern int nbArguments[];
-
 double resolve_variable(char *variableName);
-
 bool resolve_logic_expression(LogicExpression *logicExpression);
-
-void free_logic_expression(LogicExpression *logicExpression);
-
-void free_argument(Argument argument);
-
-void free_command(Command command);
-
-void free_sentence(Sentence sentence);
-
-void free_choice(Choice choice);
-
-void free_cue_condition(CueCondition cueCondition);
-
-void free_cue_expression(CueExpression cueExpression);
-
-void free_cue(Cue cue);
-
-void free_knot_condition(KnotCondition knotCondition);
-
-void free_knot_expression(KnotExpression knotExpression);
-
-void free_knot(Knot knot);
-
-void free_dialog(Dialog dialog);
+Dialog *create_dialog();
+void free_dialog(Dialog *dialog);
+void free_command(Command *command);
 
 #endif /* end of include guard: DIALOG_H */

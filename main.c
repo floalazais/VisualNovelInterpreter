@@ -11,7 +11,6 @@
 #include "gl.h"
 #include "graphics.h"
 #include "lex.h"
-#include "parse.h"
 #include "interpret.h"
 
 static HWND window;
@@ -447,7 +446,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	init_dialog_ui();
 
 	Token *tokens = lex("Dialogs/dialog.dlg");
-	Dialog dialog = parse("Dialogs/dialog.dlg", tokens);
+	Dialog *dialog = create_dialog("Dialogs/dialog.dlg", tokens);
 
 	/*vec2 position = {.x = 0.0f, .y = 0.0f};
 	vec3 color = {.x = 0.3f, .y = 0.5f, .z = 0.8f};
@@ -479,7 +478,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 		if (!gameEnd)
 		{
-			interpret(&dialog);
+			interpret(dialog);
 			if (nextDialog)
 			{
 				for (unsigned int index = 0; index < buf_len(tokens); index++)
@@ -489,7 +488,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 			    buf_free(tokens);
 				free_dialog(dialog);
 				tokens = lex(nextDialog);
-				dialog = parse(nextDialog, tokens);
+				dialog = create_dialog(nextDialog, tokens);
 				nextDialog = NULL;
 			}
 		} else {

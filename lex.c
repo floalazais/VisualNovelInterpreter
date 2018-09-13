@@ -87,9 +87,10 @@ static Token get_next_token()
             steps_in_source(2);
             token.type = TOKEN_COMMAND;
 			token.text = NULL;
-			for (unsigned int i = 0; i < strlen("GO_TO"); i++)
+			char *commandLabel = "GO_TO";
+			for (unsigned int i = 0; i < strlen(commandLabel); i++)
 			{
-				buf_add(token.text, "GO_TO"[i]);
+				buf_add(token.text, commandLabel[i]);
 			}
 			buf_add(token.text, '\0');
         } else {

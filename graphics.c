@@ -2,20 +2,25 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 
 #include "gl.h"
-#include "graphics.h"
 #include "stretchy_buffer.h"
 #include "xalloc.h"
 #include "globals.h"
 #include "stb_image.h"
+#include "lex.h"
+#include "graphics.h"
 
-static Sprite **backgroundSprites = NULL;
-static Sprite **middlegroundSprites = NULL;
-static Sprite **foregroundSprites = NULL;
-static Sprite **UISprites = NULL;
+static char *filePath;
+static Token *tokens;
+static int currentToken;
 
-static unsigned int VAO;
-static unsigned int VBO;
-static const float QUAD[24] =
+static Sprite **backgroundSprites;
+static Sprite **middlegroundSprites;
+static Sprite **foregroundSprites;
+static Sprite **UISprites;
+
+static unsigned int vao;
+static unsigned int vbo;
+static const float quad[24] =
 {
     0.0f, 1.0f, 0.0f, 1.0f,
     1.0f, 0.0f, 1.0f, 0.0f,
@@ -68,13 +73,18 @@ static unsigned int link_shaders(unsigned int vertexShaderId, unsigned int fragm
 
 void init_graphics()
 {
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
+	backgroundSprites = NULL;
+	middlegroundSprites = NULL;
+	foregroundSprites = NULL;
+	UISprites = NULL;
 
-    glBindVertexArray(VAO);
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof (GLfloat) * 24, QUAD, GL_STATIC_DRAW);
+    glBindVertexArray(vao);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof (GLfloat) * 24, quad, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof (GLfloat), (GLvoid*)0);
@@ -91,7 +101,7 @@ void init_graphics()
 	glyphShaderProgramId = link_shaders(vertexShaderId, glyphFragmentShaderId);
 }
 
-unsigned int get_texture_id_from_path(char *texturePath)
+unsigned int get_texture_id_from_path(char *texturePath, int *_width, int *_height)
 {
 	unsigned int textureId;
     glGenTextures(1, &textureId);
@@ -102,39 +112,23 @@ unsigned int get_texture_id_from_path(char *texturePath)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    int textureWidth;
-	int textureHeight;
+	int width;
+	int height;
 	int nrChannels;
-    unsigned char *data = stbi_load(texturePath, &textureWidth, &textureHeight, &nrChannels, 4);
+    unsigned char *data = stbi_load(texturePath, &width, &height, &nrChannels, 4);
     if (data)
     {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
         stbi_image_free(data);
-		return textureId;
-    } else {
-		error("failed to load texture %s.", texturePath);
-    }
-}
-
-unsigned int get_texture_id_from_path_ex(char *texturePath, int *width, int *height)
-{
-	unsigned int textureId;
-    glGenTextures(1, &textureId);
-    glBindTexture(GL_TEXTURE_2D, textureId);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-	int nrChannels;
-    unsigned char *data = stbi_load(texturePath, width, height, &nrChannels, 4);
-    if (data)
-    {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, *width, *height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-        stbi_image_free(data);
+		if (_width)
+		{
+			*_width = width;
+		}
+		if (_height)
+		{
+			*_height = height;
+		}
 		return textureId;
     } else {
 		error("failed to load texture %s.", texturePath);
@@ -144,17 +138,201 @@ unsigned int get_texture_id_from_path_ex(char *texturePath, int *width, int *hei
 Sprite *create_sprite(SpriteType spriteType)
 {
 	Sprite *sprite = xmalloc(sizeof (*sprite));
+	sprite->position.x = 0;
+	sprite->position.y = 0;
+	sprite->width = 0;
+	sprite->height = 0;
 	if (spriteType == SPRITE_COLOR)
 	{
 		sprite->type = SPRITE_COLOR;
+		sprite->color.x = 0.0f;
+		sprite->color.y = 0.0f;
+		sprite->color.z = 0.0f;
 	} else if (spriteType == SPRITE_TEXTURE) {
 		sprite->type = SPRITE_TEXTURE;
-	} else if (SPRITE_GLYPH) {
+		sprite->textureId = -1;
+	} else if (spriteType == SPRITE_GLYPH) {
 		sprite->type = SPRITE_GLYPH;
+		sprite->color.x = 0.0f;
+		sprite->color.y = 0.0f;
+		sprite->color.z = 0.0f;
+		sprite->textureId = -1;
+	} else if (spriteType == SPRITE_ANIMATED) {
+		sprite->type = SPRITE_ANIMATED;
+		sprite->animations = NULL;
+		sprite->currentAnimation = 0;
 	} else {
 		error("sprite type %d not supported.", spriteType);
 	}
 	return sprite;
+}
+
+static void step_in_tokens()
+{
+    if (tokens[currentToken++].type == TOKEN_END_OF_FILE)
+    {
+        error("in %s stepped after end of tokens.", filePath);
+    }
+}
+
+static void steps_in_tokens(unsigned nb)
+{
+    while (nb--)
+    {
+        step_in_tokens();
+    }
+}
+
+static bool token_match(int nb, ...)
+{
+    va_list arg;
+    bool match = true;
+	va_start(arg, nb);
+    for (int i = 0; i < nb; i++)
+    {
+		if (tokens[currentToken + i].type != va_arg(arg, int))
+        {
+            match = false;
+            break;
+        }
+    }
+	va_end(arg);
+    return match;
+}
+
+static bool token_match_on_line(int line, int nb, ...)
+{
+    va_list arg;
+    bool match = true;
+	va_start(arg, nb);
+    for (int i = 0; i < nb; i++)
+    {
+        if (tokens[currentToken + i].type != va_arg(arg, int) || tokens[currentToken + i].line != line)
+        {
+            match = false;
+            break;
+        }
+    }
+	va_end(arg);
+    return match;
+}
+
+AnimationPhase *parse_animation_phase()
+{
+	AnimationPhase *animationPhase = xmalloc(sizeof (*animationPhase));
+
+	if (token_match_on_line(tokens[currentToken].line, 2, TOKEN_STRING, TOKEN_NUMERIC))
+	{
+		animationPhase->textureId = get_texture_id_from_path(tokens[currentToken].text, &animationPhase->width, &animationPhase->height);
+		animationPhase->length = tokens[currentToken + 1].numeric;
+	} else {
+		error("in %s at line %d, invalid syntax for animation phase declaration, expected texture as a string followed by a length as a number, got %s and %s instead.", filePath, tokens[currentToken].line, tokenStrings[tokens[currentToken].type], tokenStrings[tokens[currentToken + 1].type]);
+	}
+	steps_in_tokens(2);
+	if (tokens[currentToken - 1].line == tokens[currentToken].line && tokens[currentToken].type != TOKEN_END_OF_FILE)
+	{
+		error("in %s at line %d, expected end of line after animation phase declaration.", filePath, tokens[currentToken].line);
+	}
+	return animationPhase;
+}
+
+Animation *parse_animation()
+{
+	Animation *animation = xmalloc(sizeof (*animation));
+
+	if (tokens[currentToken].indentationLevel != 0)
+	{
+		error("in %s at line %d, indentation level of animation name must be 0, the indentation level is %d.", filePath, tokens[currentToken].line, tokens[currentToken].indentationLevel);
+	}
+	if (token_match_on_line(tokens[currentToken].line, 2, TOKEN_STRING, TOKEN_IDENTIFIER))
+	{
+		animation->name = tokens[currentToken].text;
+		if (strmatch(tokens[currentToken + 1].text, "loop"))
+		{
+			animation->looping = true;
+		} else {
+			error("in %s at line %d, expected optional \"loop\" identifier or nothing after animation name, got %s identifier instead.", filePath, tokens[currentToken].line, tokens[currentToken + 1].text);
+		}
+		steps_in_tokens(2);
+	} else if (token_match(1, TOKEN_STRING)) {
+		animation->name = tokens[currentToken].text;
+		animation->looping = false;
+		step_in_tokens();
+	} else {
+		error("in %s at line %d, expected animation name as a string, got a %s token instead.", filePath, tokens[currentToken].line, tokenStrings[tokens[currentToken].type]);
+	}
+
+	if (tokens[currentToken - 1].line == tokens[currentToken].line)
+	{
+		error("in %s at line %d, expected end of line after animation declaration.", filePath, tokens[currentToken].line);
+	}
+	if (tokens[currentToken].indentationLevel != 1)
+	{
+		error("in %s at line %d, expected indentation level of 1 for animation phases declarations after animation declaration, got an indentation level of %d instead.", filePath, tokens[currentToken].line, tokens[currentToken].indentationLevel);
+	}
+	animation->animationPhases = NULL;
+	while (tokens[currentToken].indentationLevel == 1 && tokens[currentToken].type != TOKEN_END_OF_FILE)
+	{
+		buf_add(animation->animationPhases, parse_animation_phase());
+	}
+	animation->timeDuringCurrentAnimationPhase = 0.0f;
+	animation->currentAnimationPhase = 0;
+	animation->updating = false;
+	animation->stopping = false;
+	return animation;
+}
+
+static void free_animation(Animation *animation)
+{
+	buf_free(animation->name);
+	for (unsigned int i = 0; i < buf_len(animation->animationPhases); i++)
+	{
+		free(animation->animationPhases[i]);
+	}
+	buf_free(animation->animationPhases);
+	free(animation);
+}
+
+void set_animations_to_animated_sprite(Sprite *sprite, char *animationFilePath)
+{
+	if (sprite->type != SPRITE_ANIMATED)
+	{
+		error("cannot set animations to non animated sprite.");
+	}
+
+	filePath = animationFilePath;
+	currentToken = 0;
+	tokens = lex(filePath);
+
+	for (unsigned int i = 0; i < buf_len(sprite->animations); i++)
+	{
+		free_animation(sprite->animations[i]);
+	}
+	buf_free(sprite->animations);
+	sprite->animations = NULL;
+	while (tokens[currentToken].type != TOKEN_END_OF_FILE)
+	{
+		buf_add(sprite->animations, parse_animation());
+	}
+	sprite->currentAnimation = 0;
+}
+
+void free_sprite(Sprite *sprite)
+{
+	if (sprite->type == SPRITE_COLOR)
+	{
+	} else if (sprite->type == SPRITE_TEXTURE) {
+	} else if (sprite->type == SPRITE_GLYPH) {
+	} else if (sprite->type == SPRITE_ANIMATED) {
+		for (unsigned int i = 0; i < buf_len(sprite->animations); i++)
+		{
+			free_animation(sprite->animations[i]);
+		}
+		buf_free(sprite->animations);
+	} else {
+		error("sprite type %d not supported.", sprite->type);
+	}
+	free(sprite);
 }
 
 static Font **fonts = NULL;
@@ -375,11 +553,11 @@ void set_string_to_text(Text *text, char *string)
 void free_text(Text *text)
 {
 	buf_free(text->string);
-	buf_free(text->sprites);
 	for (unsigned int i = 0; i < buf_len(text->sprites); i++)
 	{
-		free(text->sprites[i]);
+		free_sprite(text->sprites[i]);
 	}
+	buf_free(text->sprites);
 	buf_free(text);
 }
 
@@ -443,10 +621,45 @@ static void draw(Sprite *sprite)
 	    set_int_uniform_to_shader(glyphShaderProgramId, "glyphTextureId", 0);
 	    glBindTexture(GL_TEXTURE_2D, sprite->textureId);
 		set_color_uniform_to_shader(glyphShaderProgramId, "textColor", sprite->color);
+	} else if (sprite->type == SPRITE_ANIMATED) {
+		if (!sprite->animations)
+		{
+			return;
+		}
+		glUseProgram(textureShaderProgramId);
+		set_mat4_uniform_to_shader(textureShaderProgramId, "projection", &projection);
+		set_mat4_uniform_to_shader(textureShaderProgramId, "model", &model);
+		glActiveTexture(GL_TEXTURE0);
+	    set_int_uniform_to_shader(textureShaderProgramId, "textureId", 0);
+		Animation *currentAnimation = sprite->animations[sprite->currentAnimation];
+		AnimationPhase *currentAnimationPhase = sprite->animations[sprite->currentAnimation]->animationPhases[sprite->animations[sprite->currentAnimation]->currentAnimationPhase];
+	    glBindTexture(GL_TEXTURE_2D, currentAnimationPhase->textureId);
+		if (currentAnimation->updating)
+		{
+			currentAnimation->timeDuringCurrentAnimationPhase += deltaTime;
+			if (currentAnimationPhase->length <= currentAnimation->timeDuringCurrentAnimationPhase)
+			{
+				if (currentAnimation->currentAnimationPhase == buf_len(currentAnimation->animationPhases) - 1)
+				{
+					if (currentAnimation->looping)
+					{
+						currentAnimation->currentAnimationPhase = 0;
+					}
+					if (currentAnimation->stopping)
+					{
+						currentAnimation->updating = false;
+						currentAnimation->stopping = false;
+					}
+				} else {
+					currentAnimation->currentAnimationPhase++;
+				}
+				currentAnimation->timeDuringCurrentAnimationPhase = 0;
+			}
+		}
 	} else {
 		error("unsupported sprite type %d.", sprite->type);
 	}
-	glBindVertexArray(VAO);
+	glBindVertexArray(vao);
 
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 }
