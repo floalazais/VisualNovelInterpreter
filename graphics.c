@@ -217,13 +217,29 @@ static bool token_match_on_line(int line, int nb, ...)
     return match;
 }
 
-AnimationPhase *parse_animation_phase()
+static AnimationPhase *parse_animation_phase(char *spriteName)
 {
 	AnimationPhase *animationPhase = xmalloc(sizeof (*animationPhase));
 
 	if (token_match_on_line(tokens[currentToken]->line, 2, TOKEN_STRING, TOKEN_NUMERIC))
 	{
-		animationPhase->textureId = get_texture_id_from_path(tokens[currentToken]->text, &animationPhase->width, &animationPhase->height);
+		char *textureFilePath = NULL;
+		char *prefix = "Textures/";
+		for (unsigned int i = 0; i < strlen(prefix); i++)
+		{
+			buf_add(textureFilePath, prefix[i]);
+		}
+		for (unsigned int i = 0; i < strlen(spriteName); i++)
+		{
+			buf_add(textureFilePath, spriteName[i]);
+		}
+		buf_add(textureFilePath, '/');
+		for (unsigned int i = 0; i < strlen(tokens[currentToken]->text); i++)
+		{
+			buf_add(textureFilePath, tokens[currentToken]->text[i]);
+		}
+		buf_add(textureFilePath, '\0');
+		animationPhase->textureId = get_texture_id_from_path(textureFilePath, &animationPhase->width, &animationPhase->height);
 		animationPhase->length = tokens[currentToken + 1]->numeric;
 	} else {
 		error("in %s at line %d, invalid syntax for animation phase declaration, expected texture as a string followed by a length as a number, got %s and %s instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type], tokenStrings[tokens[currentToken + 1]->type]);
@@ -236,7 +252,7 @@ AnimationPhase *parse_animation_phase()
 	return animationPhase;
 }
 
-Animation *parse_animation()
+static Animation *parse_animation(char *spriteName)
 {
 	Animation *animation = xmalloc(sizeof (*animation));
 
@@ -273,7 +289,7 @@ Animation *parse_animation()
 	animation->animationPhases = NULL;
 	while (tokens[currentToken]->indentationLevel == 1 && tokens[currentToken]->type != TOKEN_END_OF_FILE)
 	{
-		buf_add(animation->animationPhases, parse_animation_phase());
+		buf_add(animation->animationPhases, parse_animation_phase(spriteName));
 	}
 	animation->timeDuringCurrentAnimationPhase = 0.0f;
 	animation->currentAnimationPhase = 0;
@@ -293,7 +309,7 @@ static void free_animation(Animation *animation)
 	free(animation);
 }
 
-void set_animations_to_animated_sprite(Sprite *sprite, char *animationFilePath)
+void set_animations_to_animated_sprite(Sprite *sprite, char *animationFilePath, char *spriteName)
 {
 	if (sprite->type != SPRITE_ANIMATED)
 	{
@@ -312,7 +328,7 @@ void set_animations_to_animated_sprite(Sprite *sprite, char *animationFilePath)
 	sprite->animations = NULL;
 	while (tokens[currentToken]->type != TOKEN_END_OF_FILE)
 	{
-		buf_add(sprite->animations, parse_animation());
+		buf_add(sprite->animations, parse_animation(spriteName));
 	}
 	sprite->currentAnimation = 0;
 

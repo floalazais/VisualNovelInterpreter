@@ -1,44 +1,44 @@
 "angry"
-	"Textures/Snake/angry.png" 0
+	"angry.png" 0
 
 "disapproving" loop
-	"Textures/Snake/disapproving1.gif" 0.1
-	"Textures/Snake/disapproving2.gif" 0.1
-	"Textures/Snake/disapproving3.gif" 0.1
-	"Textures/Snake/disapproving2.gif" 0.1
+	"disapproving1.gif" 0.1
+	"disapproving2.gif" 0.1
+	"disapproving3.gif" 0.1
+	"disapproving2.gif" 0.1
 
 "neutral" loop
-	"Textures/Snake/neutral1.gif" 0.1
-	"Textures/Snake/neutral2.gif" 0.1
-	"Textures/Snake/neutral3.gif" 0.1
-	"Textures/Snake/neutral2.gif" 0.1
+	"neutral1.gif" 0.1
+	"neutral2.gif" 0.1
+	"neutral3.gif" 0.1
+	"neutral2.gif" 0.1
 
 "satisfied" loop
-	"Textures/Snake/satisfied1.gif" 0.1
-	"Textures/Snake/satisfied2.gif" 0.1
-	"Textures/Snake/satisfied3.gif" 0.1
-	"Textures/Snake/satisfied2.gif" 0.1
+	"satisfied1.gif" 0.1
+	"satisfied2.gif" 0.1
+	"satisfied3.gif" 0.1
+	"satisfied2.gif" 0.1
 
 "sad"
-	"Textures/Snake/sad.png" 0
+	"sad.png" 0
 
 "smiling" loop
-	"Textures/Snake/smiling1.gif" 0.1
-	"Textures/Snake/smiling2.gif" 0.1
-	"Textures/Snake/smiling3.gif" 0.1
-	"Textures/Snake/smiling2.gif" 0.1
+	"smiling1.gif" 0.1
+	"smiling2.gif" 0.1
+	"smiling3.gif" 0.1
+	"smiling2.gif" 0.1
 
 "shocked" loop
-	"Textures/Snake/shocked1.gif" 0.1
-	"Textures/Snake/shocked2.gif" 0.1
-	"Textures/Snake/shocked3.gif" 0.1
-	"Textures/Snake/shocked2.gif" 0.1
+	"shocked1.gif" 0.1
+	"shocked2.gif" 0.1
+	"shocked3.gif" 0.1
+	"shocked2.gif" 0.1
 
 "thinking" loop
-	"Textures/Snake/thinking1.gif" 0.1
-	"Textures/Snake/thinking2.gif" 0.1
-	"Textures/Snake/thinking3.gif" 0.1
-	"Textures/Snake/thinking2.gif" 0.1
+	"thinking1.gif" 0.1
+	"thinking2.gif" 0.1
+	"thinking3.gif" 0.1
+	"thinking2.gif" 0.1
 
 "thinking static"
-	"Textures/Snake/thinking1.gif" 0
+	"thinking1.gif" 0

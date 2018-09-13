@@ -391,7 +391,7 @@ static void add_to_background_list(char *backgroundPackName)
 			buf_add(animationFilePath, suffix[i]);
 		}
 		buf_add(animationFilePath, '\0');
-		set_animations_to_animated_sprite(newBackgroundPack, animationFilePath);
+		set_animations_to_animated_sprite(newBackgroundPack, animationFilePath, backgroundPackName);
 		buf_add(currentDialog->backgroundPacks, newBackgroundPack);
 		buf_free(animationFilePath);
 	}
@@ -428,7 +428,7 @@ static void add_to_character_list(char *characterName)
 			buf_add(animationFilePath, suffix[i]);
 		}
 		buf_add(animationFilePath, '\0');
-		set_animations_to_animated_sprite(currentDialog->charactersSprites[buf_len(currentDialog->charactersSprites) - 1], animationFilePath);
+		set_animations_to_animated_sprite(currentDialog->charactersSprites[buf_len(currentDialog->charactersSprites) - 1], animationFilePath, characterName);
 		buf_free(animationFilePath);
 	}
 }

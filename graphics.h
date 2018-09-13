@@ -89,7 +89,7 @@ typedef enum TextSize
 
 unsigned int get_texture_id_from_path(char *texturePath, int *width, int *height);
 Sprite *create_sprite(SpriteType spriteType);
-void set_animations_to_animated_sprite(Sprite *sprite, char *animationFilePath);
+void set_animations_to_animated_sprite(Sprite *sprite, char *animationFilePath, char *spriteName);
 void free_sprite(Sprite *sprite);
 Text *create_text();
 void set_position_to_text(Text *text, ivec2 position);

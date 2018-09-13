@@ -1,20 +1,20 @@
 "doors"
-	"Textures/First class cabin/doors.png" 0
+	"doors.png" 0
 
 "escape door"
-	"Textures/First class cabin/escape door.png" 0
+	"escape door.png" 0
 
 "piano"
-	"Textures/First class cabin/piano.png" 0
+	"piano.png" 0
 
 "safe room"
-	"Textures/First class cabin/safe room.png" 0
+	"safe room.png" 0
 
 "hallway"
-	"Textures/First class cabin/hallway.png" 0
+	"hallway.png" 0
 	
 "living room"
-	"Textures/First class cabin/living room.png" 0
+	"living room.png" 0
 	
 "ninth man corpse"
-	"Textures/First class cabin/ninth man corpse.png" 0
+	"ninth man corpse.png" 0
