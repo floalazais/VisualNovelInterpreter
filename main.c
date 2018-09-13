@@ -64,7 +64,6 @@ bool strmatch(char *a, char *b)
 }
 
 ivec2 windowDimensions = {.x = 1600, .y = 900};
-//ivec2 windowDimensions = {.x = 256, .y = 192};
 
 mat4 projection;
 

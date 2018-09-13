@@ -273,6 +273,8 @@
 
 @get out
 
+#ASSIGN knows_about_ninth_bracelet false
+
 >"Junpei" LEFT
 	Let's find the others, maybe we found the safe and they found the key.
 
