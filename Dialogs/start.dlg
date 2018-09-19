@@ -1,11 +1,11 @@
 999 Fan-made game
 
-#ASSIGN seven's_trust true
+#ASSIGN seven's_trust false
 
 #SET_BACKGROUND "First class cabin"::"piano"
 
 >"Junpei" LEFT
-	Finally we've completed this puzzle.
+	We've finally completed this puzzle.
 
 >"Seven" RIGHT "thinking" CENTER
 	I still don't understand the purpose of this killing game.
@@ -299,3 +299,5 @@
 	#IF knows_about_ninth_bracelet
 		Junpei asked himself if it was a good idea to not to tell Snake about the ninth bracelet.
 		He decided he'll think about it when Seven won't be around them.
+		
+#END "start.dlg"

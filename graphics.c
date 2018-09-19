@@ -18,6 +18,11 @@ static Sprite **middlegroundSprites;
 static Sprite **foregroundSprites;
 static Sprite **UISprites;
 
+static char **texturesPaths;
+static unsigned int *texturesIds;
+static int *texturesWidths;
+static int *texturesHeigts;
+
 static unsigned int vao;
 static unsigned int vbo;
 static const float quad[24] =
@@ -78,6 +83,11 @@ void init_graphics()
 	foregroundSprites = NULL;
 	UISprites = NULL;
 
+	texturesPaths = NULL;
+	texturesIds = NULL;
+	texturesWidths = NULL;
+	texturesHeigts = NULL;
+
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
 
@@ -103,6 +113,22 @@ void init_graphics()
 
 unsigned int get_texture_id_from_path(char *texturePath, int *_width, int *_height)
 {
+	for (unsigned int i = 0; i < buf_len(texturesPaths); i++)
+	{
+		if(strmatch(texturesPaths[i], texturePath))
+		{
+			if (_width)
+			{
+				*_width = texturesWidths[i];
+			}
+			if (_height)
+			{
+				*_height = texturesHeigts[i];
+			}
+			return texturesIds[i];
+		}
+	}
+
 	unsigned int textureId;
     glGenTextures(1, &textureId);
     glBindTexture(GL_TEXTURE_2D, textureId);
@@ -129,6 +155,14 @@ unsigned int get_texture_id_from_path(char *texturePath, int *_width, int *_heig
 		{
 			*_height = height;
 		}
+
+		char *newTexturePath = NULL;
+		strcopy(&newTexturePath, texturePath);
+		buf_add(texturesPaths, newTexturePath);
+		buf_add(texturesIds, textureId);
+		buf_add(texturesWidths, width);
+		buf_add(texturesHeigts, height);
+
 		return textureId;
     } else {
 		error("failed to load texture %s.", texturePath);
@@ -224,23 +258,13 @@ static AnimationPhase *parse_animation_phase(char *spriteName)
 	if (token_match_on_line(tokens[currentToken]->line, 2, TOKEN_STRING, TOKEN_NUMERIC))
 	{
 		char *textureFilePath = NULL;
-		char *prefix = "Textures/";
-		for (unsigned int i = 0; i < strlen(prefix); i++)
-		{
-			buf_add(textureFilePath, prefix[i]);
-		}
-		for (unsigned int i = 0; i < strlen(spriteName); i++)
-		{
-			buf_add(textureFilePath, spriteName[i]);
-		}
-		buf_add(textureFilePath, '/');
-		for (unsigned int i = 0; i < strlen(tokens[currentToken]->text); i++)
-		{
-			buf_add(textureFilePath, tokens[currentToken]->text[i]);
-		}
-		buf_add(textureFilePath, '\0');
+		strcopy(&textureFilePath, "Textures/");
+		strappend(&textureFilePath, spriteName);
+		strappend(&textureFilePath, "/");
+		strappend(&textureFilePath, tokens[currentToken]->text);
 		animationPhase->textureId = get_texture_id_from_path(textureFilePath, &animationPhase->width, &animationPhase->height);
 		animationPhase->length = tokens[currentToken + 1]->numeric;
+		buf_free(textureFilePath);
 	} else {
 		error("in %s at line %d, invalid syntax for animation phase declaration, expected texture as a string followed by a length as a number, got %s and %s instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type], tokenStrings[tokens[currentToken + 1]->type]);
 	}
@@ -262,7 +286,8 @@ static Animation *parse_animation(char *spriteName)
 	}
 	if (token_match_on_line(tokens[currentToken]->line, 2, TOKEN_STRING, TOKEN_IDENTIFIER))
 	{
-		animation->name = tokens[currentToken]->text;
+		animation->name = NULL;
+		strcopy(&animation->name, tokens[currentToken]->text);
 		if (strmatch(tokens[currentToken + 1]->text, "loop"))
 		{
 			animation->looping = true;
@@ -271,7 +296,8 @@ static Animation *parse_animation(char *spriteName)
 		}
 		steps_in_tokens(2);
 	} else if (token_match(1, TOKEN_STRING)) {
-		animation->name = tokens[currentToken]->text;
+		animation->name = NULL;
+		strcopy(&animation->name, tokens[currentToken]->text);
 		animation->looping = false;
 		step_in_tokens();
 	} else {
@@ -588,7 +614,7 @@ static int get_uniform_location(unsigned shaderProgramId, const char *uniformNam
     int location = glGetUniformLocation(shaderProgramId, uniformName);
     if (location == -1)
     {
-        printf("uniform %s not found in shader.", uniformName);
+        error("uniform %s not found in shader.", uniformName);
     }
     return location;
 }

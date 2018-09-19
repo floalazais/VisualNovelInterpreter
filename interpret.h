@@ -4,6 +4,6 @@
 #include "dialog.h"
 
 void init_dialog_ui();
-void interpret(Dialog *dialog);
+void interpret_current_dialog();
 
 #endif /* end of include guard: INTERPRET_H */

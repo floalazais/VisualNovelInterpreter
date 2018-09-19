@@ -57,6 +57,35 @@ char *file_to_string(char *filePath)
 	return fileString;
 }
 
+void strcopy(char **destination, char *source)
+{
+	buf_free(*destination);
+	*destination = NULL;
+	for (unsigned int i = 0; i < strlen(source); i++)
+	{
+		buf_add(*destination, source[i]);
+	}
+	buf_add(*destination, '\0');
+}
+
+void strappend(char **destination, char *suffix)
+{
+	if ((*destination)[buf_len(*destination) - 1] == '\0')
+	{
+		(*destination)[buf_len(*destination) - 1] = suffix[0];
+		for (unsigned int i = 1; i < strlen(suffix); i++)
+		{
+			buf_add(*destination, suffix[i]);
+		}
+	} else {
+		for (unsigned int i = 0; i < strlen(suffix); i++)
+		{
+			buf_add(*destination, suffix[i]);
+		}
+	}
+	buf_add(*destination, '\0');
+}
+
 bool strmatch(char *a, char *b)
 {
 	return !strcmp(a, b);
@@ -273,7 +302,10 @@ static LRESULT WINAPI WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 	WGL_LIST
 #undef WGL_FUNCTION
 
-char *nextDialog = NULL;
+Dialog *interpretingDialog = NULL;
+char *interpretingDialogName = NULL;
+char *nextDialogName = NULL;
+bool dialogChanged = true;
 bool gameEnd = false;
 char **variablesNames = NULL;
 double *variablesValues = NULL;
@@ -302,39 +334,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	if (!deviceContext)
 	{
 		error("could not get a handle to a device context.");
-	}
-
-	if (GetConsoleWindow())
-	{
-		if (!FreeConsole())
-		{
-			error("could not detach the process from the launch console.");
-		}
-	}
-	if (!AllocConsole())
-	{
-		error("could not allocate a console.");
-	}
-	if (!freopen("conin$", "r", stdin))
-	{
-		error("could not redirect conin into stdin.");
-	}
-	if (!freopen("conout$", "w", stdout))
-	{
-		error("could not redirect conout into stdout.");
-	}
-	if (!freopen("conout$", "w", stderr))
-	{
-		error("could not redirect conout into stderr.");
-	}
-	HWND consoleHandle = GetConsoleWindow();
-	if (!consoleHandle)
-	{
-		error("could not get the allocated console handle.");
-	}
-	if (!MoveWindow(consoleHandle, 0, 0, 800, 600, TRUE))
-	{
-		error("could not move console to initial position.");
 	}
 
 	SetWindowPos(window, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
@@ -453,8 +452,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	init_graphics();
 	init_dialog_ui();
 
-	Token **tokens = lex("Dialogs/start.dlg");
-	Dialog *dialog = create_dialog("Dialogs/start.dlg", tokens);
+	strcopy(&interpretingDialogName, "Dialogs/start.dlg");
+	Token **tokens = lex(interpretingDialogName);
+	interpretingDialog = create_dialog(interpretingDialogName, tokens);
 
 	if (!SetWindowTextA(window, windowName))
 	{
@@ -486,6 +486,11 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 			DispatchMessage(&msg);
 		}
 
+		if (is_input_key_pressed(INPUT_KEY_R))
+		{
+			nextDialogName = interpretingDialogName;
+		}
+
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
@@ -493,15 +498,20 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 		if (!gameEnd)
 		{
-			interpret(dialog);
-			if (nextDialog)
+			if (nextDialogName)
 			{
-				free_dialog(dialog);
-				tokens = lex(nextDialog);
-				dialog = create_dialog(nextDialog, tokens);
-				buf_free(nextDialog);
-				nextDialog = NULL;
+				free_dialog(interpretingDialog);
+				tokens = lex(nextDialogName);
+				interpretingDialog = create_dialog(nextDialogName, tokens);
+				if (interpretingDialogName != nextDialogName)
+				{
+					buf_free(interpretingDialogName);
+					interpretingDialogName = nextDialogName;
+				}
+				nextDialogName = NULL;
+				dialogChanged = true;
 			}
+			interpret_current_dialog();
 		} else {
 			PostMessageA(window, WM_CLOSE, 0, 0);
 		}

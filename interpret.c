@@ -9,8 +9,6 @@
 #include "xalloc.h"
 #include "interpret.h"
 
-static Dialog *currentDialog = NULL;
-
 static char *charactersNames[7];
 static Sprite *charactersSprites[7];
 static int currentSpeakerSpriteIndex;
@@ -73,11 +71,11 @@ static void process_command(Command *command)
 	if (command->type == COMMAND_SET_BACKGROUND)
 	{
 		bool foundPack = false;
-		for (unsigned int i = 0; i < buf_len(currentDialog->backgroundPacksNames); i++)
+		for (unsigned int i = 0; i < buf_len(interpretingDialog->backgroundPacksNames); i++)
 		{
-			if (strmatch(command->arguments[0]->text, currentDialog->backgroundPacksNames[i]))
+			if (strmatch(command->arguments[0]->text, interpretingDialog->backgroundPacksNames[i]))
 			{
-				backgroundSprite = currentDialog->backgroundPacks[i];
+				backgroundSprite = interpretingDialog->backgroundPacks[i];
 				bool foundAnimation = false;
 				for (unsigned int j = 0; j < buf_len(backgroundSprite->animations); j++)
 				{
@@ -105,13 +103,13 @@ static void process_command(Command *command)
 		backgroundSprite = NULL;
 	} else if (command->type == COMMAND_SET_CHARACTER) {
 		bool foundCharacter = false;
-		for (unsigned int i = 0; i < buf_len(currentDialog->charactersNames); i++)
+		for (unsigned int i = 0; i < buf_len(interpretingDialog->charactersNames); i++)
 		{
-			if (strmatch(command->arguments[1]->text, currentDialog->charactersNames[i]))
+			if (strmatch(command->arguments[1]->text, interpretingDialog->charactersNames[i]))
 			{
 				int position = (int)command->arguments[0]->numeric;
-				charactersNames[position] = currentDialog->charactersNames[i];
-				charactersSprites[position] = currentDialog->charactersSprites[i];
+				charactersNames[position] = interpretingDialog->charactersNames[i];
+				charactersSprites[position] = interpretingDialog->charactersSprites[i];
 				bool foundAnimation = false;
 				for (unsigned int j = 0; j < buf_len(charactersSprites[position]->animations); j++)
 				{
@@ -149,20 +147,12 @@ static void process_command(Command *command)
 			charactersNames[i] = NULL;
 		}
 	} else if (command->type == COMMAND_END) {
-		currentDialog->end = true;
+		interpretingDialog->end = true;
 		moving = true;
 		if (command->arguments[0]->text)
 		{
-			char *prefix = "Dialogs/";
-			for (unsigned int i = 0; i < strlen(prefix); i++)
-			{
-				buf_add(nextDialog, prefix[i]);
-			}
-			for (unsigned int i = 0; i < strlen(command->arguments[0]->text); i++)
-			{
-				buf_add(nextDialog, command->arguments[0]->text[i]);
-			}
-			buf_add(nextDialog, '\0');
+			strcopy(&nextDialogName, "Dialogs/");
+			strappend(&nextDialogName, command->arguments[0]->text);
 		}
 	} else if (command->type == COMMAND_ASSIGN) {
 		for (unsigned int i = 0; i < buf_len(variablesNames); i++)
@@ -174,19 +164,15 @@ static void process_command(Command *command)
 			}
 		}
 		char *variableName = NULL;
-		for (unsigned int i = 0; i < strlen(command->arguments[0]->text); i++)
-		{
-			buf_add(variableName, command->arguments[0]->text[i]);
-		}
-		buf_add(variableName, '\0');
+		strcopy(&variableName, command->arguments[0]->text);
 		buf_add(variablesNames, variableName);
 		buf_add(variablesValues, resolve_logic_expression(command->arguments[1]->logicExpression));
 	} else if (command->type == COMMAND_GO_TO) {
-		for (int i = 0; buf_len(currentDialog->knots); i++)
+		for (int i = 0; buf_len(interpretingDialog->knots); i++)
 		{
-			if (strmatch(currentDialog->knots[i]->name, command->arguments[0]->text))
+			if (strmatch(interpretingDialog->knots[i]->name, command->arguments[0]->text))
 			{
-				currentDialog->currentKnot = i;
+				interpretingDialog->currentKnot = i;
 				moving = true;
 				break;
 			}
@@ -196,7 +182,7 @@ static void process_command(Command *command)
 
 static bool update_sentence(Sentence *sentence)
 {
-	if (sentence->currentChar != strlen(sentence->string))
+	if (sentence->currentChar < strlen(sentence->string))
 	{
 		if (sentence->currentChar == 0)
 		{
@@ -590,11 +576,11 @@ static bool update_knot(Knot *knot)
 	}
 }
 
-void interpret(Dialog *dialog)
+void interpret_current_dialog()
 {
-	if (currentDialog != dialog)
+	if (dialogChanged)
 	{
-		currentDialog = dialog;
+		dialogChanged = false;
 		backgroundSprite = NULL;
 		for (int i = 0; i < 7; i++)
 		{
@@ -610,13 +596,13 @@ void interpret(Dialog *dialog)
 		displayedSpeakerName = false;
 	}
 
-	if (dialog->currentKnot == buf_len(dialog->knots))
+	if (interpretingDialog->currentKnot == buf_len(interpretingDialog->knots))
 	{
 		gameEnd = true;
 	} else {
-		if (update_knot(dialog->knots[dialog->currentKnot]))
+		if (update_knot(interpretingDialog->knots[interpretingDialog->currentKnot]))
 		{
-			dialog->currentKnot++;
+			interpretingDialog->currentKnot++;
 		}
 		if (moving)
 		{
@@ -624,14 +610,14 @@ void interpret(Dialog *dialog)
 		}
 	}
 
-	if (dialog->end)
+	if (interpretingDialog->end)
 	{
-		if (!nextDialog)
+		if (!nextDialogName)
 		{
 			gameEnd = true;
 		} else {
-			dialog->currentKnot = 0;
-			dialog->end = false;
+			interpretingDialog->currentKnot = 0;
+			interpretingDialog->end = false;
 		}
 	}
 

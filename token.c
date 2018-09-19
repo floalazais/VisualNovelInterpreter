@@ -61,5 +61,13 @@ void free_token(Token *token)
 	if (token->type == TOKEN_COMMAND)
 	{
 		buf_free(token->text);
+	} else if (token->type == TOKEN_IDENTIFIER) {
+		buf_free(token->text);
+	} else if (token->type == TOKEN_STRING) {
+		buf_free(token->text);
+	} else if (token->type == TOKEN_SENTENCE) {
+		buf_free(token->text);
+	} else if (token->type == TOKEN_KNOT) {
+		buf_free(token->text);
 	}
 }

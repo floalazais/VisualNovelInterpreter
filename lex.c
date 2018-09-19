@@ -87,12 +87,7 @@ static Token *get_next_token()
             steps_in_source(2);
             token->type = TOKEN_COMMAND;
 			token->text = NULL;
-			char *commandLabel = "GO_TO";
-			for (unsigned int i = 0; i < strlen(commandLabel); i++)
-			{
-				buf_add(token->text, commandLabel[i]);
-			}
-			buf_add(token->text, '\0');
+			strcopy(&token->text, "GO_TO");
         } else {
             step_in_source();
             token->type = TOKEN_MINUS;
@@ -161,22 +156,24 @@ static Token *get_next_token()
             if (fileString[currentChar] == '\0')
             {
                 error("in %s at line %d unclosed string found.", filePath, currentLine);
-            } else if (fileString[currentChar] == '\n') {
+            } else if (fileString[currentChar] == '\n' || fileString[currentChar] == '\r') {
                 error("in %s at line %d unclosed string found.", filePath, currentLine);
-            } else {
+            } else if (fileString[currentChar] == '\t') {
+				error("in %s at line %d tab character is reserved for indentation, its use in the middle of a string is forbidden.", filePath, currentLine);
+			} else {
                 charToAdd = fileString[currentChar];
                 step_in_source();
             }
 			buf_add(string, charToAdd);
         }
-        step_in_source(); // Avoid finishing " character
+        step_in_source();
 		buf_add(string, '\0');
         token->type = TOKEN_STRING;
         token->text = string;
 	} else if (fileString[currentChar] == '@') {
 		step_in_source();
 		char *knot = NULL;
-		while (fileString[currentChar] != '\n' && fileString[currentChar] != '\0')
+		while (fileString[currentChar] != '\n' && fileString[currentChar] != '\r' && fileString[currentChar] != '\t' && fileString[currentChar] != '\0')
 		{
 			buf_add(knot, fileString[currentChar]);
 			step_in_source();
@@ -224,7 +221,7 @@ static Token *get_next_token()
         }
         step_in_source();
         char *sentence = NULL;
-        while (fileString[currentChar] != '\n' && fileString[currentChar] != '\0')
+        while (fileString[currentChar] != '\n' && fileString[currentChar] != '\r' && fileString[currentChar] != '\t' && fileString[currentChar] != '\0')
         {
             buf_add(sentence, fileString[currentChar]);
             step_in_source();
@@ -234,7 +231,7 @@ static Token *get_next_token()
         token->text = sentence;
     } else if (currentLexMode == LEX_MODE_TEXT) {
         char *sentence = NULL;
-        while (fileString[currentChar] != '\n' && fileString[currentChar] != '\0')
+        while (fileString[currentChar] != '\n' && fileString[currentChar] != '\r' && fileString[currentChar] != '\t' && fileString[currentChar] != '\0')
         {
             buf_add(sentence, fileString[currentChar]);
             step_in_source();
