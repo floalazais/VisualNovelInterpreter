@@ -967,7 +967,7 @@ static void free_logic_expression(LogicExpression *logicExpression)
 	} else if (logicExpression->type == LOGIC_EXPRESSION_GROUPING) {
 		free_logic_expression(logicExpression->grouping.expression);
 	}
-	free(logicExpression);
+	xfree(logicExpression);
 }
 
 static void free_argument(Argument *argument)
@@ -986,7 +986,7 @@ static void free_argument(Argument *argument)
 	} else if (argument->type == PARAMETER_LOGIC_EXPRESSION) {
 		free_logic_expression(argument->logicExpression);
 	}
-	free(argument);
+	xfree(argument);
 }
 
 void free_command(Command *command)
@@ -995,21 +995,21 @@ void free_command(Command *command)
 	{
 		free_argument(command->arguments[i]);
 	}
-	free(command->arguments);
-	free(command);
+	xfree(command->arguments);
+	xfree(command);
 }
 
 static void free_sentence(Sentence *sentence)
 {
 	buf_free(sentence->string);
-	free(sentence);
+	xfree(sentence);
 }
 
 static void free_choice(Choice *choice)
 {
 	free_sentence(choice->sentence);
 	free_command(choice->goToCommand);
-	free(choice);
+	xfree(choice);
 }
 
 static void free_cue_expression(CueExpression *cueExpression);
@@ -1027,7 +1027,7 @@ static void free_cue_condition(CueCondition *cueCondition)
 		free_cue_expression(cueCondition->cueExpressionsElse[index]);
 	}
 	buf_free(cueCondition->cueExpressionsElse);
-	free(cueCondition);
+	xfree(cueCondition);
 }
 
 static void free_cue_expression(CueExpression *cueExpression)
@@ -1042,7 +1042,7 @@ static void free_cue_expression(CueExpression *cueExpression)
 	} else if (cueExpression->type == CUE_EXPRESSION_CUE_CONDITION) {
 		free_cue_condition(cueExpression->cueCondition);
 	}
-	free(cueExpression);
+	xfree(cueExpression);
 }
 
 static void free_cue(Cue *cue)
@@ -1053,7 +1053,7 @@ static void free_cue(Cue *cue)
 		free_cue_expression(cue->cueExpressions[index]);
 	}
 	buf_free(cue->cueExpressions);
-	free(cue);
+	xfree(cue);
 }
 
 static void free_knot_expression(KnotExpression *knotExpression);
@@ -1071,7 +1071,7 @@ static void free_knot_condition(KnotCondition *knotCondition)
 		free_knot_expression(knotCondition->knotExpressionsElse[index]);
 	}
 	buf_free(knotCondition->knotExpressionsElse);
-	free(knotCondition);
+	xfree(knotCondition);
 }
 
 static void free_knot_expression(KnotExpression *knotExpression)
@@ -1084,7 +1084,7 @@ static void free_knot_expression(KnotExpression *knotExpression)
 	} else if (knotExpression->type == KNOT_EXPRESSION_KNOT_CONDITION) {
 		free_knot_condition(knotExpression->knotCondition);
 	}
-	free(knotExpression);
+	xfree(knotExpression);
 }
 
 static void free_knot(Knot *knot)
@@ -1095,7 +1095,7 @@ static void free_knot(Knot *knot)
 		free_knot_expression(knot->knotExpressions[index]);
 	}
 	buf_free(knot->knotExpressions);
-	free(knot);
+	xfree(knot);
 }
 
 void free_dialog(Dialog *dialog)
@@ -1125,5 +1125,5 @@ void free_dialog(Dialog *dialog)
 		free_knot(dialog->knots[index]);
 	}
 	buf_free(dialog->knots);
-	free(dialog);
+	xfree(dialog);
 }

@@ -520,5 +520,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 		wglSwapLayerBuffers(deviceContext, WGL_SWAP_MAIN_PLANE);
 	}
+	print_lol();
 	return msg.wParam;
 }

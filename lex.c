@@ -285,7 +285,7 @@ Token **lex(char *_filePath)
     }
 	buf_add(tokens, token);
 
-	free(fileString);
+	xfree(fileString);
 
 	return tokens;
 }

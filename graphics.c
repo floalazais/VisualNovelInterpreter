@@ -41,11 +41,12 @@ static int glyphShaderProgramId;
 
 static unsigned int compile_shader(char *path, GLenum shaderType)
 {
-	const char *code = file_to_string(path);
+	char *code = file_to_string(path);
 
     unsigned int shader = glCreateShader(shaderType);
-    glShaderSource(shader, 1, &code, NULL);
+    glShaderSource(shader, 1, (const char **)&code, NULL);
     glCompileShader(shader);
+	xfree(code);
 
     int success;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
@@ -329,10 +330,10 @@ static void free_animation(Animation *animation)
 	buf_free(animation->name);
 	for (unsigned int i = 0; i < buf_len(animation->animationPhases); i++)
 	{
-		free(animation->animationPhases[i]);
+		xfree(animation->animationPhases[i]);
 	}
 	buf_free(animation->animationPhases);
-	free(animation);
+	xfree(animation);
 }
 
 void set_animations_to_animated_sprite(Sprite *sprite, char *animationFilePath, char *spriteName)
@@ -380,7 +381,7 @@ void free_sprite(Sprite *sprite)
 	} else {
 		error("sprite type %d not supported.", sprite->type);
 	}
-	free(sprite);
+	xfree(sprite);
 }
 
 static Font **fonts = NULL;
@@ -413,7 +414,7 @@ static void load_glyph(Font *font, int code)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, font->glyphs[code]->width, font->glyphs[code]->height, 0, GL_RED, GL_UNSIGNED_BYTE, bitmap);
 	glGenerateMipmap(GL_TEXTURE_2D);
 
-	free(bitmap);
+	xfree(bitmap);
 
 	font->glyphs[code]->yOffset = y0 + font->ascent - font->descent;
 
