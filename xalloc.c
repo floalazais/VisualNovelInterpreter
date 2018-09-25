@@ -38,10 +38,8 @@ void *xrealloc(void *p, size_t size)
 void xfree(void* ptr) {
     if (ptr != NULL) {
         for (size_t i = 0; i < buf_len(lols); i++) {
-            Lol l = lols[i];
-            if (l.ptr == ptr) {
-                printf("T'a free connard\n");
-                l.ptr = NULL;
+            if (lols[i].ptr == ptr) {
+                lols[i].ptr = NULL;
                 break;
             }
         }
@@ -54,7 +52,8 @@ void print_lol() {
     for (size_t i = 0; i < buf_len(lols); i++) {
         Lol l = lols[i];
         if (l.ptr != NULL) {
-            printf("MEMORY LEAK %s %d\n", l.file, l.line);
+            printf("MEMORY LEAK %s %d %d\n", l.file, l.line, (int)l.ptr);
+            fflush(stdout);
         }
     }
 }

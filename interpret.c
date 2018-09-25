@@ -64,6 +64,22 @@ void init_dialog_ui()
 		charactersNames[i] = NULL;
 		charactersSprites[i] = NULL;
 	}
+	currentChoices = NULL;
+	goToCommands = NULL;
+}
+
+void free_dialog_ui()
+{
+	free_text(currentSentence);
+	free_text(currentSpeaker);
+	free_sprite(sentenceBox);
+	free_sprite(characterNameBox);
+	free_sprite(choiceMarker);
+	for (unsigned int i = 0; i < buf_len(currentChoices); i++)
+	{
+		free_text(currentChoices[i]);
+	}
+	buf_free(currentChoices);
 }
 
 static void process_command(Command *command)

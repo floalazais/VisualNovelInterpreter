@@ -23,6 +23,10 @@ static unsigned int *texturesIds;
 static int *texturesWidths;
 static int *texturesHeigts;
 
+static Font **fonts;
+static unsigned char **ttfBuffers;
+static char **ttfFilesPaths;
+
 static unsigned int vao;
 static unsigned int vbo;
 static const float quad[24] =
@@ -89,6 +93,10 @@ void init_graphics()
 	texturesWidths = NULL;
 	texturesHeigts = NULL;
 
+	fonts = NULL;
+	ttfBuffers = NULL;
+	ttfFilesPaths = NULL;
+
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
 
@@ -110,6 +118,44 @@ void init_graphics()
 	colorShaderProgramId = link_shaders(vertexShaderId, colorFragmentShaderId);
 	textureShaderProgramId = link_shaders(vertexShaderId, textureFragmentShaderId);
 	glyphShaderProgramId = link_shaders(vertexShaderId, glyphFragmentShaderId);
+}
+
+static void free_font(Font *font)
+{
+	buf_free(font->fontPath);
+	for (unsigned int i = 0; i < 0xFFFF; i++)
+	{
+		if (font->loaded[i])
+		{
+			xfree(font->glyphs[i]);
+		}
+	}
+	xfree(font->glyphs);
+	xfree(font->loaded);
+	xfree(font);
+}
+
+void free_graphics()
+{
+	for (unsigned int i = 0; i < buf_len(ttfBuffers); i++)
+	{
+		xfree(ttfBuffers[i]);
+		xfree(ttfFilesPaths[i]);
+	}
+
+	for (unsigned int i = 0; i < buf_len(texturesPaths); i++)
+	{
+		buf_free(texturesPaths[i]);
+	}
+	buf_free(texturesPaths);
+	buf_free(texturesIds);
+	buf_free(texturesWidths);
+	buf_free(texturesHeigts);
+
+	for (unsigned int i = 0; i < buf_len(fonts); i++)
+	{
+		free_font(fonts[i]);
+	}
 }
 
 unsigned int get_texture_id_from_path(char *texturePath, int *_width, int *_height)
@@ -384,8 +430,6 @@ void free_sprite(Sprite *sprite)
 	xfree(sprite);
 }
 
-static Font **fonts = NULL;
-
 static void load_glyph(Font *font, int code)
 {
 	int leftSideBearing;
@@ -427,8 +471,21 @@ static void load_glyph(Font *font, int code)
 static void load_font(char *fontPath, int textHeight)
 {
 	stbtt_fontinfo fontInfo;
-	unsigned char *ttf_buffer = (unsigned char *)file_to_string(fontPath);
-	stbtt_InitFont(&fontInfo, ttf_buffer, stbtt_GetFontOffsetForIndex(ttf_buffer, 0));
+	unsigned char *ttfBuffer = NULL;
+	for (unsigned int i = 0; i < buf_len(ttfFilesPaths); i++)
+	{
+		if (strmatch(fontPath, ttfFilesPaths[i]))
+		{
+			ttfBuffer = ttfBuffers[i];
+		}
+	}
+	if (!ttfBuffer)
+	{
+		ttfBuffer = (unsigned char *)file_to_string(fontPath);
+		buf_add(ttfBuffers, ttfBuffer);
+		buf_add(ttfFilesPaths, fontPath);
+	}
+	stbtt_InitFont(&fontInfo, ttfBuffer, stbtt_GetFontOffsetForIndex(ttfBuffer, 0));
 	int ascent;
 	int descent;
 	stbtt_GetFontVMetrics(&fontInfo, &ascent, &descent, NULL);
@@ -441,11 +498,8 @@ static void load_font(char *fontPath, int textHeight)
 		font->loaded[i] = false;
 	}
 	font->fontInfo = fontInfo;
-	font->fontPath = xmalloc(strlen(fontPath) * sizeof (*font->fontPath));
-	for (unsigned int i = 0; i < strlen(fontPath); i++)
-	{
-		font->fontPath[i] = fontPath[i];
-	}
+	font->fontPath = NULL;
+	strcopy(&font->fontPath, fontPath);
 	font->height = textHeight;
 	font->scale = stbtt_ScaleForPixelHeight(&font->fontInfo, (float)textHeight);
     font->ascent = (int)(ascent * font->scale);
@@ -551,10 +605,13 @@ void set_font_to_text(Text *text, char *fontPath, int textHeight)
 	text->font = NULL;
 	for (unsigned int i = 0; i < buf_len(fonts); i++)
 	{
-		if (strmatch(fonts[i]->fontPath, fontPath) && fonts[i]->height == textHeight)
+		if (strmatch(fonts[i]->fontPath, fontPath))
 		{
-			text->font = fonts[i];
-			break;
+			if (fonts[i]->height == textHeight)
+			{
+				text->font = fonts[i];
+				break;
+			}
 		}
 	}
 	if (!text->font)
@@ -607,7 +664,7 @@ void free_text(Text *text)
 		free_sprite(text->sprites[i]);
 	}
 	buf_free(text->sprites);
-	buf_free(text);
+	xfree(text);
 }
 
 static int get_uniform_location(unsigned shaderProgramId, const char *uniformName)

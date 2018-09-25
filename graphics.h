@@ -106,6 +106,7 @@ typedef enum DrawLayer
 } DrawLayer;
 
 void init_graphics();
+void free_graphics();
 void add_sprite_to_draw_list(Sprite *sprite, DrawLayer drawLayer);
 void add_text_to_draw_list(Text *text, DrawLayer drawLayer);
 void draw_all();

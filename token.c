@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "token.h"
+#include "xalloc.h"
 #include "stretchy_buffer.h"
 
 const char *tokenStrings[] =
@@ -70,4 +71,5 @@ void free_token(Token *token)
 	} else if (token->type == TOKEN_KNOT) {
 		buf_free(token->text);
 	}
+	xfree(token);
 }
