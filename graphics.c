@@ -486,7 +486,9 @@ static void load_font(char *fontPath, int textHeight)
 	{
 		ttfBuffer = (unsigned char *)file_to_string(fontPath);
 		buf_add(ttfBuffers, ttfBuffer);
-		buf_add(ttfFilesPaths, fontPath);
+		char *newFontPath = NULL;
+		strcopy(&newFontPath, fontPath);
+		buf_add(ttfFilesPaths, newFontPath);
 	}
 	stbtt_InitFont(&fontInfo, ttfBuffer, stbtt_GetFontOffsetForIndex(ttfBuffer, 0));
 	int ascent;
