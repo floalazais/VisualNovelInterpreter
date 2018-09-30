@@ -1,6 +1,6 @@
 999 Fan-made game
 
-#ASSIGN seven's_trust false
+#ASSIGN seven's_trust true
 
 #SET_BACKGROUND "First class cabin"::"piano"
 
@@ -8,7 +8,8 @@
 	We've finally completed this puzzle.
 
 >"Seven" RIGHT "thinking" CENTER
-	I still don't understand the purpose of this killing game.
+	I still don't understand the purpose of this killing game.	
+<
 
 #CLEAR_CHARACTER_POSITION CENTER
 #SET_BACKGROUND "First class cabin"::"escape door"
@@ -31,6 +32,7 @@
 >"Seven" RIGHT "shocked" RIGHT
 	I almost forgot it! We didn't need to open that safe to escape this room.
 
+#CLEAR_CHARACTER_POSITIONS
 #SET_BACKGROUND "First class cabin"::"safe room"
 
 >"Snake" LEFT "thinking" LEFT
@@ -62,9 +64,7 @@
 >"Seven" RIGHT "idle" RIGHT
 	Ok, I'll search the living room again.
 
-#CLEAR_CHARACTER_POSITION RIGHT
-
-#CLEAR_CHARACTER_POSITION LEFT
+#CLEAR_CHARACTER_POSITIONS
 #SET_BACKGROUND "First class cabin"::"piano"
 
 #SET_CHARACTER CENTER "Snake"::"thinking static"
@@ -271,7 +271,7 @@
 >"Seven" RIGHT "idle" CENTER
 	Well then don't waste time anymore, let's go.
 
-->lets go
+->let's go
 
 @get out
 
@@ -286,9 +286,9 @@
 >"Seven" RIGHT "idle" RIGHT
 	Let's go then.
 
-->lets go
+->let's go
 
-@lets go
+@let's go
 
 #CLEAR_CHARACTER_POSITIONS
 #SET_BACKGROUND "First class cabin"::"escape door"
@@ -299,5 +299,3 @@
 	#IF knows_about_ninth_bracelet
 		Junpei asked himself if it was a good idea to not to tell Snake about the ninth bracelet.
 		He decided he'll think about it when Seven won't be around them.
-		
-#END "start.dlg"

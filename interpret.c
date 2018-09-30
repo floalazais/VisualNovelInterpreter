@@ -1,17 +1,20 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <stdio.h>
-
 #include "graphics.h"
 #include "globals.h"
 #include "stretchy_buffer.h"
 #include "xalloc.h"
 #include "interpret.h"
 
+#include <stdio.h>
+
+static char *nextDialogStartKnotName;
+
 static char *charactersNames[7];
 static Sprite *charactersSprites[7];
 static int currentSpeakerSpriteIndex;
+static Sprite *oldBackgroundSprite;
 static Sprite *backgroundSprite;
 static Sprite *choiceMarker;
 static Sprite *characterNameBox;
@@ -26,9 +29,15 @@ static int currentChoice;
 static bool choicesDisplayed;
 static bool moving;
 static bool displayedSpeakerName;
+static bool appearingBackground;
+static bool appearingCharacter;
+static bool displayDialogUI;
+static bool displaySpeakerName;
 
 void init_dialog_ui()
 {
+	nextDialogStartKnotName = NULL;
+
 	vec3 black = {.x = 0.0f, .y = 0.0f, .z = 0.0f};
 	vec3 white = {.x = 1.0f, .y = 1.0f, .z = 1.0f};
 
@@ -48,9 +57,11 @@ void init_dialog_ui()
 	sentenceBox->width = windowDimensions.x;
 	sentenceBox->height = (int)(0.2f * windowDimensions.y);
 	sentenceBox->color = black;
+	sentenceBox->opacity = 0.75f;
 
 	characterNameBox = create_sprite(SPRITE_COLOR);
 	characterNameBox->color = black;
+	characterNameBox->opacity = 0.75f;
 
 	choiceMarker = create_sprite(SPRITE_COLOR);
 	choiceMarker->position.x = (int)(0.005f * windowDimensions.x);
@@ -58,7 +69,17 @@ void init_dialog_ui()
 	choiceMarker->height = choiceMarker->width;
 	choiceMarker->color = white;
 
-	backgroundSprite = NULL;
+	oldBackgroundSprite = create_sprite(SPRITE_ANIMATED);
+	oldBackgroundSprite->position.x = 0;
+	oldBackgroundSprite->position.y = 0;
+	oldBackgroundSprite->width = windowDimensions.x;
+	oldBackgroundSprite->height = windowDimensions.y;
+	backgroundSprite = create_sprite(SPRITE_ANIMATED);
+	backgroundSprite->position.x = 0;
+	backgroundSprite->position.y = 0;
+	backgroundSprite->width = windowDimensions.x;
+	backgroundSprite->height = windowDimensions.y;
+
 	for (int i = 0; i < 7; i++)
 	{
 		charactersNames[i] = NULL;
@@ -80,43 +101,88 @@ void free_dialog_ui()
 		free_text(currentChoices[i]);
 	}
 	buf_free(currentChoices);
+	oldBackgroundSprite->animations = NULL;
+	backgroundSprite->animations = NULL;
+	free_sprite(oldBackgroundSprite);
+	free_sprite(backgroundSprite);
 }
 
-static void process_command(Command *command)
+static bool update_command(Command *command)
 {
 	if (command->type == COMMAND_SET_BACKGROUND)
 	{
-		bool foundPack = false;
-		for (unsigned int i = 0; i < buf_len(interpretingDialog->backgroundPacksNames); i++)
+		if (!appearingBackground)
 		{
-			if (strmatch(command->arguments[0]->text, interpretingDialog->backgroundPacksNames[i]))
+			bool foundPack = false;
+			for (unsigned int i = 0; i < buf_len(interpretingDialog->backgroundPacksNames); i++)
 			{
-				backgroundSprite = interpretingDialog->backgroundPacks[i];
-				bool foundAnimation = false;
-				for (unsigned int j = 0; j < buf_len(backgroundSprite->animations); j++)
+				if (strmatch(command->arguments[0]->text, interpretingDialog->backgroundPacksNames[i]))
 				{
-					if (strmatch(command->arguments[1]->text, backgroundSprite->animations[j]->name))
+					if (backgroundSprite->animations)
 					{
-						backgroundSprite->currentAnimation = j;
-						backgroundSprite->textureId = backgroundSprite->animations[j]->animationPhases[0]->textureId;
-						foundAnimation = true;
-						break;
+						oldBackgroundSprite->animations = backgroundSprite->animations;
+						oldBackgroundSprite->currentAnimation = backgroundSprite->currentAnimation;
+						oldBackgroundSprite->textureId = oldBackgroundSprite->animations[oldBackgroundSprite->currentAnimation]->animationPhases[0]->textureId;
 					}
+					backgroundSprite->animations = interpretingDialog->backgroundPacks[i]->animations;
+					bool foundAnimation = false;
+					for (unsigned int j = 0; j < buf_len(backgroundSprite->animations); j++)
+					{
+						if (strmatch(command->arguments[1]->text, backgroundSprite->animations[j]->name))
+						{
+							backgroundSprite->currentAnimation = j;
+							backgroundSprite->textureId = backgroundSprite->animations[j]->animationPhases[0]->textureId;
+							foundAnimation = true;
+							break;
+						}
+					}
+					if (!foundAnimation)
+					{
+						error("background %s of background pack %s does not exist.", command->arguments[1]->text, command->arguments[0]->text);
+					}
+					foundPack = true;
+					break;
 				}
-				if (!foundAnimation)
+			}
+			if (!foundPack)
+			{
+				error("background pack %s does not exist.", command->arguments[0]->text);
+			}
+			appearingBackground = true;
+			backgroundSprite->opacity = 0.0f;
+			if (oldBackgroundSprite->animations)
+			{
+				oldBackgroundSprite->opacity = 1.0f;
+			}
+		} else {
+			if (backgroundSprite->opacity >= 1.0f)
+			{
+				backgroundSprite->opacity = 1.0f;
+				if (oldBackgroundSprite->animations)
 				{
-					error("background %s of background pack %s does not exist.", command->arguments[1]->text, command->arguments[0]->text);
+					oldBackgroundSprite->opacity = 1.0f;
 				}
-				foundPack = true;
-				break;
+				oldBackgroundSprite->animations = NULL;
+				appearingBackground = false;
+				return true;
+			} else {
+				if (oldBackgroundSprite->animations)
+				{
+					oldBackgroundSprite->opacity -= deltaTime;
+				}
+				backgroundSprite->opacity += deltaTime;
 			}
 		}
-		if (!foundPack)
-		{
-			error("background pack %s does not exist.", command->arguments[0]->text);
-		}
+		return false;
 	} else if (command->type == COMMAND_CLEAR_BACKGROUND) {
-		backgroundSprite = NULL;
+		if (backgroundSprite->opacity > 0.0f)
+		{
+			backgroundSprite->opacity -= deltaTime;
+			return false;
+		} else {
+			backgroundSprite->opacity = 1.0f;
+			backgroundSprite->animations = NULL;
+		}
 	} else if (command->type == COMMAND_SET_CHARACTER) {
 		bool foundCharacter = false;
 		for (unsigned int i = 0; i < buf_len(interpretingDialog->charactersNames); i++)
@@ -132,7 +198,7 @@ static void process_command(Command *command)
 					if (strmatch(command->arguments[2]->text, charactersSprites[position]->animations[j]->name))
 					{
 						charactersSprites[position]->position.x = (int)((windowDimensions.x * position / 6.0f) - (charactersSprites[position]->animations[j]->animationPhases[0]->width / 2));
-						charactersSprites[position]->position.y = (int)(windowDimensions.y * 0.8f - charactersSprites[position]->animations[j]->animationPhases[0]->height);
+						charactersSprites[position]->position.y = (int)(windowDimensions.y - charactersSprites[position]->animations[j]->animationPhases[0]->height);
 						charactersSprites[position]->width = charactersSprites[position]->animations[j]->animationPhases[0]->width;
 						charactersSprites[position]->height = charactersSprites[position]->animations[j]->animationPhases[0]->height;
 						charactersSprites[position]->currentAnimation = j;
@@ -154,13 +220,35 @@ static void process_command(Command *command)
 			error("character %s does not exist.", command->arguments[1]->text);
 		}
 	} else if (command->type == COMMAND_CLEAR_CHARACTER_POSITION) {
-		charactersSprites[(int)command->arguments[0]->numeric] = NULL;
-		charactersNames[(int)command->arguments[0]->numeric] = NULL;
+		if (charactersSprites[(int)command->arguments[0]->numeric]->opacity > 0.0f)
+		{
+			charactersSprites[(int)command->arguments[0]->numeric]->opacity -= deltaTime;
+			return false;
+		} else {
+			charactersSprites[(int)command->arguments[0]->numeric]->opacity = 1.0f;
+			charactersSprites[(int)command->arguments[0]->numeric] = NULL;
+			charactersNames[(int)command->arguments[0]->numeric] = NULL;
+		}
 	} else if (command->type == COMMAND_CLEAR_CHARACTER_POSITIONS) {
+		bool fading = false;
 		for (int i = 0; i < 7; i++)
 		{
-			charactersSprites[i] = NULL;
-			charactersNames[i] = NULL;
+			if (charactersSprites[i])
+			{
+				if (charactersSprites[i]->opacity > 0.0f)
+				{
+					charactersSprites[i]->opacity -= deltaTime;
+					fading = true;
+				} else {
+					charactersSprites[i]->opacity = 1.0f;
+					charactersSprites[i] = NULL;
+					charactersNames[i] = NULL;
+				}
+			}
+		}
+		if (fading)
+		{
+			return false;
 		}
 	} else if (command->type == COMMAND_END) {
 		interpretingDialog->end = true;
@@ -169,6 +257,10 @@ static void process_command(Command *command)
 		{
 			strcopy(&nextDialogName, "Dialogs/");
 			strappend(&nextDialogName, command->arguments[0]->text);
+			if (command->arguments[0]->text)
+			{
+				strcopy(&nextDialogStartKnotName, command->arguments[1]->text);
+			}
 		}
 	} else if (command->type == COMMAND_ASSIGN) {
 		for (unsigned int i = 0; i < buf_len(variablesNames); i++)
@@ -176,7 +268,7 @@ static void process_command(Command *command)
 			if (strmatch(command->arguments[0]->text, variablesNames[i]))
 			{
 				variablesValues[i] = resolve_logic_expression(command->arguments[1]->logicExpression);
-				return;
+				return true;
 			}
 		}
 		char *variableName = NULL;
@@ -193,12 +285,15 @@ static void process_command(Command *command)
 				break;
 			}
 		}
+	} else if (command->type == COMMAND_HIDE_DIALOG_UI) {
+		displayDialogUI = false;
 	}
+	return true;
 }
 
 static bool update_sentence(Sentence *sentence)
 {
-	if (sentence->currentChar < strlen(sentence->string))
+	if ((unsigned int)sentence->currentChar < strlen(sentence->string))
 	{
 		if (sentence->currentChar == 0)
 		{
@@ -220,7 +315,7 @@ static bool update_sentence(Sentence *sentence)
 			Sprite *currentSpeakerSprite = charactersSprites[currentSpeakerSpriteIndex];
 			AnimationPhase *currentSpeakerSpriteAnimationPhase = currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->animationPhases[currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->currentAnimationPhase];
 			currentSpeakerSprite->position.x = (int)((windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentSpeakerSpriteAnimationPhase->width / 2));
-			currentSpeakerSprite->position.y = (int)((windowDimensions.y * 0.8f) - currentSpeakerSpriteAnimationPhase->height);
+			currentSpeakerSprite->position.y = (int)(windowDimensions.y - currentSpeakerSpriteAnimationPhase->height);
 			currentSpeakerSprite->width = currentSpeakerSpriteAnimationPhase->width;
 			currentSpeakerSprite->height = currentSpeakerSpriteAnimationPhase->height;
 		}
@@ -231,18 +326,17 @@ static bool update_sentence(Sentence *sentence)
 			AnimationPhase *currentSpeakerSpriteAnimationPhase = currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->animationPhases[currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->currentAnimationPhase];
 			currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->stopping = true;
 			charactersSprites[currentSpeakerSpriteIndex]->position.x = (int)((windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentSpeakerSpriteAnimationPhase->width / 2));
-			charactersSprites[currentSpeakerSpriteIndex]->position.y = (int)((windowDimensions.y * 0.8f) - currentSpeakerSpriteAnimationPhase->height);
+			charactersSprites[currentSpeakerSpriteIndex]->position.y = (int)(windowDimensions.y - currentSpeakerSpriteAnimationPhase->height);
 			charactersSprites[currentSpeakerSpriteIndex]->width = currentSpeakerSpriteAnimationPhase->width;
 			charactersSprites[currentSpeakerSpriteIndex]->height = currentSpeakerSpriteAnimationPhase->height;
 		}
 		if (is_input_key_pressed(INPUT_KEY_ENTER))
 		{
 			sentence->currentChar = 0;
+			set_string_to_text(currentSentence, NULL);
 			return true;
 		}
 	}
-	add_sprite_to_draw_list(sentenceBox, DRAW_LAYER_UI);
-	add_text_to_draw_list(currentSentence, DRAW_LAYER_UI);
 	return false;
 }
 
@@ -257,7 +351,7 @@ static bool update_cue_condition(CueCondition *cueCondition)
 	}
 	if (cueCondition->result)
 	{
-		if (cueCondition->currentExpression == buf_len(cueCondition->cueExpressionsIf))
+		if ((unsigned int)cueCondition->currentExpression == buf_len(cueCondition->cueExpressionsIf))
 		{
 			cueCondition->currentExpression = 0;
 			return true;
@@ -272,7 +366,7 @@ static bool update_cue_condition(CueCondition *cueCondition)
 			}
 		}
 	} else {
-		if (cueCondition->currentExpression == buf_len(cueCondition->cueExpressionsElse))
+		if ((unsigned int)cueCondition->currentExpression == buf_len(cueCondition->cueExpressionsElse))
 		{
 			cueCondition->currentExpression = 0;
 			return true;
@@ -309,8 +403,7 @@ static bool update_cue_expression(CueExpression *cueExpression)
 			return true;
 		}
 	} else if (cueExpression->type == CUE_EXPRESSION_COMMAND) {
-		process_command(cueExpression->command);
-		return true;
+		return update_command(cueExpression->command);
 	}
 	return false;
 }
@@ -319,7 +412,7 @@ static void display_choice(CueExpression *cueExpression)
 {
 	if (cueExpression->type == CUE_EXPRESSION_CHOICE)
 	{
-		if (nbChoices == buf_len(currentChoices))
+		if ((unsigned int)nbChoices == buf_len(currentChoices))
 		{
 			buf_add(currentChoices, create_text());
 			set_font_to_text(currentChoices[nbChoices], "Fonts/arial.ttf", TEXT_SIZE_NORMAL);
@@ -368,12 +461,14 @@ static bool update_cue(Cue *cue)
 	{
 		if (!displayedSpeakerName)
 		{
+			displayDialogUI = true;
 			displayedSpeakerName = true;
 			if (cue->characterName)
 			{
+				displaySpeakerName = true;
 				if (cue->setCharacterInDeclaration)
 				{
-					process_command(cue->cueExpressions[0]->command);
+					update_command(cue->cueExpressions[0]->command);
 				}
 				for (int i = 0; i < 7; i++)
 				{
@@ -402,12 +497,16 @@ static bool update_cue(Cue *cue)
 				characterNameBox->position.y = currentSpeaker->position.y - currentSpeaker->font->descent - 2;
 				characterNameBox->width = currentSpeaker->width + 4;
 				characterNameBox->height = currentSpeaker->height + currentSpeaker->font->descent + 4;
+			} else {
+				displaySpeakerName = false;
 			}
 		}
 
-		if (cue->currentExpression == buf_len(cue->cueExpressions)) {
+		if ((unsigned int)cue->currentExpression == buf_len(cue->cueExpressions))
+		{
 			cue->currentExpression = 0;
 			displayedSpeakerName = false;
+			set_string_to_text(currentSpeaker, NULL);
 			if (currentSpeakerSpriteIndex != -1)
 			{
 				Animation *currentSpeakerSpriteAnimation = charactersSprites[currentSpeakerSpriteIndex]->animations[charactersSprites[currentSpeakerSpriteIndex]->currentAnimation];
@@ -426,6 +525,7 @@ static bool update_cue(Cue *cue)
 			{
 				cue->currentExpression = 0;
 				displayedSpeakerName = false;
+				set_string_to_text(currentSpeaker, NULL);
 				if (currentSpeakerSpriteIndex != -1)
 				{
 					Animation *currentSpeakerSpriteAnimation = charactersSprites[currentSpeakerSpriteIndex]->animations[charactersSprites[currentSpeakerSpriteIndex]->currentAnimation];
@@ -443,14 +543,7 @@ static bool update_cue(Cue *cue)
 				}
 			}
 		}
-	}
-	if (cue->characterName)
-	{
-		add_sprite_to_draw_list(characterNameBox, DRAW_LAYER_UI);
-		add_text_to_draw_list(currentSpeaker, DRAW_LAYER_UI);
-	}
-	if (choosing)
-	{
+	} else {
 		if (!choicesDisplayed)
 		{
 			nbChoices = 0;
@@ -465,7 +558,7 @@ static bool update_cue(Cue *cue)
 		if (is_input_key_pressed(INPUT_KEY_DOWN_ARROW))
 		{
 			currentChoice++;
-			if (currentChoice == buf_len(currentChoices))
+			if ((unsigned int)currentChoice == buf_len(currentChoices))
 			{
 				currentChoice = 0;
 			}
@@ -478,7 +571,7 @@ static bool update_cue(Cue *cue)
 			}
 			choiceMarker->position.y = currentChoices[currentChoice]->position.y + ((currentChoices[currentChoice]->height - choiceMarker->height) / 2) - currentChoices[currentChoice]->font->descent;
 		} else if (is_input_key_pressed(INPUT_KEY_ENTER)) {
-			process_command(goToCommands[currentChoice]);
+			update_command(goToCommands[currentChoice]);
 			buf_free(goToCommands);
 			goToCommands = NULL;
 			cue->currentExpression = 0;
@@ -486,6 +579,7 @@ static bool update_cue(Cue *cue)
 			choicesDisplayed = false;
 			currentChoice = 0;
 			displayedSpeakerName = false;
+			set_string_to_text(currentSpeaker, NULL);
 			if (currentSpeakerSpriteIndex != -1)
 			{
 				Animation *currentSpeakerSpriteAnimation = charactersSprites[currentSpeakerSpriteIndex]->animations[charactersSprites[currentSpeakerSpriteIndex]->currentAnimation];
@@ -496,13 +590,6 @@ static bool update_cue(Cue *cue)
 			}
 			currentSpeakerSpriteIndex = -1;
 			return true;
-		}
-
-		add_sprite_to_draw_list(sentenceBox, DRAW_LAYER_UI);
-		add_sprite_to_draw_list(choiceMarker, DRAW_LAYER_UI);
-		for (int i = 0; i < nbChoices; i++)
-		{
-			add_text_to_draw_list(currentChoices[i], DRAW_LAYER_UI);
 		}
 	}
 	return false;
@@ -519,7 +606,7 @@ static bool update_knot_condition(KnotCondition *knotCondition)
 	}
 	if (knotCondition->result)
 	{
-		if (knotCondition->currentExpression == buf_len(knotCondition->knotExpressionsIf))
+		if ((unsigned int)knotCondition->currentExpression == buf_len(knotCondition->knotExpressionsIf))
 		{
 			knotCondition->currentExpression = 0;
 			return true;
@@ -534,7 +621,7 @@ static bool update_knot_condition(KnotCondition *knotCondition)
 			}
 		}
 	} else {
-		if (knotCondition->currentExpression == buf_len(knotCondition->knotExpressionsElse))
+		if ((unsigned int)knotCondition->currentExpression == buf_len(knotCondition->knotExpressionsElse))
 		{
 			knotCondition->currentExpression = 0;
 			return true;
@@ -566,15 +653,14 @@ static bool update_knot_expression(KnotExpression *knotExpression)
 			return true;
 		}
 	} else if (knotExpression->type == KNOT_EXPRESSION_COMMAND) {
-		process_command(knotExpression->command);
-		return true;
+		return update_command(knotExpression->command);
 	}
 	return false;
 }
 
 static bool update_knot(Knot *knot)
 {
-	if (knot->currentExpression == buf_len(knot->knotExpressions))
+	if ((unsigned int)knot->currentExpression == buf_len(knot->knotExpressions))
 	{
 		knot->currentExpression = 0;
 		return true;
@@ -597,7 +683,8 @@ void interpret_current_dialog()
 	if (dialogChanged)
 	{
 		dialogChanged = false;
-		backgroundSprite = NULL;
+		backgroundSprite->animations = NULL;
+		oldBackgroundSprite->animations = NULL;
 		for (int i = 0; i < 7; i++)
 		{
 			charactersNames[i] = NULL;
@@ -610,9 +697,35 @@ void interpret_current_dialog()
 		choicesDisplayed = false;
 		moving = false;
 		displayedSpeakerName = false;
+		appearingBackground = false;
+		appearingCharacter = false;
+		displayDialogUI = false;
+		displaySpeakerName = false;
+
+		if (nextDialogStartKnotName)
+		{
+			int knotIndex = -1;
+			for (unsigned int i = 0; i < buf_len(interpretingDialog->knots); i++)
+			{
+				if (strmatch(interpretingDialog->knots[i]->name, nextDialogStartKnotName))
+				{
+					knotIndex = i;
+					break;
+				}
+			}
+			if (knotIndex == -1)
+			{
+				error("could not find knot labeled %s in %s.", nextDialogStartKnotName, interpretingDialogName);
+			} else {
+				interpretingDialog->currentKnot = knotIndex;
+			}
+
+			buf_free(nextDialogStartKnotName);
+			nextDialogStartKnotName = NULL;
+		}
 	}
 
-	if (interpretingDialog->currentKnot == buf_len(interpretingDialog->knots))
+	if ((unsigned int)interpretingDialog->currentKnot == buf_len(interpretingDialog->knots))
 	{
 		gameEnd = true;
 	} else {
@@ -637,7 +750,11 @@ void interpret_current_dialog()
 		}
 	}
 
-	if (backgroundSprite)
+	if (oldBackgroundSprite->animations)
+	{
+		add_sprite_to_draw_list(oldBackgroundSprite, DRAW_LAYER_BACKGROUND);
+	}
+	if (backgroundSprite->animations)
 	{
 		add_sprite_to_draw_list(backgroundSprite, DRAW_LAYER_BACKGROUND);
 	}
@@ -646,6 +763,27 @@ void interpret_current_dialog()
 		if (charactersSprites[i])
 		{
 			add_sprite_to_draw_list(charactersSprites[i], DRAW_LAYER_FOREGROUND);
+		}
+	}
+
+	if (displayDialogUI)
+	{
+		add_sprite_to_draw_list(sentenceBox, DRAW_LAYER_UI);
+		if (!choosing)
+		{
+			add_text_to_draw_list(currentSentence, DRAW_LAYER_UI);
+		} else {
+			add_sprite_to_draw_list(choiceMarker, DRAW_LAYER_UI);
+			for (int i = 0; i < nbChoices; i++)
+			{
+				add_text_to_draw_list(currentChoices[i], DRAW_LAYER_UI);
+			}
+		}
+
+		if (displaySpeakerName)
+		{
+			add_sprite_to_draw_list(characterNameBox, DRAW_LAYER_UI);
+			add_text_to_draw_list(currentSpeaker, DRAW_LAYER_UI);
 		}
 	}
 }

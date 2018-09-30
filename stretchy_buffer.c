@@ -2,8 +2,6 @@
 #include "string.h"
 #include "stretchy_buffer.h"
 
-#include <stdio.h>
-
 void* sbuffer_create_or_grow_if_needed(void *buffer, size_t elementSize)
 {
 	if (buf_len(buffer) == _buf_capacity(buffer))

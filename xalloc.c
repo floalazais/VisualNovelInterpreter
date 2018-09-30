@@ -3,13 +3,14 @@
 #include "stretchy_buffer.h"
 #include <stdio.h>
 
-typedef struct Lol {
+typedef struct Leak
+{
     void* ptr;
     char* file;
     int line;
-} Lol;
+} Leak;
 
-Lol* lols = NULL;
+Leak* leaks = NULL;
 
 void *xmalloc_int(size_t size, char* file, int line)
 {
@@ -18,8 +19,8 @@ void *xmalloc_int(size_t size, char* file, int line)
     {
         error("could not allocate memory.");
     } else {
-        Lol l = {result, file, line};
-        buf_add(lols, l);
+        Leak leak = {result, file, line};
+        buf_add(leaks, leak);
         return result;
     }
 }
@@ -35,11 +36,15 @@ void *xrealloc(void *p, size_t size)
     }
 }
 
-void xfree(void* ptr) {
-    if (ptr != NULL) {
-        for (size_t i = 0; i < buf_len(lols); i++) {
-            if (lols[i].ptr == ptr) {
-                lols[i].ptr = NULL;
+void xfree(void* ptr)
+{
+    if (ptr)
+    {
+        for (size_t i = 0; i < buf_len(leaks); i++)
+        {
+            if (leaks[i].ptr == ptr)
+            {
+                leaks[i].ptr = NULL;
                 break;
             }
         }
@@ -47,12 +52,14 @@ void xfree(void* ptr) {
     free(ptr);
 }
 
-void print_lol() {
-    printf("MEMORY LEAK TEST\n");
-    for (size_t i = 0; i < buf_len(lols); i++) {
-        Lol l = lols[i];
-        if (l.ptr != NULL) {
-            printf("MEMORY LEAK %s %d %d\n", l.file, l.line, (int)l.ptr);
+void print_leaks()
+{
+    printf("Memory leaks :\n");
+    for (size_t i = 0; i < buf_len(leaks); i++)
+    {
+        if (leaks[i].ptr)
+        {
+            printf("    -%s:%d &%d\n", leaks[i].file, leaks[i].line, (int)leaks[i].ptr);
             fflush(stdout);
         }
     }

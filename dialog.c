@@ -134,7 +134,7 @@ static LogicExpression *create_logic_expression_unary(LogicExpressionUnaryType o
 {
 	LogicExpression *negativeLogicExpression = xmalloc(sizeof (*logicExpression));
 	logicExpression->type = LOGIC_EXPRESSION_UNARY;
-	logicExpression->unary.type = LOGIC_EXPRESSION_UNARY_NEGATION;
+	logicExpression->unary.type = operation;
 	logicExpression->unary.expression = logicExpression;
 	return negativeLogicExpression;
 }
@@ -172,7 +172,7 @@ static bool token_match(int nb, ...)
 	va_start(arg, nb);
     for (int i = 0; i < nb; i++)
     {
-		if (tokens[currentToken + i]->type != va_arg(arg, int))
+		if ((int)tokens[currentToken + i]->type != va_arg(arg, int))
         {
             match = false;
             break;
@@ -189,7 +189,7 @@ static bool token_match_on_line(int line, int nb, ...)
 	va_start(arg, nb);
     for (int i = 0; i < nb; i++)
     {
-        if (tokens[currentToken + i]->type != va_arg(arg, int) || tokens[currentToken + i]->line != line)
+        if ((int)tokens[currentToken + i]->type != va_arg(arg, int) || tokens[currentToken + i]->line != line)
         {
             match = false;
             break;
@@ -405,12 +405,13 @@ static void add_to_character_list(char *characterName)
 		char *newCharacterName = NULL;
 		strcopy(&newCharacterName, characterName);
 		buf_add(currentDialog->charactersNames, newCharacterName);
-		buf_add(currentDialog->charactersSprites, create_sprite(SPRITE_ANIMATED));
+		Sprite *newCharacterSprite = create_sprite(SPRITE_ANIMATED);
+		buf_add(currentDialog->charactersSprites, newCharacterSprite);
 		char *animationFilePath = NULL;
 		strcopy(&animationFilePath, "Animation files/");
 		strappend(&animationFilePath, characterName);
 		strappend(&animationFilePath, ".anm");
-		set_animations_to_animated_sprite(currentDialog->charactersSprites[buf_len(currentDialog->charactersSprites) - 1], animationFilePath, characterName);
+		set_animations_to_animated_sprite(newCharacterSprite, animationFilePath, characterName);
 		buf_free(animationFilePath);
 	}
 }
@@ -428,7 +429,9 @@ static int nbArguments[] =
 
     [COMMAND_ASSIGN] = 2,
 
-    [COMMAND_GO_TO] = 1
+    [COMMAND_GO_TO] = 1,
+
+	[COMMAND_HIDE_DIALOG_UI] = 0
 };
 
 static Command *parse_command()
@@ -459,11 +462,7 @@ static Command *parse_command()
 	} else if (strmatch(tokens[currentToken]->text, "CLEAR_BACKGROUND")) {
 		step_in_tokens();
 		command->type = COMMAND_CLEAR_BACKGROUND;
-		command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
-		for (int i = 0; i < nbArguments[COMMAND_CLEAR_BACKGROUND]; i++)
-		{
-			command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
-		}
+		command->arguments = NULL;
 	} else if (strmatch(tokens[currentToken]->text, "SET_CHARACTER")) {
 		step_in_tokens();
 		if (token_match_on_line(tokens[currentToken - 1]->line, 4, TOKEN_IDENTIFIER, TOKEN_STRING, TOKEN_SCOPE, TOKEN_STRING))
@@ -506,11 +505,7 @@ static Command *parse_command()
 	} else if (strmatch(tokens[currentToken]->text, "CLEAR_CHARACTER_POSITIONS")) {
 		step_in_tokens();
 		command->type = COMMAND_CLEAR_CHARACTER_POSITIONS;
-		command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
-		for (int i = 0; i < nbArguments[COMMAND_CLEAR_CHARACTER_POSITIONS]; i++)
-		{
-			command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
-		}
+		command->arguments = NULL;
 	} else if (strmatch(tokens[currentToken]->text, "END")) {
 		step_in_tokens();
 		command->type = COMMAND_END;
@@ -521,14 +516,17 @@ static Command *parse_command()
 		}
 		command->arguments[0]->type = PARAMETER_STRING;
 		command->arguments[0]->text = NULL;
+		command->arguments[1]->type = PARAMETER_STRING;
+		command->arguments[1]->text = NULL;
 		if (token_match_on_line(tokens[currentToken - 1]->line, 1, TOKEN_STRING))
 		{
 			strcopy(&command->arguments[0]->text, tokens[currentToken]->text);
 			step_in_tokens();
-			/*if (token_match_on_line(tokens[currentToken - 1]->line, 2, TOKEN_AT, TOKEN_STRING))
+			if (token_match_on_line(tokens[currentToken - 1]->line, 1, TOKEN_KNOT))
 			{
-				;
-			}*/
+				strcopy(&command->arguments[1]->text, tokens[currentToken]->text);
+				step_in_tokens();
+			}
 		}
 	} else if (strmatch(tokens[currentToken]->text, "ASSIGN")) {
 		step_in_tokens();
@@ -850,6 +848,12 @@ static KnotExpression *parse_knot_expression()
 	} else if (tokens[currentToken]->type == TOKEN_IF) {
 		knotExpression->type = KNOT_EXPRESSION_KNOT_CONDITION;
 		knotExpression->knotCondition = parse_knot_condition();
+	} else if (tokens[currentToken]->type == TOKEN_INFERIOR) {
+		knotExpression->type = KNOT_EXPRESSION_COMMAND;
+		knotExpression->command = xmalloc(sizeof (*knotExpression->command));
+		knotExpression->command->type = COMMAND_HIDE_DIALOG_UI;
+		knotExpression->command->arguments = NULL;
+		step_in_tokens();
 	} else {
 		error("in %s at line %d, expected a knot expression, got a %s token instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type]);
 	}

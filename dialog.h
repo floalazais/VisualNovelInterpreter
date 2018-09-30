@@ -88,7 +88,9 @@ typedef enum CommandType
 
     COMMAND_ASSIGN,
 
-    COMMAND_GO_TO
+    COMMAND_GO_TO,
+
+	COMMAND_HIDE_DIALOG_UI
 } CommandType;
 
 typedef enum ArgumentType

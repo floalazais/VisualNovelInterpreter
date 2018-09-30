@@ -223,6 +223,7 @@ Sprite *create_sprite(SpriteType spriteType)
 	sprite->position.y = 0;
 	sprite->width = 0;
 	sprite->height = 0;
+	sprite->opacity = 1.0f;
 	if (spriteType == SPRITE_COLOR)
 	{
 		sprite->type = SPRITE_COLOR;
@@ -271,7 +272,7 @@ static bool token_match(int nb, ...)
 	va_start(arg, nb);
     for (int i = 0; i < nb; i++)
     {
-		if (tokens[currentToken + i]->type != va_arg(arg, int))
+		if ((int)tokens[currentToken + i]->type != va_arg(arg, int))
         {
             match = false;
             break;
@@ -288,7 +289,7 @@ static bool token_match_on_line(int line, int nb, ...)
 	va_start(arg, nb);
     for (int i = 0; i < nb; i++)
     {
-        if (tokens[currentToken + i]->type != va_arg(arg, int) || tokens[currentToken + i]->line != line)
+        if ((int)tokens[currentToken + i]->type != va_arg(arg, int) || tokens[currentToken + i]->line != line)
         {
             match = false;
             break;
@@ -446,7 +447,9 @@ static void load_glyph(Font *font, int code)
 	unsigned char *bitmap = xmalloc(font->glyphs[code]->height * font->glyphs[code]->width * sizeof (*bitmap));
 	stbtt_MakeCodepointBitmap(&font->fontInfo, bitmap, font->glyphs[code]->width, font->glyphs[code]->height, font->glyphs[code]->width, font->scale, font->scale, code);
 
-	glGenTextures(1, &font->glyphs[code]->textureId);
+	unsigned int textureId;
+	glGenTextures(1, &textureId);
+	font->glyphs[code]->textureId = textureId;
 	glBindTexture(GL_TEXTURE_2D, font->glyphs[code]->textureId);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
@@ -556,7 +559,7 @@ static void update_text(Text *text)
 {
 	text->width = 0;
 	char *cursor = text->string;
-	int count = 0;
+	unsigned int count = 0;
     while (*cursor != '\0')
     {
 		int code = utf8_decode(cursor);
@@ -643,12 +646,16 @@ void set_string_to_text(Text *text, char *string)
 {
 	buf_free(text->string);
 	text->string = NULL;
-	for (unsigned int i = 0; i < strlen(string); i++)
+
+	if (string)
 	{
-		buf_add(text->string, string[i]);
+		for (unsigned int i = 0; i < strlen(string); i++)
+		{
+			buf_add(text->string, string[i]);
+		}
+		buf_add(text->string, '\0');
+		text->nbCharToDisplay = strlen(string);
 	}
-	buf_add(text->string, '\0');
-	text->nbCharToDisplay = strlen(string);
 
 	if (text->string)
 	{
@@ -682,6 +689,11 @@ static void set_int_uniform_to_shader(unsigned int shaderProgramId, char *unifor
 	glUniform1i(get_uniform_location(shaderProgramId, uniformName), value);
 }
 
+static void set_float_uniform_to_shader(unsigned int shaderProgramId, char *uniformName, float value)
+{
+	glUniform1f(get_uniform_location(shaderProgramId, uniformName), value);
+}
+
 static void set_color_uniform_to_shader(unsigned int shaderProgramId, char *uniformName, vec3 value)
 {
 	glUniform3f(get_uniform_location(shaderProgramId, uniformName), value.x, value.y, value.z);
@@ -704,6 +716,7 @@ static void draw(Sprite *sprite)
 		set_mat4_uniform_to_shader(colorShaderProgramId, "projection", &projection);
 		set_mat4_uniform_to_shader(colorShaderProgramId, "model", &model);
 		set_color_uniform_to_shader(colorShaderProgramId, "color", sprite->color);
+		set_float_uniform_to_shader(colorShaderProgramId, "opacity", sprite->opacity);
 	} else if (sprite->type == SPRITE_TEXTURE) {
 		if (sprite->textureId == -1)
 		{
@@ -715,6 +728,7 @@ static void draw(Sprite *sprite)
 		glActiveTexture(GL_TEXTURE0);
 		set_int_uniform_to_shader(textureShaderProgramId, "textureId", 0);
 		glBindTexture(GL_TEXTURE_2D, sprite->textureId);
+		set_float_uniform_to_shader(textureShaderProgramId, "opacity", sprite->opacity);
 	} else if (sprite->type == SPRITE_GLYPH) {
 		if (sprite->textureId == -1)
 		{
@@ -727,6 +741,7 @@ static void draw(Sprite *sprite)
 	    set_int_uniform_to_shader(glyphShaderProgramId, "glyphTextureId", 0);
 	    glBindTexture(GL_TEXTURE_2D, sprite->textureId);
 		set_color_uniform_to_shader(glyphShaderProgramId, "textColor", sprite->color);
+		set_float_uniform_to_shader(glyphShaderProgramId, "opacity", sprite->opacity);
 	} else if (sprite->type == SPRITE_ANIMATED) {
 		if (!sprite->animations)
 		{
@@ -740,12 +755,13 @@ static void draw(Sprite *sprite)
 		Animation *currentAnimation = sprite->animations[sprite->currentAnimation];
 		AnimationPhase *currentAnimationPhase = sprite->animations[sprite->currentAnimation]->animationPhases[sprite->animations[sprite->currentAnimation]->currentAnimationPhase];
 	    glBindTexture(GL_TEXTURE_2D, currentAnimationPhase->textureId);
+		set_float_uniform_to_shader(textureShaderProgramId, "opacity", sprite->opacity);
 		if (currentAnimation->updating)
 		{
 			currentAnimation->timeDuringCurrentAnimationPhase += deltaTime;
 			if (currentAnimationPhase->length <= currentAnimation->timeDuringCurrentAnimationPhase)
 			{
-				if (currentAnimation->currentAnimationPhase == buf_len(currentAnimation->animationPhases) - 1)
+				if ((unsigned int)currentAnimation->currentAnimationPhase == buf_len(currentAnimation->animationPhases) - 1)
 				{
 					if (currentAnimation->looping)
 					{

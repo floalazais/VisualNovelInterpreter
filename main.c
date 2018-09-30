@@ -1,9 +1,9 @@
 #include <Windows.h>
 #include <Windowsx.h>
-#include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 #include "globals.h"
 #include "xalloc.h"
@@ -92,7 +92,7 @@ bool strmatch(char *a, char *b)
 }
 
 char *windowName;
-ivec2 windowDimensions = {.x = 1600, .y = 900};
+ivec2 windowDimensions = {.x = 800, .y = 600};
 
 mat4 projection;
 
@@ -296,7 +296,8 @@ static LRESULT WINAPI WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 
 #define WGL_LIST \
 	WGL_FUNCTION(BOOL, wglChoosePixelFormatARB, HDC hdc, const int* piAttribIList, const FLOAT* pfAttribFList, UINT nMaxFormats, int* piFormats, UINT* nNumFormats) \
-	WGL_FUNCTION(HGLRC, wglCreateContextAttribsARB, HDC hDC, HGLRC hshareContext, const int* attribList)
+	WGL_FUNCTION(HGLRC, wglCreateContextAttribsARB, HDC hDC, HGLRC hshareContext, const int* attribList) \
+	WGL_FUNCTION(BOOL, wglSwapIntervalEXT, int interval)
 
 #define WGL_FUNCTION(ret, name, ...) ret (GL_CALL_CONVENTION *name)(__VA_ARGS__);
 	WGL_LIST
@@ -377,7 +378,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	{
 		error("could not set dummy OpenGL context.");
 	}
-
+	
 	{
 		#define WGL_FUNCTION(ret, name, ...) \
 			name = (void*)wglGetProcAddress(#name); \
@@ -406,6 +407,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 			}
 		GL_LIST
 		#undef GL_FUNCTION
+
+		FreeLibrary(dll);
 	}
 
 	int pixelFormatAttribute[] =
@@ -443,6 +446,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	{
 		error("could not set OpenGL 3.3 context.");
 	}
+
+	wglSwapIntervalEXT(1);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -523,6 +528,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	free_dialog(interpretingDialog);
 	free_dialog_ui();
 	free_graphics();
-	print_lol();
+	print_leaks();
 	return msg.wParam;
 }

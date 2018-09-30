@@ -40,7 +40,8 @@ typedef struct Sprite
 	int width;
 	int height;
 	vec3 color;
-	unsigned int textureId;
+	float opacity;
+	int textureId;
 	Animation **animations;
 	int currentAnimation;
 } Sprite;
@@ -51,7 +52,7 @@ typedef struct Glyph
 	int yOffset;
 	int width;
 	int height;
-	unsigned int textureId;
+	int textureId;
 } Glyph;
 
 typedef	struct Font
