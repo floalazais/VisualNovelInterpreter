@@ -59,8 +59,6 @@ char *file_to_string(char *filePath)
 
 void strcopy(char **destination, char *source)
 {
-	buf_free(*destination);
-	*destination = NULL;
 	for (unsigned int i = 0; i < strlen(source); i++)
 	{
 		buf_add(*destination, source[i]);
@@ -70,14 +68,18 @@ void strcopy(char **destination, char *source)
 
 void strappend(char **destination, char *suffix)
 {
-	if ((*destination)[buf_len(*destination) - 1] == '\0')
+	if (buf_len(*destination) >= 1)
 	{
-		(*destination)[buf_len(*destination) - 1] = suffix[0];
-		for (unsigned int i = 1; i < strlen(suffix); i++)
+		if ((*destination)[buf_len(*destination) - 1] == '\0')
 		{
-			buf_add(*destination, suffix[i]);
+			(*destination)[buf_len(*destination) - 1] = suffix[0];
+			for (unsigned int i = 1; i < strlen(suffix); i++)
+			{
+				buf_add(*destination, suffix[i]);
+			}
 		}
-	} else {
+	}
+	 else {
 		for (unsigned int i = 0; i < strlen(suffix); i++)
 		{
 			buf_add(*destination, suffix[i]);
@@ -307,7 +309,6 @@ Dialog *interpretingDialog = NULL;
 char *interpretingDialogName = NULL;
 char *nextDialogName = NULL;
 bool dialogChanged = true;
-bool gameEnd = false;
 char **variablesNames = NULL;
 double *variablesValues = NULL;
 
@@ -378,7 +379,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	{
 		error("could not set dummy OpenGL context.");
 	}
-	
+
 	{
 		#define WGL_FUNCTION(ret, name, ...) \
 			name = (void*)wglGetProcAddress(#name); \
@@ -466,10 +467,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 		error("could not set the game name to the window.");
 	}
 
-	/*vec2 position = {.x = 0.0f, .y = 0.0f};
-	vec3 color = {.x = 0.3f, .y = 0.5f, .z = 0.8f};
-	Text text = create_text(position, TEXT_SIZE_NORMAL, "éàüî", "Fonts/arial.ttf", color);*/
-
 	QueryPerformanceFrequency(&globalPerformanceFrequency);
 
 	currentClock = get_clock();
@@ -499,25 +496,21 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-		//add_text_to_draw_list(text, DRAW_LAYER_FOREGROUND);
-
-		if (!gameEnd)
+		if (nextDialogName)
 		{
-			if (nextDialogName)
+			free_dialog(interpretingDialog);
+			tokens = lex(nextDialogName);
+			interpretingDialog = create_dialog(nextDialogName, tokens);
+			if (interpretingDialogName != nextDialogName)
 			{
-				free_dialog(interpretingDialog);
-				tokens = lex(nextDialogName);
-				interpretingDialog = create_dialog(nextDialogName, tokens);
-				if (interpretingDialogName != nextDialogName)
-				{
-					buf_free(interpretingDialogName);
-					interpretingDialogName = nextDialogName;
-				}
-				nextDialogName = NULL;
-				dialogChanged = true;
+				buf_free(interpretingDialogName);
+				interpretingDialogName = nextDialogName;
 			}
-			interpret_current_dialog();
-		} else {
+			nextDialogName = NULL;
+			dialogChanged = true;
+		}
+		if (!interpret_current_dialog())
+		{
 			PostMessageA(window, WM_CLOSE, 0, 0);
 		}
 

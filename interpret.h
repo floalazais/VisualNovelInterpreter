@@ -5,6 +5,6 @@
 
 void init_dialog_ui();
 void free_dialog_ui();
-void interpret_current_dialog();
+bool interpret_current_dialog();
 
 #endif /* end of include guard: INTERPRET_H */

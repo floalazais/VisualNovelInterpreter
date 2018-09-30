@@ -431,7 +431,7 @@ static int nbArguments[] =
 
     [COMMAND_GO_TO] = 1,
 
-	[COMMAND_HIDE_DIALOG_UI] = 0
+	[COMMAND_HIDE_UI] = 0
 };
 
 static Command *parse_command()
@@ -564,6 +564,10 @@ static Command *parse_command()
 		} else {
 			error("in %s at line %d, bad argument for #%s command, expected knot name token.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->text);
 		}
+	} else if (strmatch(tokens[currentToken]->text, "HIDE_UI")) {
+		step_in_tokens();
+		command->type = COMMAND_HIDE_UI;
+		command->arguments = NULL;
 	} else {
 		error("in %s at line %d, unknown command #%s found.", filePath, tokens[currentToken]->line, tokens[currentToken]->text);
 	}
@@ -602,7 +606,6 @@ static Choice *parse_choice()
 	choice->sentence = xmalloc(sizeof (*choice->sentence));
 	choice->sentence->string = NULL;
 	strcopy(&choice->sentence->string, tokens[currentToken - 1]->text);
-	choice->sentence->currentChar = 0;
 	choice->goToCommand = xmalloc(sizeof (*choice->goToCommand));
 	choice->goToCommand->type = COMMAND_GO_TO;
 	choice->goToCommand->arguments = xmalloc(sizeof (*choice->goToCommand->arguments) * nbArguments[COMMAND_GO_TO]);
@@ -697,7 +700,6 @@ static CueExpression *parse_cue_expression()
 			cueExpression->sentence = xmalloc(sizeof (*cueExpression->sentence));
 			cueExpression->sentence->string = NULL;
 			strcopy(&cueExpression->sentence->string, tokens[currentToken]->text);
-			cueExpression->sentence->currentChar = 0;
 			step_in_tokens();
 		} else {
 			error("in %s at line %d, found sentence after a choice.", filePath, tokens[currentToken]->line);
@@ -848,12 +850,6 @@ static KnotExpression *parse_knot_expression()
 	} else if (tokens[currentToken]->type == TOKEN_IF) {
 		knotExpression->type = KNOT_EXPRESSION_KNOT_CONDITION;
 		knotExpression->knotCondition = parse_knot_condition();
-	} else if (tokens[currentToken]->type == TOKEN_INFERIOR) {
-		knotExpression->type = KNOT_EXPRESSION_COMMAND;
-		knotExpression->command = xmalloc(sizeof (*knotExpression->command));
-		knotExpression->command->type = COMMAND_HIDE_DIALOG_UI;
-		knotExpression->command->arguments = NULL;
-		step_in_tokens();
 	} else {
 		error("in %s at line %d, expected a knot expression, got a %s token instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type]);
 	}

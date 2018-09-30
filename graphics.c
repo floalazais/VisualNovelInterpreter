@@ -9,6 +9,14 @@
 #include "lex.h"
 #include "graphics.h"
 
+const char *spritesStrings[] =
+{
+    [SPRITE_COLOR] = "color sprite",
+    [SPRITE_TEXTURE] = "texture sprite",
+    [SPRITE_GLYPH] = "glyph sprite",
+	[SPRITE_ANIMATED] = "animated sprite"
+};
+
 static char *filePath;
 static Token **tokens;
 static int currentToken;
@@ -140,7 +148,7 @@ void free_graphics()
 	for (unsigned int i = 0; i < buf_len(ttfBuffers); i++)
 	{
 		xfree(ttfBuffers[i]);
-		xfree(ttfFilesPaths[i]);
+		buf_free(ttfFilesPaths[i]);
 	}
 
 	for (unsigned int i = 0; i < buf_len(texturesPaths); i++)
@@ -517,89 +525,118 @@ static void load_font(char *fontPath, int textHeight)
 	buf_add(fonts, font);
 }
 
-static int offset;
-
-#define MAXUNICODE 0x10FFFF
-static int utf8_decode(const char *o)
-{
-	static const unsigned int limits[] = {0xFF, 0x7F, 0x7FF, 0xFFFF};
-	const unsigned char *s = (const unsigned char *)o;
-	unsigned int c = s[0];
-	unsigned int res = 0;  /* final result */
-	if (c < 0x80)  /* ascii? */
-	{
-		res = c;
-		offset = 1;
-	} else {
-		int count = 0;  /* to count number of continuation bytes */
-		while (c & 0x40)
-		{  /* still have continuation bytes? */
-			int cc = s[++count];  /* read next byte */
-			if ((cc & 0xC0) != 0x80)  /* not a continuation byte? */
-				return -1;  /* invalid byte sequence */
-			res = (res << 6) | (cc & 0x3F);  /* add lower 6 bits from cont. byte */
-			c <<= 1;  /* to test next bit */
-		}
-		res |= ((c & 0x7F) << (count * 5));  /* add first byte */
-		if (count > 3 || res > MAXUNICODE || res <= limits[count])
-			return -1;  /* invalid byte sequence */
-		offset = count + 1;  /* skip continuation bytes read and first byte */
-	}
-	return res;
-}
-
 Text *create_text()
 {
 	Text *text = xmalloc(sizeof (*text));
 	text->font = NULL;
-	text->string = NULL;
+	text->codes = NULL;
 	text->sprites = NULL;
+	text->widthLimit = -1;
 	return text;
 }
 
 static void update_text(Text *text)
 {
 	text->width = 0;
-	char *cursor = text->string;
-	unsigned int count = 0;
-    while (*cursor != '\0')
-    {
-		int code = utf8_decode(cursor);
-		if (code == -1)
-		{
-			error("found incorrect utf-8 sequence in %s.", text->string);
-		} else if (code > 0xFFFF) {
-			error("unsupported character code %d.", code);
-		}
-		cursor += offset;
+	int currentLineWidth = 0;
+	int nbLine = 1;
+	int count = 0;
 
-		if (!text->font->loaded[code])
+	for (unsigned int i = 0; i < buf_len(text->codes); i++)
+	{
+		if (currentLineWidth == 0)
 		{
-			load_glyph(text->font, code);
+			while (text->codes[i] == ' ')
+			{
+				i++;
+			}
 		}
 
-		if (count == buf_len(text->sprites))
+		if (!text->font->loaded[text->codes[i]])
+		{
+			load_glyph(text->font, text->codes[i]);
+		}
+
+		if (i == buf_len(text->sprites))
 		{
 			buf_add(text->sprites, create_sprite(SPRITE_GLYPH));
 		}
 
-		text->sprites[count]->width = text->font->glyphs[code]->width;
-		text->sprites[count]->height = text->font->glyphs[code]->height;
-		text->sprites[count]->textureId = text->font->glyphs[code]->textureId;
+		text->sprites[count]->width = text->font->glyphs[text->codes[i]]->width;
+		text->sprites[count]->height = text->font->glyphs[text->codes[i]]->height;
+		text->sprites[count]->textureId = text->font->glyphs[text->codes[i]]->textureId;
 		text->sprites[count]->color = text->color;
 
-		text->sprites[count]->position.x = text->position.x + text->width;
-		text->sprites[count]->position.y = text->position.y + text->font->glyphs[code]->yOffset;
-		text->width += text->font->glyphs[code]->xOffset + (int)(stbtt_GetCodepointKernAdvance(&text->font->fontInfo, code, utf8_decode(cursor)) * text->font->scale);
+		text->sprites[count]->position.x = text->position.x + currentLineWidth;
+		text->sprites[count]->position.y = text->position.y + (nbLine - 1) * (text->font->ascent - text->font->descent) + text->font->glyphs[text->codes[i]]->yOffset;
+
+		if (i == buf_len(text->codes) - 1)
+		{
+			currentLineWidth += text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(&text->font->fontInfo, text->codes[i], 0) * text->font->scale);
+		} else {
+			currentLineWidth += text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(&text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
+		}
 
 		count++;
+
+		if (text->widthLimit != -1 && currentLineWidth > text->widthLimit)
+		{
+			int oldI = i;
+			int oldCount = count;
+			bool foundSpace = true;
+			while (text->codes[i] != ' ')
+			{
+				if (i == 0)
+				{
+					i = oldI;
+					count = oldCount;
+					foundSpace = false;
+					break;
+				}
+				i--;
+				count--;
+				if (i == buf_len(text->codes) - 1)
+				{
+					currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(&text->font->fontInfo, text->codes[i], 0) * text->font->scale);
+				} else {
+					currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(&text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
+				}
+			}
+			if (foundSpace)
+			{
+				i--;
+				count--;
+				currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(&text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
+			}
+			if (currentLineWidth > text->width)
+			{
+				text->width = currentLineWidth;
+			}
+			currentLineWidth = 0;
+			nbLine++;
+		}
     }
+	if (currentLineWidth > text->width)
+	{
+		text->width = currentLineWidth;
+	}
+	text->height = nbLine * (text->font->ascent - text->font->descent);
+	text->nbMaxCharToDisplay = count;
+}
+
+void set_width_limit_to_text(Text *text, int limit)
+{
+	text->widthLimit = limit;
+	if (text->codes)
+	{
+		update_text(text);
+	}
 }
 
 void set_position_to_text(Text *text, ivec2 position)
 {
 	text->position = position;
-	if (text->string)
+	if (text->codes)
 	{
 		update_text(text);
 	}
@@ -638,36 +675,75 @@ void set_font_to_text(Text *text, char *fontPath, int textHeight)
 
 	text->height = text->font->ascent - text->font->descent;
 
-	if (text->string)
+	if (text->codes)
 	{
 		update_text(text);
 	}
 }
 
+static int offset;
+
+#define MAXUNICODE 0x10FFFF
+static int utf8_decode(const char *o)
+{
+	static const unsigned int limits[] = {0xFF, 0x7F, 0x7FF, 0xFFFF};
+	const unsigned char *s = (const unsigned char *)o;
+	unsigned int c = s[0];
+	unsigned int res = 0;  /* final result */
+	if (c < 0x80)  /* ascii? */
+	{
+		res = c;
+		offset = 1;
+	} else {
+		int count = 0;  /* to count number of continuation bytes */
+		while (c & 0x40)
+		{  /* still have continuation bytes? */
+			int cc = s[++count];  /* read next byte */
+			if ((cc & 0xC0) != 0x80)  /* not a continuation byte? */
+				return -1;  /* invalid byte sequence */
+			res = (res << 6) | (cc & 0x3F);  /* add lower 6 bits from cont. byte */
+			c <<= 1;  /* to test next bit */
+		}
+		res |= ((c & 0x7F) << (count * 5));  /* add first byte */
+		if (count > 3 || res > MAXUNICODE || res <= limits[count])
+			return -1;  /* invalid byte sequence */
+		offset = count + 1;  /* skip continuation bytes read and first byte */
+	}
+	return res;
+}
+
 void set_string_to_text(Text *text, char *string)
 {
-	buf_free(text->string);
-	text->string = NULL;
+	buf_free(text->codes);
+	text->codes = NULL;
 
 	if (string)
 	{
-		for (unsigned int i = 0; i < strlen(string); i++)
-		{
-			buf_add(text->string, string[i]);
+		int code;
+		while (*string != '\0')
+	    {
+			code = utf8_decode(string);
+			if (code == -1)
+			{
+				error("found incorrect utf-8 sequence in %s.", string);
+			} else if (code > 0xFFFF) {
+				error("unsupported character code %d.", code);
+			}
+			string += offset;
+			buf_add(text->codes, code);
 		}
-		buf_add(text->string, '\0');
-		text->nbCharToDisplay = strlen(string);
 	}
 
-	if (text->string)
+	if (text->codes)
 	{
 		update_text(text);
+		text->nbCharToDisplay = text->nbMaxCharToDisplay;
 	}
 }
 
 void free_text(Text *text)
 {
-	buf_free(text->string);
+	buf_free(text->codes);
 	for (unsigned int i = 0; i < buf_len(text->sprites); i++)
 	{
 		free_sprite(text->sprites[i]);
@@ -834,7 +910,7 @@ void add_sprite_to_draw_list(Sprite *sprite, DrawLayer drawLayer)
 
 void add_text_to_draw_list(Text *text, DrawLayer drawLayer)
 {
-	if (text->string)
+	if (text->codes)
 	{
 		if (drawLayer == DRAW_LAYER_BACKGROUND)
 		{

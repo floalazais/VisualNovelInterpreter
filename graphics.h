@@ -46,6 +46,8 @@ typedef struct Sprite
 	int currentAnimation;
 } Sprite;
 
+extern const char *spritesStrings[];
+
 typedef struct Glyph
 {
 	int xOffset;
@@ -71,13 +73,15 @@ typedef	struct Font
 typedef struct Text
 {
 	Font *font;
-	char *string;
+	int *codes;
 	Sprite **sprites;
 	ivec2 position;
 	int width;
 	int height;
+	int widthLimit;
 	vec3 color;
 	int nbCharToDisplay;
+	int nbMaxCharToDisplay;
 } Text;
 
 typedef enum TextSize
@@ -96,6 +100,7 @@ Text *create_text();
 void set_position_to_text(Text *text, ivec2 position);
 void set_font_to_text(Text *text, char *fontPath, int textHeight);
 void set_string_to_text(Text *text, char *string);
+void set_width_limit_to_text(Text *text, int limit);
 void free_text(Text *text);
 
 typedef enum DrawLayer

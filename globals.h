@@ -9,7 +9,6 @@ extern ivec2 windowDimensions;
 extern mat4 projection;
 extern float deltaTime;
 extern ivec2 mousePosition;
-extern bool gameEnd;
 extern char **variablesNames;
 extern double *variablesValues;
 extern Dialog *interpretingDialog;

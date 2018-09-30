@@ -5,7 +5,7 @@
 #SET_BACKGROUND "First class cabin"::"piano"
 
 >"Junpei" LEFT
-	We've finally completed this puzzle.
+	Finally we've completed this puzzle.
 
 >"Seven" RIGHT "thinking" CENTER
 	I still don't understand the purpose of this killing game.
@@ -66,7 +66,7 @@
 #CLEAR_CHARACTER_POSITIONS
 #SET_BACKGROUND "First class cabin"::"piano"
 
-#SET_CHARACTER CENTER "Snake"::"thinking static"
+#SET_CHARACTER CENTER "Snake"::"thinking"
 
 >
 	Seven left Junpei alone with Snake, who still seemed to be thoughtful about the safe thing.
@@ -114,12 +114,22 @@
 
 #ASSIGN knows_about_ninth_bracelet true
 
+>"Junpei" LEFT
+	Yeah, why not.
+	
+>
+	Seven seemed pleased about Junpei's answer.
+	He turned back and entered the living room.
+
 #CLEAR_CHARACTER_POSITION CENTER
+
+>
+	Junpei was hoping he just didn't make a fatal error.
+
 #CLEAR_BACKGROUND
 
 >
-	Junpei joined Seven in the living room.
-	Seven seemed pleased about it.
+	Despite his doubts, he joined Seven in the living room.
 
 #SET_BACKGROUND "First class cabin"::"living room"
 
@@ -206,12 +216,12 @@
 	On these words, Seven went back to the living room, followed by Junpei.
 
 #SET_BACKGROUND "First class cabin"::"living room"
-#SET_CHARACTER CENTER "Seven"::"idle static"
+#SET_CHARACTER CENTER "Seven"::"idle"
 
 >"Junpei" LEFT
 	I'll check the bathroom then.
 
->"Seven" RIGHT "idle" CENTER
+>"Seven" RIGHT
 	Okay, I'll stay here examining this room.
 
 #CLEAR_CHARACTER_POSITION CENTER
@@ -225,7 +235,7 @@
 >"Junpei" LEFT
 	Sorry but we'll be faster by checking one room per person.
 
->"Seven" RIGHT "idle" CENTER
+>"Seven" RIGHT
 	Okay, no problem.
 
 >
@@ -254,21 +264,23 @@
 #CLEAR_CHARACTER_POSITIONS
 #SET_BACKGROUND "First class cabin"::"escape door"
 
->"Snake" RIGHT "disapproving" CENTER
+>"Snake" RIGHT "disapproving" LEFT
 	Indeed, it was a waste of time..
 
 >"Junpei" LEFT
 	Did you hear us in the hallway?
 
->"Snake" RIGHT "smiling" CENTER
+>"Snake" RIGHT "smiling" LEFT
 	Indeed.
 
 #IF knows_about_ninth_bracelet
 	>
 		Junpei hoped that he didn't hear Seven and him talking in the living room.
 
->"Seven" RIGHT "idle" CENTER
+>"Seven" RIGHT "idle" RIGHT
 	Well then don't waste time anymore, let's go.
+	
+#CLEAR_CHARACTER_POSITIONS
 
 ->let's go
 
@@ -285,12 +297,13 @@
 >"Seven" RIGHT "idle" RIGHT
 	Let's go then.
 
+#CLEAR_CHARACTER_POSITIONS
+#SET_BACKGROUND "First class cabin"::"escape door"
+	
 ->let's go
 
 @let's go
 
-#CLEAR_CHARACTER_POSITIONS
-#SET_BACKGROUND "First class cabin"::"escape door"
 #CLEAR_BACKGROUND
 
 >
