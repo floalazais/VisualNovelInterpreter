@@ -325,6 +325,12 @@ static AnimationPhase *parse_animation_phase(char *spriteName)
 		error("in %s at line %d, invalid syntax for animation phase declaration, expected texture as a string followed by a length as a number, got %s and %s instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type], tokenStrings[tokens[currentToken + 1]->type]);
 	}
 	steps_in_tokens(2);
+	if (token_match_on_line(tokens[currentToken - 1]->line, 2, TOKEN_NUMERIC, TOKEN_NUMERIC))
+	{
+		animationPhase->width = tokens[currentToken]->numeric * windowDimensions.x;
+		animationPhase->height = tokens[currentToken + 1]->numeric * windowDimensions.y;
+		steps_in_tokens(2);
+	}
 	if (tokens[currentToken - 1]->line == tokens[currentToken]->line && tokens[currentToken]->type != TOKEN_END_OF_FILE)
 	{
 		error("in %s at line %d, expected end of line after animation phase declaration.", filePath, tokens[currentToken]->line);

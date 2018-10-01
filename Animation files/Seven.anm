@@ -1,32 +1,32 @@
 "disappointed"
-	"disappointed1.png" 0
+	"disappointed1.png" 0 0.6 0.75
 
 "angry" loop
-	"angry1.gif" 0.1
-	"angry2.gif" 0.1
-	"angry3.gif" 0.1
-	"angry2.gif" 0.1
+	"angry1.gif" 0.1 0.6 0.75
+	"angry2.gif" 0.1 0.6 0.75
+	"angry3.gif" 0.1 0.6 0.75
+	"angry2.gif" 0.1 0.6 0.75
 
 "idle" loop
-	"idle1.gif" 0.1
-	"idle2.gif" 0.1
-	"idle3.gif" 0.1
-	"idle2.gif" 0.1
+	"idle1.gif" 0.1 0.6 0.75
+	"idle2.gif" 0.1 0.6 0.75
+	"idle3.gif" 0.1 0.6 0.75
+	"idle2.gif" 0.1 0.6 0.75
 
 "laughing" loop
-	"laughing1.gif" 0.1
-	"laughing2.gif" 0.1
-	"laughing3.gif" 0.1
-	"laughing2.gif" 0.1
+	"laughing1.gif" 0.1 0.6 0.75
+	"laughing2.gif" 0.1 0.6 0.75
+	"laughing3.gif" 0.1 0.6 0.75
+	"laughing2.gif" 0.1 0.6 0.75
 
 "shocked" loop
-	"shocked1.gif" 0.1
-	"shocked2.gif" 0.1
-	"shocked3.gif" 0.1
-	"shocked2.gif" 0.1
+	"shocked1.gif" 0.1 0.6 0.75
+	"shocked2.gif" 0.1 0.6 0.75
+	"shocked3.gif" 0.1 0.6 0.75
+	"shocked2.gif" 0.1 0.6 0.75
 
 "thinking" loop
-	"thinking1.gif" 0.1
-	"thinking2.gif" 0.1
-	"thinking3.gif" 0.1
-	"thinking2.gif" 0.1
+	"thinking1.gif" 0.1 0.6 0.75
+	"thinking2.gif" 0.1 0.6 0.75
+	"thinking3.gif" 0.1 0.6 0.75
+	"thinking2.gif" 0.1 0.6 0.75
