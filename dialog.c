@@ -107,7 +107,8 @@ static LogicExpression *create_logic_expression_literal_string(char *string)
 	LogicExpression *logicExpression = xmalloc(sizeof (*logicExpression));
 	logicExpression->type = LOGIC_EXPRESSION_LITERAL;
 	logicExpression->literal.type = LOGIC_EXPRESSION_LITERAL_STRING;
-	logicExpression->literal.text = string;
+	logicExpression->literal.text = NULL;
+	strcopy(&logicExpression->literal.text, string);
 	return logicExpression;
 }
 
@@ -116,7 +117,8 @@ static LogicExpression *create_logic_expression_literal_identifier(char *name)
 	LogicExpression *logicExpression = xmalloc(sizeof (*logicExpression));
 	logicExpression->type = LOGIC_EXPRESSION_LITERAL;
 	logicExpression->literal.type = LOGIC_EXPRESSION_LITERAL_IDENTIFIER;
-	logicExpression->literal.text = name;
+	logicExpression->literal.text = NULL;
+	strcopy(&logicExpression->literal.text, name);
 	return logicExpression;
 }
 
@@ -132,7 +134,7 @@ static LogicExpression *create_logic_expression_unary(LogicExpressionUnaryType o
 {
 	LogicExpression *negativeLogicExpression = xmalloc(sizeof (*logicExpression));
 	logicExpression->type = LOGIC_EXPRESSION_UNARY;
-	logicExpression->unary.type = LOGIC_EXPRESSION_UNARY_NEGATION;
+	logicExpression->unary.type = operation;
 	logicExpression->unary.expression = logicExpression;
 	return negativeLogicExpression;
 }
@@ -170,7 +172,7 @@ static bool token_match(int nb, ...)
 	va_start(arg, nb);
     for (int i = 0; i < nb; i++)
     {
-		if (tokens[currentToken + i]->type != va_arg(arg, int))
+		if ((int)tokens[currentToken + i]->type != va_arg(arg, int))
         {
             match = false;
             break;
@@ -187,7 +189,7 @@ static bool token_match_on_line(int line, int nb, ...)
 	va_start(arg, nb);
     for (int i = 0; i < nb; i++)
     {
-        if (tokens[currentToken + i]->type != va_arg(arg, int) || tokens[currentToken + i]->line != line)
+        if ((int)tokens[currentToken + i]->type != va_arg(arg, int) || tokens[currentToken + i]->line != line)
         {
             match = false;
             break;
@@ -369,28 +371,18 @@ static void add_to_background_list(char *backgroundPackName)
 	}
 	if (!foundPack)
 	{
-		buf_add(currentDialog->backgroundPacksNames, backgroundPackName);
+		char *newBackgroundPackName = NULL;
+		strcopy(&newBackgroundPackName, backgroundPackName);
+		buf_add(currentDialog->backgroundPacksNames, newBackgroundPackName);
 		Sprite *newBackgroundPack = create_sprite(SPRITE_ANIMATED);
 		newBackgroundPack->position.x = 0;
 		newBackgroundPack->position.y = 0;
 		newBackgroundPack->width = windowDimensions.x;
 		newBackgroundPack->height = windowDimensions.y;
 		char *animationFilePath = NULL;
-		char *prefix = "Animation files/";
-		char *suffix = ".anm";
-		for (unsigned int i = 0; i < strlen(prefix); i++)
-		{
-			buf_add(animationFilePath, prefix[i]);
-		}
-		for (unsigned int i = 0; i < strlen(backgroundPackName); i++)
-		{
-			buf_add(animationFilePath, backgroundPackName[i]);
-		}
-		for (unsigned int i = 0; i < strlen(suffix); i++)
-		{
-			buf_add(animationFilePath, suffix[i]);
-		}
-		buf_add(animationFilePath, '\0');
+		strcopy(&animationFilePath, "Animation files/");
+		strappend(&animationFilePath, backgroundPackName);
+		strappend(&animationFilePath, ".anm");
 		set_animations_to_animated_sprite(newBackgroundPack, animationFilePath, backgroundPackName);
 		buf_add(currentDialog->backgroundPacks, newBackgroundPack);
 		buf_free(animationFilePath);
@@ -410,25 +402,16 @@ static void add_to_character_list(char *characterName)
 	}
 	if (!foundCharacter)
 	{
-		buf_add(currentDialog->charactersNames, characterName);
-		buf_add(currentDialog->charactersSprites, create_sprite(SPRITE_ANIMATED));
+		char *newCharacterName = NULL;
+		strcopy(&newCharacterName, characterName);
+		buf_add(currentDialog->charactersNames, newCharacterName);
+		Sprite *newCharacterSprite = create_sprite(SPRITE_ANIMATED);
+		buf_add(currentDialog->charactersSprites, newCharacterSprite);
 		char *animationFilePath = NULL;
-		char *prefix = "Animation files/";
-		char *suffix = ".anm";
-		for (unsigned int i = 0; i < strlen(prefix); i++)
-		{
-			buf_add(animationFilePath, prefix[i]);
-		}
-		for (unsigned int i = 0; i < strlen(characterName); i++)
-		{
-			buf_add(animationFilePath, characterName[i]);
-		}
-		for (unsigned int i = 0; i < strlen(suffix); i++)
-		{
-			buf_add(animationFilePath, suffix[i]);
-		}
-		buf_add(animationFilePath, '\0');
-		set_animations_to_animated_sprite(currentDialog->charactersSprites[buf_len(currentDialog->charactersSprites) - 1], animationFilePath, characterName);
+		strcopy(&animationFilePath, "Animation files/");
+		strappend(&animationFilePath, characterName);
+		strappend(&animationFilePath, ".anm");
+		set_animations_to_animated_sprite(newCharacterSprite, animationFilePath, characterName);
 		buf_free(animationFilePath);
 	}
 }
@@ -442,11 +425,13 @@ static int nbArguments[] =
     [COMMAND_CLEAR_CHARACTER_POSITION] = 1,
     [COMMAND_CLEAR_CHARACTER_POSITIONS] = 0,
 
-    [COMMAND_END] = 1,
+    [COMMAND_END] = 2,
 
     [COMMAND_ASSIGN] = 2,
 
-    [COMMAND_GO_TO] = 1
+    [COMMAND_GO_TO] = 1,
+
+	[COMMAND_HIDE_UI] = 0
 };
 
 static Command *parse_command()
@@ -464,9 +449,11 @@ static Command *parse_command()
 				command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 			}
 			command->arguments[0]->type = PARAMETER_STRING;
-			command->arguments[0]->text = tokens[currentToken]->text;
+			command->arguments[0]->text = NULL;
+			strcopy(&command->arguments[0]->text, tokens[currentToken]->text);
 			command->arguments[1]->type = PARAMETER_STRING;
-			command->arguments[1]->text = tokens[currentToken + 2]->text;
+			command->arguments[1]->text = NULL;
+			strcopy(&command->arguments[1]->text, tokens[currentToken + 2]->text);
 			steps_in_tokens(3);
 			add_to_background_list(command->arguments[0]->text);
 		} else {
@@ -475,11 +462,7 @@ static Command *parse_command()
 	} else if (strmatch(tokens[currentToken]->text, "CLEAR_BACKGROUND")) {
 		step_in_tokens();
 		command->type = COMMAND_CLEAR_BACKGROUND;
-		command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
-		for (int i = 0; i < nbArguments[COMMAND_CLEAR_BACKGROUND]; i++)
-		{
-			command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
-		}
+		command->arguments = NULL;
 	} else if (strmatch(tokens[currentToken]->text, "SET_CHARACTER")) {
 		step_in_tokens();
 		if (token_match_on_line(tokens[currentToken - 1]->line, 4, TOKEN_IDENTIFIER, TOKEN_STRING, TOKEN_SCOPE, TOKEN_STRING))
@@ -493,9 +476,11 @@ static Command *parse_command()
 			command->arguments[0]->type = PARAMETER_NUMERIC;
 			command->arguments[0]->numeric = position_identifier_to_int(tokens[currentToken]->text, tokens[currentToken - 1]->line);
 			command->arguments[1]->type = PARAMETER_STRING;
-			command->arguments[1]->text = tokens[currentToken + 1]->text;
+			command->arguments[1]->text = NULL;
+			strcopy(&command->arguments[1]->text, tokens[currentToken + 1]->text);
 			command->arguments[2]->type = PARAMETER_STRING;
-			command->arguments[2]->text = tokens[currentToken + 3]->text;
+			command->arguments[2]->text = NULL;
+			strcopy(&command->arguments[2]->text, tokens[currentToken + 3]->text);
 			steps_in_tokens(4);
 			add_to_character_list(command->arguments[1]->text);
 		} else {
@@ -520,11 +505,7 @@ static Command *parse_command()
 	} else if (strmatch(tokens[currentToken]->text, "CLEAR_CHARACTER_POSITIONS")) {
 		step_in_tokens();
 		command->type = COMMAND_CLEAR_CHARACTER_POSITIONS;
-		command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
-		for (int i = 0; i < nbArguments[COMMAND_CLEAR_CHARACTER_POSITIONS]; i++)
-		{
-			command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
-		}
+		command->arguments = NULL;
 	} else if (strmatch(tokens[currentToken]->text, "END")) {
 		step_in_tokens();
 		command->type = COMMAND_END;
@@ -534,12 +515,18 @@ static Command *parse_command()
 			command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 		}
 		command->arguments[0]->type = PARAMETER_STRING;
+		command->arguments[0]->text = NULL;
+		command->arguments[1]->type = PARAMETER_STRING;
+		command->arguments[1]->text = NULL;
 		if (token_match_on_line(tokens[currentToken - 1]->line, 1, TOKEN_STRING))
 		{
-			command->arguments[0]->text = tokens[currentToken]->text;
+			strcopy(&command->arguments[0]->text, tokens[currentToken]->text);
 			step_in_tokens();
-		} else {
-			command->arguments[0]->text = NULL;
+			if (token_match_on_line(tokens[currentToken - 1]->line, 1, TOKEN_KNOT))
+			{
+				strcopy(&command->arguments[1]->text, tokens[currentToken]->text);
+				step_in_tokens();
+			}
 		}
 	} else if (strmatch(tokens[currentToken]->text, "ASSIGN")) {
 		step_in_tokens();
@@ -552,7 +539,8 @@ static Command *parse_command()
 				command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 			}
 			command->arguments[0]->type = PARAMETER_IDENTIFIER;
-			command->arguments[0]->text = tokens[currentToken]->text;
+			command->arguments[0]->text = NULL;
+			strcopy(&command->arguments[0]->text, tokens[currentToken]->text);
 			step_in_tokens();
 			command->arguments[1]->type = PARAMETER_LOGIC_EXPRESSION;
 			command->arguments[1]->logicExpression = parse_logic_expression(tokens[currentToken - 1]->line);
@@ -570,11 +558,16 @@ static Command *parse_command()
 				command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 			}
 			command->arguments[0]->type = PARAMETER_STRING;
-			command->arguments[0]->text = tokens[currentToken]->text;
+			command->arguments[0]->text = NULL;
+			strcopy(&command->arguments[0]->text, tokens[currentToken]->text);
 			step_in_tokens();
 		} else {
 			error("in %s at line %d, bad argument for #%s command, expected knot name token.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->text);
 		}
+	} else if (strmatch(tokens[currentToken]->text, "HIDE_UI")) {
+		step_in_tokens();
+		command->type = COMMAND_HIDE_UI;
+		command->arguments = NULL;
 	} else {
 		error("in %s at line %d, unknown command #%s found.", filePath, tokens[currentToken]->line, tokens[currentToken]->text);
 	}
@@ -611,8 +604,8 @@ static Choice *parse_choice()
 		error("in %s at line %d, the \"->\" go to indicator and its corresponding sentence must be on the same line.", filePath, tokens[currentToken + 1]->line);
 	}
 	choice->sentence = xmalloc(sizeof (*choice->sentence));
-	choice->sentence->string = tokens[currentToken - 1]->text;
-	choice->sentence->currentChar = 0;
+	choice->sentence->string = NULL;
+	strcopy(&choice->sentence->string, tokens[currentToken - 1]->text);
 	choice->goToCommand = xmalloc(sizeof (*choice->goToCommand));
 	choice->goToCommand->type = COMMAND_GO_TO;
 	choice->goToCommand->arguments = xmalloc(sizeof (*choice->goToCommand->arguments) * nbArguments[COMMAND_GO_TO]);
@@ -621,7 +614,8 @@ static Choice *parse_choice()
 		choice->goToCommand->arguments[i] = xmalloc(sizeof (*choice->goToCommand->arguments[i]));
 	}
 	choice->goToCommand->arguments[0]->type = PARAMETER_STRING;
-	choice->goToCommand->arguments[0]->text = tokens[currentToken + 1]->text;
+	choice->goToCommand->arguments[0]->text = NULL;
+	strcopy(&choice->goToCommand->arguments[0]->text, tokens[currentToken + 1]->text);
 	steps_in_tokens(2);
 	return choice;
 }
@@ -704,8 +698,8 @@ static CueExpression *parse_cue_expression()
 		{
 			cueExpression->type = CUE_EXPRESSION_SENTENCE;
 			cueExpression->sentence = xmalloc(sizeof (*cueExpression->sentence));
-			cueExpression->sentence->string = tokens[currentToken]->text;
-			cueExpression->sentence->currentChar = 0;
+			cueExpression->sentence->string = NULL;
+			strcopy(&cueExpression->sentence->string, tokens[currentToken]->text);
 			step_in_tokens();
 		} else {
 			error("in %s at line %d, found sentence after a choice.", filePath, tokens[currentToken]->line);
@@ -742,7 +736,8 @@ static Cue *parse_cue()
 		{
 			error("in %s at line %d, the speaker name identifier and the position identifier must be on the same line as their corresponding \">\" speaker indicator token.", filePath, tokens[currentToken]->line);
 		}
-		cue->characterName = tokens[currentToken]->text;
+		cue->characterName = NULL;
+		strcopy(&cue->characterName, tokens[currentToken]->text);
 		cue->characterNamePosition = position_identifier_to_int(tokens[currentToken + 1]->text, tokens[currentToken - 1]->line);
 		steps_in_tokens(2);
 
@@ -761,9 +756,11 @@ static Cue *parse_cue()
 			set_character_command->arguments[0]->type = PARAMETER_NUMERIC;
 			set_character_command->arguments[0]->numeric = position_identifier_to_int(tokens[currentToken + 1]->text, tokens[currentToken - 1]->line);
 			set_character_command->arguments[1]->type = PARAMETER_STRING;
-			set_character_command->arguments[1]->text = tokens[currentToken - 2]->text;
+			set_character_command->arguments[1]->text = NULL;
+			strcopy(&set_character_command->arguments[1]->text, tokens[currentToken - 2]->text);
 			set_character_command->arguments[2]->type = PARAMETER_STRING;
-			set_character_command->arguments[2]->text = tokens[currentToken]->text;
+			set_character_command->arguments[2]->text = NULL;
+			strcopy(&set_character_command->arguments[2]->text, tokens[currentToken]->text);
 			cueExpression->command = set_character_command;
 			buf_add(cue->cueExpressions, cueExpression);
 			steps_in_tokens(2);
@@ -861,19 +858,21 @@ static KnotExpression *parse_knot_expression()
 
 static Knot *parse_knot()
 {
+	if (currentToken != 0)
+	{
+		if (tokens[currentToken - 1]->line == tokens[currentToken]->line)
+		{
+			error("in %s at line %d, current expression is followed by a %s token on the same line.", filePath, tokens[currentToken - 1]->line, tokenStrings[tokens[currentToken]->type]);
+		}
+	}
 	Knot *knot = xmalloc(sizeof (*knot));
 	knot->currentExpression = 0;
 	currentIndentationLevel = 0;
+	knot->name = NULL;
     if (firstKnot)
     {
         firstKnot = false;
-    	knot->name = NULL;
-		char *knotName = "start";
-		for (unsigned int i = 0; i < strlen(knotName); i++)
-		{
-			buf_add(knot->name, knotName[i]);
-		}
-		buf_add(knot->name, '\0');
+		strcopy(&knot->name, "start");
     } else {
         if (tokens[currentToken]->type == TOKEN_KNOT)
         {
@@ -881,7 +880,14 @@ static Knot *parse_knot()
 			{
 				error("in %s at line %d, knot declarations must have an indentation level of 0, indentation level is %d.", filePath, tokens[currentToken]->line, tokens[currentToken]->indentationLevel);
 			}
-			knot->name = tokens[currentToken]->text;
+			for (unsigned int i = 0; i < buf_len(currentDialog->knots) - 1; i++)
+			{
+				if (strmatch(currentDialog->knots[i]->name, tokens[currentToken]->text))
+				{
+					error("in %s at line %d, knot name %s was already used.", filePath, tokens[currentToken]->line, tokens[currentToken]->text);
+				}
+			}
+			strcopy(&knot->name, tokens[currentToken]->text);
 			step_in_tokens();
         } else {
 			error("in %s at line %d, expected knot token, got a %s token instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type]);
@@ -913,7 +919,7 @@ Dialog *create_dialog(char *_filePath, Token **_tokens)
 	{
 		if (token_match(1, TOKEN_SENTENCE))
 		{
-			windowName = tokens[currentToken]->text;
+			strcopy(&windowName, tokens[currentToken]->text);
 			step_in_tokens();
 		} else {
 			error("expected game name at beginning of start.dlg, got %s token instead.", tokenStrings[tokens[currentToken]->type]);
@@ -961,20 +967,26 @@ static void free_logic_expression(LogicExpression *logicExpression)
 	} else if (logicExpression->type == LOGIC_EXPRESSION_GROUPING) {
 		free_logic_expression(logicExpression->grouping.expression);
 	}
-	free(logicExpression);
+	xfree(logicExpression);
 }
 
 static void free_argument(Argument *argument)
 {
 	if (argument->type == PARAMETER_STRING)
 	{
-		buf_free(argument->text);
+		if (argument->text)
+		{
+			buf_free(argument->text);
+		}
 	} else if (argument->type == PARAMETER_IDENTIFIER) {
-		buf_free(argument->text);
+		if (argument->text)
+		{
+			buf_free(argument->text);
+		}
 	} else if (argument->type == PARAMETER_LOGIC_EXPRESSION) {
 		free_logic_expression(argument->logicExpression);
 	}
-	free(argument);
+	xfree(argument);
 }
 
 void free_command(Command *command)
@@ -983,21 +995,21 @@ void free_command(Command *command)
 	{
 		free_argument(command->arguments[i]);
 	}
-	free(command->arguments);
-	free(command);
+	xfree(command->arguments);
+	xfree(command);
 }
 
 static void free_sentence(Sentence *sentence)
 {
 	buf_free(sentence->string);
-	free(sentence);
+	xfree(sentence);
 }
 
 static void free_choice(Choice *choice)
 {
 	free_sentence(choice->sentence);
 	free_command(choice->goToCommand);
-	free(choice);
+	xfree(choice);
 }
 
 static void free_cue_expression(CueExpression *cueExpression);
@@ -1015,7 +1027,7 @@ static void free_cue_condition(CueCondition *cueCondition)
 		free_cue_expression(cueCondition->cueExpressionsElse[index]);
 	}
 	buf_free(cueCondition->cueExpressionsElse);
-	free(cueCondition);
+	xfree(cueCondition);
 }
 
 static void free_cue_expression(CueExpression *cueExpression)
@@ -1030,7 +1042,7 @@ static void free_cue_expression(CueExpression *cueExpression)
 	} else if (cueExpression->type == CUE_EXPRESSION_CUE_CONDITION) {
 		free_cue_condition(cueExpression->cueCondition);
 	}
-	free(cueExpression);
+	xfree(cueExpression);
 }
 
 static void free_cue(Cue *cue)
@@ -1041,7 +1053,7 @@ static void free_cue(Cue *cue)
 		free_cue_expression(cue->cueExpressions[index]);
 	}
 	buf_free(cue->cueExpressions);
-	free(cue);
+	xfree(cue);
 }
 
 static void free_knot_expression(KnotExpression *knotExpression);
@@ -1059,7 +1071,7 @@ static void free_knot_condition(KnotCondition *knotCondition)
 		free_knot_expression(knotCondition->knotExpressionsElse[index]);
 	}
 	buf_free(knotCondition->knotExpressionsElse);
-	free(knotCondition);
+	xfree(knotCondition);
 }
 
 static void free_knot_expression(KnotExpression *knotExpression)
@@ -1072,7 +1084,7 @@ static void free_knot_expression(KnotExpression *knotExpression)
 	} else if (knotExpression->type == KNOT_EXPRESSION_KNOT_CONDITION) {
 		free_knot_condition(knotExpression->knotCondition);
 	}
-	free(knotExpression);
+	xfree(knotExpression);
 }
 
 static void free_knot(Knot *knot)
@@ -1083,7 +1095,7 @@ static void free_knot(Knot *knot)
 		free_knot_expression(knot->knotExpressions[index]);
 	}
 	buf_free(knot->knotExpressions);
-	free(knot);
+	xfree(knot);
 }
 
 void free_dialog(Dialog *dialog)
@@ -1093,15 +1105,25 @@ void free_dialog(Dialog *dialog)
 		free_sprite(dialog->backgroundPacks[index]);
 	}
 	buf_free(dialog->backgroundPacks);
+	for (unsigned int index = 0; index < buf_len(dialog->backgroundPacksNames); index++)
+    {
+		buf_free(dialog->backgroundPacksNames[index]);
+	}
+	buf_free(dialog->backgroundPacksNames);
 	for (unsigned int index = 0; index < buf_len(dialog->charactersSprites); index++)
     {
 		free_sprite(dialog->charactersSprites[index]);
 	}
 	buf_free(dialog->charactersSprites);
+	for (unsigned int index = 0; index < buf_len(dialog->charactersNames); index++)
+    {
+		buf_free(dialog->charactersNames[index]);
+	}
+	buf_free(dialog->charactersNames);
 	for (unsigned int index = 0; index < buf_len(dialog->knots); index++)
     {
 		free_knot(dialog->knots[index]);
 	}
 	buf_free(dialog->knots);
-	free(dialog);
+	xfree(dialog);
 }

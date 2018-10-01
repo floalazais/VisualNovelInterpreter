@@ -40,10 +40,13 @@ typedef struct Sprite
 	int width;
 	int height;
 	vec3 color;
-	unsigned int textureId;
+	float opacity;
+	int textureId;
 	Animation **animations;
 	int currentAnimation;
 } Sprite;
+
+extern const char *spritesStrings[];
 
 typedef struct Glyph
 {
@@ -51,7 +54,7 @@ typedef struct Glyph
 	int yOffset;
 	int width;
 	int height;
-	unsigned int textureId;
+	int textureId;
 } Glyph;
 
 typedef	struct Font
@@ -70,13 +73,15 @@ typedef	struct Font
 typedef struct Text
 {
 	Font *font;
-	char *string;
+	int *codes;
 	Sprite **sprites;
 	ivec2 position;
 	int width;
 	int height;
+	int widthLimit;
 	vec3 color;
 	int nbCharToDisplay;
+	int nbMaxCharToDisplay;
 } Text;
 
 typedef enum TextSize
@@ -95,6 +100,7 @@ Text *create_text();
 void set_position_to_text(Text *text, ivec2 position);
 void set_font_to_text(Text *text, char *fontPath, int textHeight);
 void set_string_to_text(Text *text, char *string);
+void set_width_limit_to_text(Text *text, int limit);
 void free_text(Text *text);
 
 typedef enum DrawLayer
@@ -106,6 +112,7 @@ typedef enum DrawLayer
 } DrawLayer;
 
 void init_graphics();
+void free_graphics();
 void add_sprite_to_draw_list(Sprite *sprite, DrawLayer drawLayer);
 void add_text_to_draw_list(Text *text, DrawLayer drawLayer);
 void draw_all();

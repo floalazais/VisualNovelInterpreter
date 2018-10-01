@@ -1,19 +1,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <stdio.h>
-
 #include "graphics.h"
 #include "globals.h"
 #include "stretchy_buffer.h"
 #include "xalloc.h"
 #include "interpret.h"
 
-static Dialog *currentDialog = NULL;
+#include <stdio.h>
+
+static char *nextDialogStartKnotName;
 
 static char *charactersNames[7];
+static Sprite *oldCharactersSprites[7];
 static Sprite *charactersSprites[7];
 static int currentSpeakerSpriteIndex;
+static Sprite *oldBackgroundSprite;
 static Sprite *backgroundSprite;
 static Sprite *choiceMarker;
 static Sprite *characterNameBox;
@@ -27,15 +29,24 @@ static int nbChoices;
 static int currentChoice;
 static bool choicesDisplayed;
 static bool moving;
+static bool end;
 static bool displayedSpeakerName;
+static bool appearingBackground;
+static bool appearingCharacter;
+static bool displayDialogUI;
+static bool displaySpeakerName;
+static bool sentenceFirstUpdate;
 
 void init_dialog_ui()
 {
+	nextDialogStartKnotName = NULL;
+
 	vec3 black = {.x = 0.0f, .y = 0.0f, .z = 0.0f};
 	vec3 white = {.x = 1.0f, .y = 1.0f, .z = 1.0f};
 
 	currentSentence = create_text();
 	set_font_to_text(currentSentence, "Fonts/arial.ttf", TEXT_SIZE_NORMAL);
+	set_width_limit_to_text(currentSentence, 0.97f * windowDimensions.x);
 	currentSentence->position.x = (int)(0.015f * windowDimensions.x);
 	currentSentence->position.y = (int)(0.8f * windowDimensions.y + 2);
 	currentSentence->color = white;
@@ -50,9 +61,11 @@ void init_dialog_ui()
 	sentenceBox->width = windowDimensions.x;
 	sentenceBox->height = (int)(0.2f * windowDimensions.y);
 	sentenceBox->color = black;
+	sentenceBox->opacity = 0.75f;
 
 	characterNameBox = create_sprite(SPRITE_COLOR);
 	characterNameBox->color = black;
+	characterNameBox->opacity = 0.75f;
 
 	choiceMarker = create_sprite(SPRITE_COLOR);
 	choiceMarker->position.x = (int)(0.005f * windowDimensions.x);
@@ -60,109 +73,246 @@ void init_dialog_ui()
 	choiceMarker->height = choiceMarker->width;
 	choiceMarker->color = white;
 
-	backgroundSprite = NULL;
+	oldBackgroundSprite = create_sprite(SPRITE_ANIMATED);
+	oldBackgroundSprite->position.x = 0;
+	oldBackgroundSprite->position.y = 0;
+	oldBackgroundSprite->width = windowDimensions.x;
+	oldBackgroundSprite->height = windowDimensions.y;
+	backgroundSprite = create_sprite(SPRITE_ANIMATED);
+	backgroundSprite->position.x = 0;
+	backgroundSprite->position.y = 0;
+	backgroundSprite->width = windowDimensions.x;
+	backgroundSprite->height = windowDimensions.y;
+
 	for (int i = 0; i < 7; i++)
 	{
 		charactersNames[i] = NULL;
-		charactersSprites[i] = NULL;
+		oldCharactersSprites[i] = create_sprite(SPRITE_ANIMATED);
+		charactersSprites[i] = create_sprite(SPRITE_ANIMATED);
+	}
+	currentChoices = NULL;
+	goToCommands = NULL;
+}
+
+void free_dialog_ui()
+{
+	free_text(currentSentence);
+	free_text(currentSpeaker);
+	free_sprite(sentenceBox);
+	free_sprite(characterNameBox);
+	free_sprite(choiceMarker);
+	for (unsigned int i = 0; i < buf_len(currentChoices); i++)
+	{
+		free_text(currentChoices[i]);
+	}
+	buf_free(currentChoices);
+	oldBackgroundSprite->animations = NULL;
+	backgroundSprite->animations = NULL;
+	free_sprite(oldBackgroundSprite);
+	free_sprite(backgroundSprite);
+	for (int i = 0; i < 7; i++)
+	{
+		oldCharactersSprites[i]->animations = NULL;
+		free_sprite(oldCharactersSprites[i]);
+		charactersSprites[i]->animations = NULL;
+		free_sprite(charactersSprites[i]);
 	}
 }
 
-static void process_command(Command *command)
+static bool update_command(Command *command)
 {
 	if (command->type == COMMAND_SET_BACKGROUND)
 	{
-		bool foundPack = false;
-		for (unsigned int i = 0; i < buf_len(currentDialog->backgroundPacksNames); i++)
+		displayDialogUI = false;
+		if (!appearingBackground)
 		{
-			if (strmatch(command->arguments[0]->text, currentDialog->backgroundPacksNames[i]))
+			bool foundPack = false;
+			for (unsigned int i = 0; i < buf_len(interpretingDialog->backgroundPacksNames); i++)
 			{
-				backgroundSprite = currentDialog->backgroundPacks[i];
-				bool foundAnimation = false;
-				for (unsigned int j = 0; j < buf_len(backgroundSprite->animations); j++)
+				if (strmatch(command->arguments[0]->text, interpretingDialog->backgroundPacksNames[i]))
 				{
-					if (strmatch(command->arguments[1]->text, backgroundSprite->animations[j]->name))
+					if (backgroundSprite->animations)
 					{
-						backgroundSprite->currentAnimation = j;
-						backgroundSprite->textureId = backgroundSprite->animations[j]->animationPhases[0]->textureId;
-						foundAnimation = true;
-						break;
+						oldBackgroundSprite->animations = backgroundSprite->animations;
+						oldBackgroundSprite->currentAnimation = backgroundSprite->currentAnimation;
+						oldBackgroundSprite->textureId = oldBackgroundSprite->animations[oldBackgroundSprite->currentAnimation]->animationPhases[0]->textureId;
 					}
+					backgroundSprite->animations = interpretingDialog->backgroundPacks[i]->animations;
+					bool foundAnimation = false;
+					for (unsigned int j = 0; j < buf_len(backgroundSprite->animations); j++)
+					{
+						if (strmatch(command->arguments[1]->text, backgroundSprite->animations[j]->name))
+						{
+							backgroundSprite->currentAnimation = j;
+							backgroundSprite->textureId = backgroundSprite->animations[j]->animationPhases[0]->textureId;
+							foundAnimation = true;
+							break;
+						}
+					}
+					if (!foundAnimation)
+					{
+						error("background %s of background pack %s does not exist.", command->arguments[1]->text, command->arguments[0]->text);
+					}
+					foundPack = true;
+					break;
 				}
-				if (!foundAnimation)
+			}
+			if (!foundPack)
+			{
+				error("background pack %s does not exist.", command->arguments[0]->text);
+			}
+			appearingBackground = true;
+			backgroundSprite->opacity = 0.0f;
+			if (oldBackgroundSprite->animations)
+			{
+				oldBackgroundSprite->opacity = 1.0f;
+			}
+		} else {
+			if (backgroundSprite->opacity >= 1.0f)
+			{
+				backgroundSprite->opacity = 1.0f;
+				if (oldBackgroundSprite->animations)
 				{
-					error("background %s of background pack %s does not exist.", command->arguments[1]->text, command->arguments[0]->text);
+					oldBackgroundSprite->opacity = 1.0f;
 				}
-				foundPack = true;
-				break;
+				oldBackgroundSprite->animations = NULL;
+				appearingBackground = false;
+				return true;
+			} else {
+				if (oldBackgroundSprite->animations)
+				{
+					oldBackgroundSprite->opacity -= deltaTime;
+				}
+				backgroundSprite->opacity += deltaTime;
 			}
 		}
-		if (!foundPack)
-		{
-			error("background pack %s does not exist.", command->arguments[0]->text);
-		}
+		return false;
 	} else if (command->type == COMMAND_CLEAR_BACKGROUND) {
-		backgroundSprite = NULL;
-	} else if (command->type == COMMAND_SET_CHARACTER) {
-		bool foundCharacter = false;
-		for (unsigned int i = 0; i < buf_len(currentDialog->charactersNames); i++)
+		if (backgroundSprite->opacity > 0.0f)
 		{
-			if (strmatch(command->arguments[1]->text, currentDialog->charactersNames[i]))
+			backgroundSprite->opacity -= deltaTime;
+			return false;
+		} else {
+			backgroundSprite->opacity = 1.0f;
+			backgroundSprite->animations = NULL;
+		}
+	} else if (command->type == COMMAND_SET_CHARACTER) {
+		int position = (int)command->arguments[0]->numeric;
+		if (!appearingCharacter)
+		{
+			bool foundCharacter = false;
+			for (unsigned int i = 0; i < buf_len(interpretingDialog->charactersNames); i++)
 			{
-				int position = (int)command->arguments[0]->numeric;
-				charactersNames[position] = currentDialog->charactersNames[i];
-				charactersSprites[position] = currentDialog->charactersSprites[i];
-				bool foundAnimation = false;
-				for (unsigned int j = 0; j < buf_len(charactersSprites[position]->animations); j++)
+				if (strmatch(command->arguments[1]->text, interpretingDialog->charactersNames[i]))
 				{
-					if (strmatch(command->arguments[2]->text, charactersSprites[position]->animations[j]->name))
+					charactersNames[position] = interpretingDialog->charactersNames[i];
+					if (charactersSprites[position]->animations)
 					{
-						charactersSprites[position]->position.x = (int)((windowDimensions.x * position / 6.0f) - (charactersSprites[position]->animations[j]->animationPhases[0]->width / 2));
-						charactersSprites[position]->position.y = (int)(windowDimensions.y * 0.8f - charactersSprites[position]->animations[j]->animationPhases[0]->height);
-						charactersSprites[position]->width = charactersSprites[position]->animations[j]->animationPhases[0]->width;
-						charactersSprites[position]->height = charactersSprites[position]->animations[j]->animationPhases[0]->height;
-						charactersSprites[position]->currentAnimation = j;
-						charactersSprites[position]->textureId = charactersSprites[position]->animations[j]->animationPhases[0]->textureId;
-						foundAnimation = true;
-						break;
+						oldCharactersSprites[position]->animations = charactersSprites[position]->animations;
+						oldCharactersSprites[position]->position.x = charactersSprites[position]->position.x;
+						oldCharactersSprites[position]->position.y = charactersSprites[position]->position.y;
+						oldCharactersSprites[position]->width = charactersSprites[position]->width;
+						oldCharactersSprites[position]->height = charactersSprites[position]->height;
+						oldCharactersSprites[position]->currentAnimation = charactersSprites[position]->currentAnimation;
+						oldCharactersSprites[position]->textureId = oldCharactersSprites[position]->animations[oldCharactersSprites[position]->currentAnimation]->animationPhases[0]->textureId;
 					}
+					charactersSprites[position]->animations = interpretingDialog->charactersSprites[i]->animations;
+					bool foundAnimation = false;
+					for (unsigned int j = 0; j < buf_len(charactersSprites[position]->animations); j++)
+					{
+						if (strmatch(command->arguments[2]->text, charactersSprites[position]->animations[j]->name))
+						{
+							charactersSprites[position]->position.x = (int)((windowDimensions.x * position / 6.0f) - (charactersSprites[position]->animations[j]->animationPhases[0]->width / 2));
+							charactersSprites[position]->position.y = (int)(windowDimensions.y - charactersSprites[position]->animations[j]->animationPhases[0]->height);
+							charactersSprites[position]->width = charactersSprites[position]->animations[j]->animationPhases[0]->width;
+							charactersSprites[position]->height = charactersSprites[position]->animations[j]->animationPhases[0]->height;
+							charactersSprites[position]->currentAnimation = j;
+							charactersSprites[position]->textureId = charactersSprites[position]->animations[j]->animationPhases[0]->textureId;
+							foundAnimation = true;
+							break;
+						}
+					}
+					if (!foundAnimation)
+					{
+						error("animation %s of character %s does not exist.", command->arguments[2]->text, command->arguments[1]->text);
+					}
+					foundCharacter = true;
+					break;
 				}
-				if (!foundAnimation)
+			}
+			if (!foundCharacter)
+			{
+				error("character %s does not exist.", command->arguments[1]->text);
+			}
+			appearingCharacter = true;
+			charactersSprites[position]->opacity = 0.0f;
+			if (oldCharactersSprites[position]->animations)
+			{
+				oldCharactersSprites[position]->opacity = 1.0f;
+			}
+		} else {
+			if (charactersSprites[position]->opacity >= 1.0f)
+			{
+				charactersSprites[position]->opacity = 1.0f;
+				if (oldCharactersSprites[position]->animations)
 				{
-					error("animation %s of character %s does not exist.", command->arguments[2]->text, command->arguments[1]->text);
+					oldCharactersSprites[position]->opacity = 1.0f;
 				}
-				foundCharacter = true;
-				break;
+				oldCharactersSprites[position]->animations = NULL;
+				appearingCharacter = false;
+				return true;
+			} else {
+				if (oldCharactersSprites[position]->animations)
+				{
+					oldCharactersSprites[position]->opacity -= deltaTime * 2;
+				}
+				charactersSprites[position]->opacity += deltaTime * 2;
 			}
 		}
-		if (!foundCharacter)
-		{
-			error("character %s does not exist.", command->arguments[1]->text);
-		}
+		return false;
 	} else if (command->type == COMMAND_CLEAR_CHARACTER_POSITION) {
-		charactersSprites[(int)command->arguments[0]->numeric] = NULL;
-		charactersNames[(int)command->arguments[0]->numeric] = NULL;
+		int position = (int)command->arguments[0]->numeric;
+		if (charactersSprites[position]->opacity > 0.0f)
+		{
+			charactersSprites[position]->opacity -= deltaTime * 2;
+			return false;
+		} else {
+			charactersSprites[position]->opacity = 1.0f;
+			charactersSprites[position]->animations = NULL;
+			charactersNames[position] = NULL;
+		}
 	} else if (command->type == COMMAND_CLEAR_CHARACTER_POSITIONS) {
+		bool fading = false;
 		for (int i = 0; i < 7; i++)
 		{
-			charactersSprites[i] = NULL;
-			charactersNames[i] = NULL;
+			if (charactersSprites[i]->animations)
+			{
+				if (charactersSprites[i]->opacity > 0.0f)
+				{
+					charactersSprites[i]->opacity -= deltaTime * 2;
+					fading = true;
+				} else {
+					charactersSprites[i]->opacity = 1.0f;
+					charactersSprites[i]->animations = NULL;
+					charactersNames[i] = NULL;
+				}
+			}
+		}
+		if (fading)
+		{
+			return false;
 		}
 	} else if (command->type == COMMAND_END) {
-		currentDialog->end = true;
+		end = true;
 		moving = true;
 		if (command->arguments[0]->text)
 		{
-			char *prefix = "Dialogs/";
-			for (unsigned int i = 0; i < strlen(prefix); i++)
+			strcopy(&nextDialogName, "Dialogs/");
+			strappend(&nextDialogName, command->arguments[0]->text);
+			if (command->arguments[0]->text)
 			{
-				buf_add(nextDialog, prefix[i]);
+				strcopy(&nextDialogStartKnotName, command->arguments[1]->text);
 			}
-			for (unsigned int i = 0; i < strlen(command->arguments[0]->text); i++)
-			{
-				buf_add(nextDialog, command->arguments[0]->text[i]);
-			}
-			buf_add(nextDialog, '\0');
 		}
 	} else if (command->type == COMMAND_ASSIGN) {
 		for (unsigned int i = 0; i < buf_len(variablesNames); i++)
@@ -170,77 +320,81 @@ static void process_command(Command *command)
 			if (strmatch(command->arguments[0]->text, variablesNames[i]))
 			{
 				variablesValues[i] = resolve_logic_expression(command->arguments[1]->logicExpression);
-				return;
+				return true;
 			}
 		}
 		char *variableName = NULL;
-		for (unsigned int i = 0; i < strlen(command->arguments[0]->text); i++)
-		{
-			buf_add(variableName, command->arguments[0]->text[i]);
-		}
-		buf_add(variableName, '\0');
+		strcopy(&variableName, command->arguments[0]->text);
 		buf_add(variablesNames, variableName);
 		buf_add(variablesValues, resolve_logic_expression(command->arguments[1]->logicExpression));
 	} else if (command->type == COMMAND_GO_TO) {
-		for (int i = 0; buf_len(currentDialog->knots); i++)
+		for (int i = 0; buf_len(interpretingDialog->knots); i++)
 		{
-			if (strmatch(currentDialog->knots[i]->name, command->arguments[0]->text))
+			if (strmatch(interpretingDialog->knots[i]->name, command->arguments[0]->text))
 			{
-				currentDialog->currentKnot = i;
+				interpretingDialog->currentKnot = i;
 				moving = true;
 				break;
 			}
 		}
+	} else if (command->type == COMMAND_HIDE_UI) {
+		displayDialogUI = false;
 	}
+	return true;
 }
 
 static bool update_sentence(Sentence *sentence)
 {
-	if (sentence->currentChar != strlen(sentence->string))
+	if (sentenceFirstUpdate)
 	{
-		if (sentence->currentChar == 0)
+		sentenceFirstUpdate = false;
+		set_string_to_text(currentSentence, sentence->string);
+		currentSentence->nbCharToDisplay = 0;
+		if (currentSpeakerSpriteIndex != -1)
 		{
-			set_string_to_text(currentSentence, sentence->string);
-			currentSentence->nbCharToDisplay = 0;
+			charactersSprites[currentSpeakerSpriteIndex]->animations[charactersSprites[currentSpeakerSpriteIndex]->currentAnimation]->updating = true;
 		}
+	}
 
+	if (currentSentence->nbCharToDisplay < currentSentence->nbMaxCharToDisplay)
+	{
 		if (is_input_key_pressed(INPUT_KEY_SPACE))
 		{
-			sentence->currentChar = strlen(sentence->string);
-			currentSentence->nbCharToDisplay = strlen(sentence->string);
+			currentSentence->nbCharToDisplay = currentSentence->nbMaxCharToDisplay;
 		} else {
-			sentence->currentChar++;
 			currentSentence->nbCharToDisplay++;
 		}
 
+		if (currentSentence->nbCharToDisplay == currentSentence->nbMaxCharToDisplay)
+		{
+			if (currentSpeakerSpriteIndex != -1)
+			{
+				charactersSprites[currentSpeakerSpriteIndex]->animations[charactersSprites[currentSpeakerSpriteIndex]->currentAnimation]->stopping = true;
+			}
+		}
+	} else if (is_input_key_pressed(INPUT_KEY_ENTER)) {
+		sentenceFirstUpdate = true;
+		set_string_to_text(currentSentence, NULL);
 		if (currentSpeakerSpriteIndex != -1)
 		{
-			Sprite *currentSpeakerSprite = charactersSprites[currentSpeakerSpriteIndex];
-			AnimationPhase *currentSpeakerSpriteAnimationPhase = currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->animationPhases[currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->currentAnimationPhase];
-			currentSpeakerSprite->position.x = (int)((windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentSpeakerSpriteAnimationPhase->width / 2));
-			currentSpeakerSprite->position.y = (int)((windowDimensions.y * 0.8f) - currentSpeakerSpriteAnimationPhase->height);
-			currentSpeakerSprite->width = currentSpeakerSpriteAnimationPhase->width;
-			currentSpeakerSprite->height = currentSpeakerSpriteAnimationPhase->height;
+			Animation *currentSpeakerSpriteAnimation = charactersSprites[currentSpeakerSpriteIndex]->animations[charactersSprites[currentSpeakerSpriteIndex]->currentAnimation];
+			currentSpeakerSpriteAnimation->stopping = false;
+			currentSpeakerSpriteAnimation->updating = false;
+			currentSpeakerSpriteAnimation->currentAnimationPhase = 0;
+			currentSpeakerSpriteAnimation->timeDuringCurrentAnimationPhase = 0.0f;
 		}
-	} else {
-		if (currentSpeakerSpriteIndex != -1)
-		{
-			Sprite *currentSpeakerSprite = charactersSprites[currentSpeakerSpriteIndex];
-			AnimationPhase *currentSpeakerSpriteAnimationPhase = currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->animationPhases[currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->currentAnimationPhase];
-			currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->stopping = true;
-			charactersSprites[currentSpeakerSpriteIndex]->position.x = (int)((windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentSpeakerSpriteAnimationPhase->width / 2));
-			charactersSprites[currentSpeakerSpriteIndex]->position.y = (int)((windowDimensions.y * 0.8f) - currentSpeakerSpriteAnimationPhase->height);
-			charactersSprites[currentSpeakerSpriteIndex]->width = currentSpeakerSpriteAnimationPhase->width;
-			charactersSprites[currentSpeakerSpriteIndex]->height = currentSpeakerSpriteAnimationPhase->height;
-		}
-		if (is_input_key_pressed(INPUT_KEY_ENTER))
-		{
-			sentence->currentChar = 0;
-			return true;
-		}
+		return true;
 	}
-	add_sprite_to_draw_list(sentenceBox, DRAW_LAYER_UI);
-	add_text_to_draw_list(currentSentence, DRAW_LAYER_UI);
+
+	if (currentSpeakerSpriteIndex != -1)
+	{
+		Sprite *currentSpeakerSprite = charactersSprites[currentSpeakerSpriteIndex];
+		AnimationPhase *currentSpeakerSpriteAnimationPhase = currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->animationPhases[currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->currentAnimationPhase];
+		charactersSprites[currentSpeakerSpriteIndex]->position.x = (int)((windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentSpeakerSpriteAnimationPhase->width / 2));
+		charactersSprites[currentSpeakerSpriteIndex]->position.y = (int)(windowDimensions.y - currentSpeakerSpriteAnimationPhase->height);
+		charactersSprites[currentSpeakerSpriteIndex]->width = currentSpeakerSpriteAnimationPhase->width;
+		charactersSprites[currentSpeakerSpriteIndex]->height = currentSpeakerSpriteAnimationPhase->height;
+	}
 	return false;
 }
 
@@ -255,7 +409,7 @@ static bool update_cue_condition(CueCondition *cueCondition)
 	}
 	if (cueCondition->result)
 	{
-		if (cueCondition->currentExpression == buf_len(cueCondition->cueExpressionsIf))
+		if ((unsigned int)cueCondition->currentExpression == buf_len(cueCondition->cueExpressionsIf))
 		{
 			cueCondition->currentExpression = 0;
 			return true;
@@ -270,7 +424,7 @@ static bool update_cue_condition(CueCondition *cueCondition)
 			}
 		}
 	} else {
-		if (cueCondition->currentExpression == buf_len(cueCondition->cueExpressionsElse))
+		if ((unsigned int)cueCondition->currentExpression == buf_len(cueCondition->cueExpressionsElse))
 		{
 			cueCondition->currentExpression = 0;
 			return true;
@@ -292,23 +446,13 @@ static bool update_cue_expression(CueExpression *cueExpression)
 {
 	if (cueExpression->type == CUE_EXPRESSION_SENTENCE)
 	{
-		if (update_sentence(cueExpression->sentence))
-		{
-			return true;
-		}
+		return update_sentence(cueExpression->sentence);
 	} else if (cueExpression->type == CUE_EXPRESSION_CHOICE) {
-		if (!choosing)
-		{
-			choosing = true;
-		}
+		choosing = true;
 	} else if (cueExpression->type == CUE_EXPRESSION_CUE_CONDITION) {
-		if (update_cue_condition(cueExpression->cueCondition))
-		{
-			return true;
-		}
+		return update_cue_condition(cueExpression->cueCondition);
 	} else if (cueExpression->type == CUE_EXPRESSION_COMMAND) {
-		process_command(cueExpression->command);
-		return true;
+		return update_command(cueExpression->command);
 	}
 	return false;
 }
@@ -317,7 +461,7 @@ static void display_choice(CueExpression *cueExpression)
 {
 	if (cueExpression->type == CUE_EXPRESSION_CHOICE)
 	{
-		if (nbChoices == buf_len(currentChoices))
+		if ((unsigned int)nbChoices == buf_len(currentChoices))
 		{
 			buf_add(currentChoices, create_text());
 			set_font_to_text(currentChoices[nbChoices], "Fonts/arial.ttf", TEXT_SIZE_NORMAL);
@@ -355,8 +499,6 @@ static void display_choice(CueExpression *cueExpression)
 				display_choice(cueExpression->cueCondition->cueExpressionsElse[cueExpression->cueCondition->currentExpression]);
 			}
 		}
-	} else {
-		error("found anything else than a choice or a conditional choice in cue choices listing.");
 	}
 }
 
@@ -366,12 +508,15 @@ static bool update_cue(Cue *cue)
 	{
 		if (!displayedSpeakerName)
 		{
+			displayDialogUI = true;
 			displayedSpeakerName = true;
+			currentSpeakerSpriteIndex = -1;
 			if (cue->characterName)
 			{
+				displaySpeakerName = true;
 				if (cue->setCharacterInDeclaration)
 				{
-					process_command(cue->cueExpressions[0]->command);
+					update_command(cue->cueExpressions[0]->command);
 				}
 				for (int i = 0; i < 7; i++)
 				{
@@ -380,12 +525,10 @@ static bool update_cue(Cue *cue)
 						if (strmatch(cue->characterName, charactersNames[i]))
 						{
 							currentSpeakerSpriteIndex = i;
-							charactersSprites[currentSpeakerSpriteIndex]->animations[charactersSprites[currentSpeakerSpriteIndex]->currentAnimation]->updating = true;
 							break;
 						}
 					}
 				}
-
 				set_string_to_text(currentSpeaker, cue->characterName);
 				ivec2 currentSpeakerPosition;
 				if (cue->characterNamePosition == 1)
@@ -400,55 +543,41 @@ static bool update_cue(Cue *cue)
 				characterNameBox->position.y = currentSpeaker->position.y - currentSpeaker->font->descent - 2;
 				characterNameBox->width = currentSpeaker->width + 4;
 				characterNameBox->height = currentSpeaker->height + currentSpeaker->font->descent + 4;
+			} else {
+				displaySpeakerName = false;
 			}
 		}
 
-		if (cue->currentExpression == buf_len(cue->cueExpressions)) {
+		if (cue->setCharacterInDeclaration && appearingCharacter && cue->currentExpression == 0)
+		{
+			if (!update_command(cue->cueExpressions[0]->command))
+			{
+				return false;
+			} else {
+				cue->currentExpression = 1;
+			}
+		}
+
+		if ((unsigned int)cue->currentExpression == buf_len(cue->cueExpressions))
+		{
 			cue->currentExpression = 0;
 			displayedSpeakerName = false;
-			if (currentSpeakerSpriteIndex != -1)
-			{
-				Animation *currentSpeakerSpriteAnimation = charactersSprites[currentSpeakerSpriteIndex]->animations[charactersSprites[currentSpeakerSpriteIndex]->currentAnimation];
-				currentSpeakerSpriteAnimation->currentAnimationPhase = 0;
-				currentSpeakerSpriteAnimation->updating = false;
-				currentSpeakerSpriteAnimation->stopping = false;
-				currentSpeakerSpriteAnimation->timeDuringCurrentAnimationPhase = 0.0f;
-			}
-			currentSpeakerSpriteIndex = -1;
+			set_string_to_text(currentSpeaker, NULL);
 			return true;
 		}
 
 		if (update_cue_expression(cue->cueExpressions[cue->currentExpression]))
 		{
+			cue->currentExpression++;
 			if (moving)
 			{
 				cue->currentExpression = 0;
 				displayedSpeakerName = false;
-				if (currentSpeakerSpriteIndex != -1)
-				{
-					Animation *currentSpeakerSpriteAnimation = charactersSprites[currentSpeakerSpriteIndex]->animations[charactersSprites[currentSpeakerSpriteIndex]->currentAnimation];
-					currentSpeakerSpriteAnimation->currentAnimationPhase = 0;
-					currentSpeakerSpriteAnimation->updating = false;
-					currentSpeakerSpriteAnimation->stopping = false;
-					currentSpeakerSpriteAnimation->timeDuringCurrentAnimationPhase = 0.0f;
-				}
-				currentSpeakerSpriteIndex = -1;
+				set_string_to_text(currentSpeaker, NULL);
 				return true;
-			} else {
-				if (!choosing)
-				{
-					cue->currentExpression++;
-				}
 			}
 		}
-	}
-	if (cue->characterName)
-	{
-		add_sprite_to_draw_list(characterNameBox, DRAW_LAYER_UI);
-		add_text_to_draw_list(currentSpeaker, DRAW_LAYER_UI);
-	}
-	if (choosing)
-	{
+	} else {
 		if (!choicesDisplayed)
 		{
 			nbChoices = 0;
@@ -463,7 +592,7 @@ static bool update_cue(Cue *cue)
 		if (is_input_key_pressed(INPUT_KEY_DOWN_ARROW))
 		{
 			currentChoice++;
-			if (currentChoice == buf_len(currentChoices))
+			if ((unsigned int)currentChoice == buf_len(currentChoices))
 			{
 				currentChoice = 0;
 			}
@@ -476,31 +605,20 @@ static bool update_cue(Cue *cue)
 			}
 			choiceMarker->position.y = currentChoices[currentChoice]->position.y + ((currentChoices[currentChoice]->height - choiceMarker->height) / 2) - currentChoices[currentChoice]->font->descent;
 		} else if (is_input_key_pressed(INPUT_KEY_ENTER)) {
-			process_command(goToCommands[currentChoice]);
+			update_command(goToCommands[currentChoice]);
 			buf_free(goToCommands);
+			for (unsigned int i = 0; i < buf_len(currentChoices); i++)
+			{
+				set_string_to_text(currentChoices[i], NULL);
+			}
 			goToCommands = NULL;
 			cue->currentExpression = 0;
 			choosing = false;
 			choicesDisplayed = false;
 			currentChoice = 0;
 			displayedSpeakerName = false;
-			if (currentSpeakerSpriteIndex != -1)
-			{
-				Animation *currentSpeakerSpriteAnimation = charactersSprites[currentSpeakerSpriteIndex]->animations[charactersSprites[currentSpeakerSpriteIndex]->currentAnimation];
-				currentSpeakerSpriteAnimation->currentAnimationPhase = 0;
-				currentSpeakerSpriteAnimation->updating = false;
-				currentSpeakerSpriteAnimation->stopping = false;
-				currentSpeakerSpriteAnimation->timeDuringCurrentAnimationPhase = 0.0f;
-			}
-			currentSpeakerSpriteIndex = -1;
+			set_string_to_text(currentSpeaker, NULL);
 			return true;
-		}
-
-		add_sprite_to_draw_list(sentenceBox, DRAW_LAYER_UI);
-		add_sprite_to_draw_list(choiceMarker, DRAW_LAYER_UI);
-		for (int i = 0; i < nbChoices; i++)
-		{
-			add_text_to_draw_list(currentChoices[i], DRAW_LAYER_UI);
 		}
 	}
 	return false;
@@ -517,7 +635,7 @@ static bool update_knot_condition(KnotCondition *knotCondition)
 	}
 	if (knotCondition->result)
 	{
-		if (knotCondition->currentExpression == buf_len(knotCondition->knotExpressionsIf))
+		if ((unsigned int)knotCondition->currentExpression == buf_len(knotCondition->knotExpressionsIf))
 		{
 			knotCondition->currentExpression = 0;
 			return true;
@@ -532,7 +650,7 @@ static bool update_knot_condition(KnotCondition *knotCondition)
 			}
 		}
 	} else {
-		if (knotCondition->currentExpression == buf_len(knotCondition->knotExpressionsElse))
+		if ((unsigned int)knotCondition->currentExpression == buf_len(knotCondition->knotExpressionsElse))
 		{
 			knotCondition->currentExpression = 0;
 			return true;
@@ -564,15 +682,14 @@ static bool update_knot_expression(KnotExpression *knotExpression)
 			return true;
 		}
 	} else if (knotExpression->type == KNOT_EXPRESSION_COMMAND) {
-		process_command(knotExpression->command);
-		return true;
+		return update_command(knotExpression->command);
 	}
 	return false;
 }
 
 static bool update_knot(Knot *knot)
 {
-	if (knot->currentExpression == buf_len(knot->knotExpressions))
+	if ((unsigned int)knot->currentExpression == buf_len(knot->knotExpressions))
 	{
 		knot->currentExpression = 0;
 		return true;
@@ -582,6 +699,7 @@ static bool update_knot(Knot *knot)
 			if (moving)
 			{
 				knot->currentExpression = 0;
+				moving = false;
 			} else {
 				knot->currentExpression++;
 			}
@@ -590,16 +708,18 @@ static bool update_knot(Knot *knot)
 	}
 }
 
-void interpret(Dialog *dialog)
+bool interpret_current_dialog()
 {
-	if (currentDialog != dialog)
+	if (dialogChanged)
 	{
-		currentDialog = dialog;
-		backgroundSprite = NULL;
+		dialogChanged = false;
+		backgroundSprite->animations = NULL;
+		oldBackgroundSprite->animations = NULL;
 		for (int i = 0; i < 7; i++)
 		{
 			charactersNames[i] = NULL;
-			charactersSprites[i] = NULL;
+			oldCharactersSprites[i]->animations = NULL;
+			charactersSprites[i]->animations = NULL;
 		}
 		currentSpeakerSpriteIndex = -1;
 		choosing = false;
@@ -607,43 +727,97 @@ void interpret(Dialog *dialog)
 		currentChoice = 0;
 		choicesDisplayed = false;
 		moving = false;
+		end = false;
 		displayedSpeakerName = false;
+		appearingBackground = false;
+		appearingCharacter = false;
+		displayDialogUI = false;
+		displaySpeakerName = false;
+		sentenceFirstUpdate = true;
+
+		if (nextDialogStartKnotName)
+		{
+			int knotIndex = -1;
+			for (unsigned int i = 0; i < buf_len(interpretingDialog->knots); i++)
+			{
+				if (strmatch(interpretingDialog->knots[i]->name, nextDialogStartKnotName))
+				{
+					knotIndex = i;
+					break;
+				}
+			}
+			if (knotIndex == -1)
+			{
+				error("could not find knot labeled %s in %s.", nextDialogStartKnotName, interpretingDialogName);
+			} else {
+				interpretingDialog->currentKnot = knotIndex;
+			}
+
+			buf_free(nextDialogStartKnotName);
+			nextDialogStartKnotName = NULL;
+		}
 	}
 
-	if (dialog->currentKnot == buf_len(dialog->knots))
+	if ((unsigned int)interpretingDialog->currentKnot == buf_len(interpretingDialog->knots))
 	{
-		gameEnd = true;
-	} else {
-		if (update_knot(dialog->knots[dialog->currentKnot]))
-		{
-			dialog->currentKnot++;
-		}
-		if (moving)
-		{
-			moving = false;
-		}
+		return false;
 	}
 
-	if (dialog->end)
+	if (update_knot(interpretingDialog->knots[interpretingDialog->currentKnot]))
 	{
-		if (!nextDialog)
+		interpretingDialog->currentKnot++;
+	}
+
+	if (end)
+	{
+		end = false;
+		if (!nextDialogName)
 		{
-			gameEnd = true;
+			return false;
 		} else {
-			dialog->currentKnot = 0;
-			dialog->end = false;
+			interpretingDialog->currentKnot = 0;
 		}
 	}
 
-	if (backgroundSprite)
+	if (oldBackgroundSprite->animations)
+	{
+		add_sprite_to_draw_list(oldBackgroundSprite, DRAW_LAYER_BACKGROUND);
+	}
+	if (backgroundSprite->animations)
 	{
 		add_sprite_to_draw_list(backgroundSprite, DRAW_LAYER_BACKGROUND);
 	}
 	for (int i = 0; i < 7; i++)
 	{
-		if (charactersSprites[i])
+		if (oldCharactersSprites[i]->animations)
+		{
+			add_sprite_to_draw_list(oldCharactersSprites[i], DRAW_LAYER_FOREGROUND);
+		}
+		if (charactersSprites[i]->animations)
 		{
 			add_sprite_to_draw_list(charactersSprites[i], DRAW_LAYER_FOREGROUND);
 		}
 	}
+
+	if (displayDialogUI)
+	{
+		add_sprite_to_draw_list(sentenceBox, DRAW_LAYER_UI);
+		if (!choosing)
+		{
+			add_text_to_draw_list(currentSentence, DRAW_LAYER_UI);
+		} else {
+			add_sprite_to_draw_list(choiceMarker, DRAW_LAYER_UI);
+			for (int i = 0; i < nbChoices; i++)
+			{
+				add_text_to_draw_list(currentChoices[i], DRAW_LAYER_UI);
+			}
+		}
+
+		if (displaySpeakerName)
+		{
+			add_sprite_to_draw_list(characterNameBox, DRAW_LAYER_UI);
+			add_text_to_draw_list(currentSpeaker, DRAW_LAYER_UI);
+		}
+	}
+	return true;
 }

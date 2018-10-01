@@ -104,6 +104,7 @@ typedef ptrdiff_t GLintptr;
 	GL_FUNCTION(void,	glGenVertexArrays,			GLsizei n, GLuint* arrays) \
 	GL_FUNCTION(GLint,	glGetUniformLocation,		GLuint program,	const GLchar *name) \
 	GL_FUNCTION(void,	glUniform1i,				GLint location,	GLint v0) \
+	GL_FUNCTION(void,	glUniform1f,				GLint location,	GLfloat v0) \
 	GL_FUNCTION(void,	glUniform3f,				GLint location, GLfloat v0, GLfloat v1, GLfloat v2) \
 	GL_FUNCTION(void,	glUniformMatrix4fv,			GLint location, GLsizei count, GLboolean transpose, const GLfloat* value) \
 	GL_FUNCTION(void,	glUseProgram,				GLuint program) \

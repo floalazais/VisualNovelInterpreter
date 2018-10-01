@@ -88,7 +88,9 @@ typedef enum CommandType
 
     COMMAND_ASSIGN,
 
-    COMMAND_GO_TO
+    COMMAND_GO_TO,
+
+	COMMAND_HIDE_UI
 } CommandType;
 
 typedef enum ArgumentType
@@ -114,7 +116,6 @@ typedef struct Command
 typedef struct Sentence
 {
 	char *string;
-	int currentChar;
 } Sentence;
 
 typedef struct Choice

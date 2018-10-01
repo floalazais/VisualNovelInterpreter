@@ -1,9 +1,9 @@
 #include <Windows.h>
 #include <Windowsx.h>
-#include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 #include "globals.h"
 #include "xalloc.h"
@@ -57,13 +57,44 @@ char *file_to_string(char *filePath)
 	return fileString;
 }
 
+void strcopy(char **destination, char *source)
+{
+	for (unsigned int i = 0; i < strlen(source); i++)
+	{
+		buf_add(*destination, source[i]);
+	}
+	buf_add(*destination, '\0');
+}
+
+void strappend(char **destination, char *suffix)
+{
+	if (buf_len(*destination) >= 1)
+	{
+		if ((*destination)[buf_len(*destination) - 1] == '\0')
+		{
+			(*destination)[buf_len(*destination) - 1] = suffix[0];
+			for (unsigned int i = 1; i < strlen(suffix); i++)
+			{
+				buf_add(*destination, suffix[i]);
+			}
+		}
+	}
+	 else {
+		for (unsigned int i = 0; i < strlen(suffix); i++)
+		{
+			buf_add(*destination, suffix[i]);
+		}
+	}
+	buf_add(*destination, '\0');
+}
+
 bool strmatch(char *a, char *b)
 {
 	return !strcmp(a, b);
 }
 
 char *windowName;
-ivec2 windowDimensions = {.x = 1600, .y = 900};
+ivec2 windowDimensions = {.x = 800, .y = 600};
 
 mat4 projection;
 
@@ -267,14 +298,17 @@ static LRESULT WINAPI WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 
 #define WGL_LIST \
 	WGL_FUNCTION(BOOL, wglChoosePixelFormatARB, HDC hdc, const int* piAttribIList, const FLOAT* pfAttribFList, UINT nMaxFormats, int* piFormats, UINT* nNumFormats) \
-	WGL_FUNCTION(HGLRC, wglCreateContextAttribsARB, HDC hDC, HGLRC hshareContext, const int* attribList)
+	WGL_FUNCTION(HGLRC, wglCreateContextAttribsARB, HDC hDC, HGLRC hshareContext, const int* attribList) \
+	WGL_FUNCTION(BOOL, wglSwapIntervalEXT, int interval)
 
 #define WGL_FUNCTION(ret, name, ...) ret (GL_CALL_CONVENTION *name)(__VA_ARGS__);
 	WGL_LIST
 #undef WGL_FUNCTION
 
-char *nextDialog = NULL;
-bool gameEnd = false;
+Dialog *interpretingDialog = NULL;
+char *interpretingDialogName = NULL;
+char *nextDialogName = NULL;
+bool dialogChanged = true;
 char **variablesNames = NULL;
 double *variablesValues = NULL;
 
@@ -302,39 +336,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	if (!deviceContext)
 	{
 		error("could not get a handle to a device context.");
-	}
-
-	if (GetConsoleWindow())
-	{
-		if (!FreeConsole())
-		{
-			error("could not detach the process from the launch console.");
-		}
-	}
-	if (!AllocConsole())
-	{
-		error("could not allocate a console.");
-	}
-	if (!freopen("conin$", "r", stdin))
-	{
-		error("could not redirect conin into stdin.");
-	}
-	if (!freopen("conout$", "w", stdout))
-	{
-		error("could not redirect conout into stdout.");
-	}
-	if (!freopen("conout$", "w", stderr))
-	{
-		error("could not redirect conout into stderr.");
-	}
-	HWND consoleHandle = GetConsoleWindow();
-	if (!consoleHandle)
-	{
-		error("could not get the allocated console handle.");
-	}
-	if (!MoveWindow(consoleHandle, 0, 0, 800, 600, TRUE))
-	{
-		error("could not move console to initial position.");
 	}
 
 	SetWindowPos(window, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
@@ -407,6 +408,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 			}
 		GL_LIST
 		#undef GL_FUNCTION
+
+		FreeLibrary(dll);
 	}
 
 	int pixelFormatAttribute[] =
@@ -445,6 +448,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 		error("could not set OpenGL 3.3 context.");
 	}
 
+	wglSwapIntervalEXT(1);
+
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -453,17 +458,14 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	init_graphics();
 	init_dialog_ui();
 
-	Token **tokens = lex("Dialogs/start.dlg");
-	Dialog *dialog = create_dialog("Dialogs/start.dlg", tokens);
+	strcopy(&interpretingDialogName, "Dialogs/start.dlg");
+	Token **tokens = lex(interpretingDialogName);
+	interpretingDialog = create_dialog(interpretingDialogName, tokens);
 
 	if (!SetWindowTextA(window, windowName))
 	{
 		error("could not set the game name to the window.");
 	}
-
-	/*vec2 position = {.x = 0.0f, .y = 0.0f};
-	vec3 color = {.x = 0.3f, .y = 0.5f, .z = 0.8f};
-	Text text = create_text(position, TEXT_SIZE_NORMAL, "éàüî", "Fonts/arial.ttf", color);*/
 
 	QueryPerformanceFrequency(&globalPerformanceFrequency);
 
@@ -486,23 +488,29 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 			DispatchMessage(&msg);
 		}
 
+		if (is_input_key_pressed(INPUT_KEY_R))
+		{
+			nextDialogName = interpretingDialogName;
+		}
+
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-		//add_text_to_draw_list(text, DRAW_LAYER_FOREGROUND);
-
-		if (!gameEnd)
+		if (nextDialogName)
 		{
-			interpret(dialog);
-			if (nextDialog)
+			free_dialog(interpretingDialog);
+			tokens = lex(nextDialogName);
+			interpretingDialog = create_dialog(nextDialogName, tokens);
+			if (interpretingDialogName != nextDialogName)
 			{
-				free_dialog(dialog);
-				tokens = lex(nextDialog);
-				dialog = create_dialog(nextDialog, tokens);
-				buf_free(nextDialog);
-				nextDialog = NULL;
+				buf_free(interpretingDialogName);
+				interpretingDialogName = nextDialogName;
 			}
-		} else {
+			nextDialogName = NULL;
+			dialogChanged = true;
+		}
+		if (!interpret_current_dialog())
+		{
 			PostMessageA(window, WM_CLOSE, 0, 0);
 		}
 
@@ -510,5 +518,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 		wglSwapLayerBuffers(deviceContext, WGL_SWAP_MAIN_PLANE);
 	}
+	free_dialog(interpretingDialog);
+	free_dialog_ui();
+	free_graphics();
+	print_leaks();
 	return msg.wParam;
 }
