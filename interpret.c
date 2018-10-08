@@ -1,13 +1,19 @@
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stddef.h>
 
-#include "graphics.h"
-#include "globals.h"
+#include "maths.h"
+#include "error.h"
+#include "user_input.h"
 #include "stretchy_buffer.h"
 #include "xalloc.h"
+#include "token.h"
+#include "stroperation.h"
+#include "graphics.h"
+#include "dialog.h"
 #include "interpret.h"
-
-#include <stdio.h>
+#include "globals.h"
 
 static char *nextDialogStartKnotName;
 

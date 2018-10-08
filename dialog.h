@@ -1,11 +1,6 @@
 #ifndef DIALOG_H
 #define DIALOG_H
 
-#include <stdbool.h>
-
-#include "token.h"
-#include "graphics.h"
-
 typedef enum LogicExpressionType
 {
 	LOGIC_EXPRESSION_LITERAL,

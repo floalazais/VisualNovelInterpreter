@@ -1,11 +1,6 @@
 #ifndef SPRITE_H
 #define SPRITE_H
 
-#include <stdbool.h>
-
-#include "stb_truetype.h"
-#include "maths.h"
-
 typedef struct AnimationPhase
 {
 	int textureId;
@@ -57,10 +52,12 @@ typedef struct Glyph
 	int textureId;
 } Glyph;
 
+typedef struct stbtt_fontinfo stbtt_fontinfo;
+
 typedef	struct Font
 {
 	char *fontPath;
-	stbtt_fontinfo fontInfo;
+	stbtt_fontinfo *fontInfo;
 	int height;
 	float scale;
 	int ascent;

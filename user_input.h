@@ -1,5 +1,3 @@
-#include <stdbool.h>
-
 typedef enum InputKey
 {
 	INPUT_KEY_NUMPAD_0,

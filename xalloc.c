@@ -1,7 +1,10 @@
-#include "xalloc.h"
-#include "globals.h"
-#include "stretchy_buffer.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <stddef.h>
+
+#include "error.h"
+#include "stretchy_buffer.h"
+#include "xalloc.h"
 
 typedef struct Leak
 {

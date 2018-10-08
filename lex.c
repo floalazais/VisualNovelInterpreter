@@ -2,11 +2,15 @@
 #include <stddef.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdbool.h>
 
-#include "lex.h"
 #include "xalloc.h"
 #include "stretchy_buffer.h"
-#include "globals.h"
+#include "file_to_string.h"
+#include "error.h"
+#include "stroperation.h"
+#include "token.h"
+#include "lex.h"
 
 typedef enum LexMode
 {

@@ -27,15 +27,15 @@ mat4 mat4_ortho(float left, float right, float bottom, float top)
 mat4 mat4_scale(mat4 *mat, float scaleX, float scaleY)
 {
 	mat4 scale = *mat;
-	scale.elements[0][0] *= scaleX;
-	scale.elements[1][1] *= scaleY;
+	scale.e00 *= scaleX;
+	scale.e11 *= scaleY;
 	return scale;
 }
 
 mat4 mat4_translate(mat4 *mat, ivec2 translation)
 {
 	mat4 translate = *mat;
-	translate.elements[3][0] += translation.x * translate.elements[0][0];
-	translate.elements[3][1] += translation.y * translate.elements[1][1];
+	translate.e03 += translation.x * translate.e00;
+	translate.e13 += translation.y * translate.e11;
 	return translate;
 }

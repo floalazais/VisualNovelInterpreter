@@ -29,17 +29,10 @@ typedef struct vec3
 
 typedef struct mat4
 {
-	union
-	{
-		float elements[4][4];
-		struct
-		{
-			float e00; float e10; float e20; float e30;
-			float e01; float e11; float e21; float e31;
-			float e02; float e12; float e22; float e32;
-			float e03; float e13; float e23; float e33;
-		};
-	};
+	float e00; float e10; float e20; float e30;
+	float e01; float e11; float e21; float e31;
+	float e02; float e12; float e22; float e32;
+	float e03; float e13; float e23; float e33;
 } mat4;
 
 mat4 mat4_identity();

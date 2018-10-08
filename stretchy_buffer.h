@@ -1,9 +1,6 @@
 #ifndef STRETCHY_BUFFER_H
 #define STRETCHY_BUFFER_H
 
-#include <stdlib.h>
-#include <stddef.h>
-
 typedef struct StretchyBufferHeader
 {
 	size_t count;

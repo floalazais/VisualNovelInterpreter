@@ -1,11 +1,18 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdarg.h>
+#include <stdbool.h>
+#include <stdlib.h>
 
+#include "maths.h"
+#include "token.h"
+#include "stroperation.h"
 #include "stretchy_buffer.h"
+#include "error.h"
 #include "xalloc.h"
-#include "globals.h"
+#include "graphics.h"
 #include "dialog.h"
+#include "globals.h"
 
 static char *filePath;
 static Token **tokens;

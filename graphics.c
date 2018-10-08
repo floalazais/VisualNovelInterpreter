@@ -1,13 +1,23 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_TRUETYPE_IMPLEMENTATION
 
+#include <stdbool.h>
+#include <stddef.h>
+
+#include "stb_truetype.h"
+#include "stb_image.h"
+#include "maths.h"
 #include "gl.h"
+#include "token.h"
+#include "error.h"
 #include "stretchy_buffer.h"
 #include "xalloc.h"
-#include "globals.h"
-#include "stb_image.h"
 #include "lex.h"
+#include "file_to_string.h"
+#include "stroperation.h"
 #include "graphics.h"
+#include "dialog.h"
+#include "globals.h"
 
 const char *spritesStrings[] =
 {
@@ -131,6 +141,7 @@ void init_graphics()
 static void free_font(Font *font)
 {
 	buf_free(font->fontPath);
+	xfree(font->fontInfo);
 	for (unsigned int i = 0; i < 0xFFFF; i++)
 	{
 		if (font->loaded[i])
@@ -453,13 +464,13 @@ static void load_glyph(Font *font, int code)
 	int y0;
 	int x1;
 	int y1;
-	stbtt_GetCodepointBitmapBox(&font->fontInfo, code, font->scale, font->scale, &x0, &y0, &x1, &y1);
+	stbtt_GetCodepointBitmapBox(font->fontInfo, code, font->scale, font->scale, &x0, &y0, &x1, &y1);
 	font->glyphs[code] = xmalloc(sizeof (*font->glyphs[code]));
 	font->glyphs[code]->width = x1 - x0;
 	font->glyphs[code]->height = y1 - y0;
 
 	unsigned char *bitmap = xmalloc(font->glyphs[code]->height * font->glyphs[code]->width * sizeof (*bitmap));
-	stbtt_MakeCodepointBitmap(&font->fontInfo, bitmap, font->glyphs[code]->width, font->glyphs[code]->height, font->glyphs[code]->width, font->scale, font->scale, code);
+	stbtt_MakeCodepointBitmap(font->fontInfo, bitmap, font->glyphs[code]->width, font->glyphs[code]->height, font->glyphs[code]->width, font->scale, font->scale, code);
 
 	unsigned int textureId;
 	glGenTextures(1, &textureId);
@@ -479,7 +490,7 @@ static void load_glyph(Font *font, int code)
 
 	font->glyphs[code]->yOffset = y0 + font->ascent - font->descent;
 
-	stbtt_GetCodepointHMetrics(&font->fontInfo, code, &advance, &leftSideBearing);
+	stbtt_GetCodepointHMetrics(font->fontInfo, code, &advance, &leftSideBearing);
 	font->glyphs[code]->xOffset = (int)((advance - leftSideBearing) * font->scale);
 
 	font->loaded[code] = true;
@@ -487,7 +498,7 @@ static void load_glyph(Font *font, int code)
 
 static void load_font(char *fontPath, int textHeight)
 {
-	stbtt_fontinfo fontInfo;
+	stbtt_fontinfo *fontInfo = xmalloc(sizeof (*fontInfo));
 	unsigned char *ttfBuffer = NULL;
 	for (unsigned int i = 0; i < buf_len(ttfFilesPaths); i++)
 	{
@@ -504,10 +515,10 @@ static void load_font(char *fontPath, int textHeight)
 		strcopy(&newFontPath, fontPath);
 		buf_add(ttfFilesPaths, newFontPath);
 	}
-	stbtt_InitFont(&fontInfo, ttfBuffer, stbtt_GetFontOffsetForIndex(ttfBuffer, 0));
+	stbtt_InitFont(fontInfo, ttfBuffer, stbtt_GetFontOffsetForIndex(ttfBuffer, 0));
 	int ascent;
 	int descent;
-	stbtt_GetFontVMetrics(&fontInfo, &ascent, &descent, NULL);
+	stbtt_GetFontVMetrics(fontInfo, &ascent, &descent, NULL);
 
 	Font *font = xmalloc(sizeof (*font));
 	font->glyphs = xmalloc(0xFFFF * sizeof (*font->glyphs));
@@ -520,7 +531,7 @@ static void load_font(char *fontPath, int textHeight)
 	font->fontPath = NULL;
 	strcopy(&font->fontPath, fontPath);
 	font->height = textHeight;
-	font->scale = stbtt_ScaleForPixelHeight(&font->fontInfo, (float)textHeight);
+	font->scale = stbtt_ScaleForPixelHeight(font->fontInfo, (float)textHeight);
     font->ascent = (int)(ascent * font->scale);
 	font->descent = (int)(descent * font->scale);
     for (int code = 0; code < 128; code++)
@@ -578,9 +589,9 @@ static void update_text(Text *text)
 
 		if (i == buf_len(text->codes) - 1)
 		{
-			currentLineWidth += text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(&text->font->fontInfo, text->codes[i], 0) * text->font->scale);
+			currentLineWidth += text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], 0) * text->font->scale);
 		} else {
-			currentLineWidth += text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(&text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
+			currentLineWidth += text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
 		}
 
 		count++;
@@ -603,16 +614,16 @@ static void update_text(Text *text)
 				count--;
 				if (i == buf_len(text->codes) - 1)
 				{
-					currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(&text->font->fontInfo, text->codes[i], 0) * text->font->scale);
+					currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], 0) * text->font->scale);
 				} else {
-					currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(&text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
+					currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
 				}
 			}
 			if (foundSpace)
 			{
 				i--;
 				count--;
-				currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(&text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
+				currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
 			}
 			if (currentLineWidth > text->width)
 			{
