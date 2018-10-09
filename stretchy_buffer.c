@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stddef.h>
 
-#include "xalloc.h"
 #include "stretchy_buffer.h"
 
 void* sbuffer_create_or_grow_if_needed(void *buffer, size_t elementSize)

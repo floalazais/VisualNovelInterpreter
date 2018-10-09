@@ -796,7 +796,7 @@ static void set_color_uniform_to_shader(unsigned int shaderProgramId, char *unif
 
 static void set_mat4_uniform_to_shader(unsigned int shaderProgramId, char *uniformName, mat4 *value)
 {
-	glUniformMatrix4fv(get_uniform_location(shaderProgramId, uniformName), 1, GL_FALSE, &(value->elements[0][0]));
+	glUniformMatrix4fv(get_uniform_location(shaderProgramId, uniformName), 1, GL_FALSE, &(value->e00));
 }
 
 static void draw(Sprite *sprite)
