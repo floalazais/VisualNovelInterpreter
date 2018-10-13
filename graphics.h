@@ -1,5 +1,5 @@
-#ifndef SPRITE_H
-#define SPRITE_H
+#ifndef GRAPHICS_H
+#define GRAPHICS_H
 
 typedef struct AnimationPhase
 {
@@ -114,4 +114,4 @@ void add_sprite_to_draw_list(Sprite *sprite, DrawLayer drawLayer);
 void add_text_to_draw_list(Text *text, DrawLayer drawLayer);
 void draw_all();
 
-#endif /* end of include guard: SPRITE_H */
+#endif /* end of include guard: GRAPHICS_H */

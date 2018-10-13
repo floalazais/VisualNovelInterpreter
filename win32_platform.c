@@ -13,6 +13,7 @@
 #include "gl.h"
 #include "token.h"
 #include "graphics.h"
+#include "variable.h"
 #include "dialog.h"
 #include "globals.h"
 

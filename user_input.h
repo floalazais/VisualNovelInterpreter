@@ -1,3 +1,6 @@
+#ifndef USER_INPUT_H
+#define USER_INPUT_H
+
 typedef enum InputKey
 {
 	INPUT_KEY_NUMPAD_0,
@@ -86,3 +89,5 @@ bool is_input_key_up(InputKey inputKey);
 bool is_input_key_down(InputKey inputKey);
 bool is_input_key_pressed(InputKey inputKey);
 bool is_input_key_released(InputKey inputKey);
+
+#endif /* end of include guard: USER_INPUT_H */

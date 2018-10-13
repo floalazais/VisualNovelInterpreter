@@ -45,15 +45,15 @@ void print_token(Token *token)
 	{
 		printf(" : \"%f\"", token->numeric);
 	} else if (token->type == TOKEN_IDENTIFIER) {
-		printf(" : \"%s\"", token->text);
+		printf(" : \"%s\"", token->string);
 	} else if (token->type == TOKEN_STRING) {
-		printf(" : \"%s\"", token->text);
+		printf(" : \"%s\"", token->string);
 	} else if (token->type == TOKEN_SENTENCE) {
-		printf(" : \"%s\"", token->text);
+		printf(" : \"%s\"", token->string);
 	} else if (token->type == TOKEN_COMMAND) {
-		printf(" : \"%s\"", token->text);
+		printf(" : \"%s\"", token->string);
 	} else if (token->type == TOKEN_KNOT) {
-		printf(" : \"%s\"", token->text);
+		printf(" : \"%s\"", token->string);
 	}
 	printf("\n");
 }
@@ -62,15 +62,15 @@ void free_token(Token *token)
 {
 	if (token->type == TOKEN_COMMAND)
 	{
-		buf_free(token->text);
+		buf_free(token->string);
 	} else if (token->type == TOKEN_IDENTIFIER) {
-		buf_free(token->text);
+		buf_free(token->string);
 	} else if (token->type == TOKEN_STRING) {
-		buf_free(token->text);
+		buf_free(token->string);
 	} else if (token->type == TOKEN_SENTENCE) {
-		buf_free(token->text);
+		buf_free(token->string);
 	} else if (token->type == TOKEN_KNOT) {
-		buf_free(token->text);
+		buf_free(token->string);
 	}
 	xfree(token);
 }

@@ -16,6 +16,7 @@
 #include "file_to_string.h"
 #include "stroperation.h"
 #include "graphics.h"
+#include "variable.h"
 #include "dialog.h"
 #include "globals.h"
 
@@ -328,7 +329,7 @@ static AnimationPhase *parse_animation_phase(char *spriteName)
 		strcopy(&textureFilePath, "Textures/");
 		strappend(&textureFilePath, spriteName);
 		strappend(&textureFilePath, "/");
-		strappend(&textureFilePath, tokens[currentToken]->text);
+		strappend(&textureFilePath, tokens[currentToken]->string);
 		animationPhase->textureId = get_texture_id_from_path(textureFilePath, &animationPhase->width, &animationPhase->height);
 		animationPhase->length = tokens[currentToken + 1]->numeric;
 		buf_free(textureFilePath);
@@ -360,17 +361,17 @@ static Animation *parse_animation(char *spriteName)
 	if (token_match_on_line(tokens[currentToken]->line, 2, TOKEN_STRING, TOKEN_IDENTIFIER))
 	{
 		animation->name = NULL;
-		strcopy(&animation->name, tokens[currentToken]->text);
-		if (strmatch(tokens[currentToken + 1]->text, "loop"))
+		strcopy(&animation->name, tokens[currentToken]->string);
+		if (strmatch(tokens[currentToken + 1]->string, "loop"))
 		{
 			animation->looping = true;
 		} else {
-			error("in %s at line %d, expected optional \"loop\" identifier or nothing after animation name, got %s identifier instead.", filePath, tokens[currentToken]->line, tokens[currentToken + 1]->text);
+			error("in %s at line %d, expected optional \"loop\" identifier or nothing after animation name, got %s identifier instead.", filePath, tokens[currentToken]->line, tokens[currentToken + 1]->string);
 		}
 		steps_in_tokens(2);
 	} else if (token_match(1, TOKEN_STRING)) {
 		animation->name = NULL;
-		strcopy(&animation->name, tokens[currentToken]->text);
+		strcopy(&animation->name, tokens[currentToken]->string);
 		animation->looping = false;
 		step_in_tokens();
 	} else {
@@ -549,6 +550,8 @@ Text *create_text()
 	text->codes = NULL;
 	text->sprites = NULL;
 	text->widthLimit = -1;
+	text->position.x = 0;
+	text->position.y = 0;
 	return text;
 }
 

@@ -76,22 +76,27 @@ static Token *get_next_token()
 		steps_in_source(2);
         token->type = TOKEN_SCOPE;
 	} else if (fileString[currentChar] == '(') {
+        step_in_source();
         token->type = TOKEN_OPEN_PARENTHESIS;
 	} else if (fileString[currentChar] == ')') {
+        step_in_source();
         token->type = TOKEN_CLOSE_PARENTHESIS;
 	} else if (fileString[currentChar] == '+') {
+        step_in_source();
         token->type = TOKEN_PLUS;
 	} else if (fileString[currentChar] == '*') {
+        step_in_source();
         token->type = TOKEN_STAR;
 	} else if (fileString[currentChar] == '/') {
+        step_in_source();
         token->type = TOKEN_SLASH;
 	} else if (fileString[currentChar] == '-') {
         if (fileString[currentChar + 1] == '>')
         {
             steps_in_source(2);
             token->type = TOKEN_COMMAND;
-			token->text = NULL;
-			strcopy(&token->text, "GO_TO");
+			token->string = NULL;
+			strcopy(&token->string, "GO_TO");
         } else {
             step_in_source();
             token->type = TOKEN_MINUS;
@@ -118,9 +123,9 @@ static Token *get_next_token()
             step_in_source();
             token->type = TOKEN_INFERIOR;
         }
-    } else if (fileString[currentChar] == '=') {
-        step_in_source();
-        token->type = TOKEN_EQUALS;
+    } else if (fileString[currentChar] == '=' && fileString[currentChar + 1] == '=') {
+            steps_in_source(2);
+            token->type = TOKEN_EQUALS;
     } else if (fileString[currentChar] == '!') {
         if (fileString[currentChar + 1] == '=')
         {
@@ -173,7 +178,7 @@ static Token *get_next_token()
         step_in_source();
 		buf_add(string, '\0');
         token->type = TOKEN_STRING;
-        token->text = string;
+        token->string = string;
 	} else if (fileString[currentChar] == '@') {
 		step_in_source();
 		char *knot = NULL;
@@ -184,7 +189,7 @@ static Token *get_next_token()
 		}
 		buf_add(knot, '\0');
 		token->type = TOKEN_KNOT;
-		token->text = knot;
+		token->string = knot;
     } else if (fileString[currentChar] == '#') {
         step_in_source();
 		if (currentLexMode == LEX_MODE_TEXT)
@@ -207,7 +212,7 @@ static Token *get_next_token()
 			buf_free(command);
 		} else {
 	        token->type = TOKEN_COMMAND;
-	        token->text = command;
+	        token->string = command;
 		}
     } else if (isdigit(fileString[currentChar]) && currentLexMode == LEX_MODE_CODE) {
         char *begin = fileString + currentChar;
@@ -232,7 +237,7 @@ static Token *get_next_token()
         }
         buf_add(sentence, '\0');
         token->type = TOKEN_SENTENCE;
-        token->text = sentence;
+        token->string = sentence;
     } else if (currentLexMode == LEX_MODE_TEXT) {
         char *sentence = NULL;
         while (fileString[currentChar] != '\n' && fileString[currentChar] != '\r' && fileString[currentChar] != '\t' && fileString[currentChar] != '\0')
@@ -242,7 +247,7 @@ static Token *get_next_token()
         }
         buf_add(sentence, '\0');
         token->type = TOKEN_SENTENCE;
-        token->text = sentence;
+        token->string = sentence;
     } else if (isalnum(fileString[currentChar]) || fileString[currentChar] == '_') {
         char *identifier = NULL;
         do {
@@ -261,7 +266,7 @@ static Token *get_next_token()
             buf_free(identifier);
         } else {
             token->type = TOKEN_IDENTIFIER;
-            token->text = identifier;
+            token->string = identifier;
         }
     } else {
 		error("in %s at line %d unexpected char %c found.", filePath, currentLine, fileString[currentChar]);

@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "maths.h"
 #include "token.h"
@@ -11,6 +12,7 @@
 #include "error.h"
 #include "xalloc.h"
 #include "graphics.h"
+#include "variable.h"
 #include "dialog.h"
 #include "globals.h"
 
@@ -29,70 +31,210 @@ typedef enum CueMode
 
 static CueMode currentCueMode;
 
-double resolve_variable(char *variableName)
+Variable *get_variable(char *variableName)
 {
+	Variable *variable = xmalloc(sizeof (*variable));
 	for (unsigned int i = 0; i < buf_len(variablesNames); i++)
 	{
 		if (strmatch(variablesNames[i], variableName))
 		{
-			return variablesValues[i];
+			variable->type = variablesValues[i]->type;
+			if (variable->type == VARIABLE_NUMERIC)
+			{
+				variable->numeric = variablesValues[i]->numeric;
+			} else if (variable->type == VARIABLE_STRING) {
+				variable->string = NULL;
+				strcopy(&variable->string, variablesValues[i]->string);
+			} else {
+				error("unknown variable type %d.", variablesValues[i]->type);
+			}
+			return variable;
 		}
 	}
 	error("variable %s not found.", variableName);
 }
 
-bool resolve_logic_expression(LogicExpression *logicExpression)
+static Variable *variable_to_bool(Variable *variable)
+{
+	if (variable->type == VARIABLE_NUMERIC)
+	{
+		variable->numeric = !variable->numeric;
+	} else if (variable->type == VARIABLE_STRING) {
+		if (strlen(variable->string) == 1)
+		{
+			if (variable->string[0] == '\0')
+			{
+				variable->numeric = false;
+			} else {
+				variable->numeric = true;
+			}
+		} else {
+			variable->numeric = true;
+		}
+		buf_free(variable->string);
+		variable->string = NULL;
+		variable->type = VARIABLE_NUMERIC;
+	} else {
+		error("unknown variable type %d.", variable->type);
+	}
+	return variable;
+}
+
+static Variable *variable_to_numeric(Variable *variable)
+{
+	if (variable->type == VARIABLE_NUMERIC)
+	{
+		return variable;
+	} else if (variable->type == VARIABLE_STRING) {
+		error("expected numeric variable, got string variable instead.");
+	} else {
+		error("unknown variable type %d.", variable->type);
+	}
+}
+
+static Variable *variable_to_string(Variable *variable)
+{
+	if (variable->type == VARIABLE_NUMERIC)
+	{
+		error("expected string variable, got numeric variable instead.");
+	} else if (variable->type == VARIABLE_STRING) {
+		return variable;
+	} else {
+		error("unknown variable type %d.", variable->type);
+	}
+}
+
+Variable *resolve_logic_expression(LogicExpression *logicExpression)
 {
 	if (logicExpression->type == LOGIC_EXPRESSION_LITERAL)
 	{
 		if (logicExpression->literal.type == LOGIC_EXPRESSION_LITERAL_STRING)
 		{
-			return logicExpression->literal.text;
+			Variable *variable = xmalloc(sizeof (*variable));
+			variable->type = VARIABLE_STRING;
+			variable->string = NULL;
+			strcopy(&variable->string, logicExpression->literal.string);
+			return variable;
 		} else if (logicExpression->literal.type == LOGIC_EXPRESSION_LITERAL_IDENTIFIER) {
-			return resolve_variable(logicExpression->literal.text);
+			return get_variable(logicExpression->literal.string);
 		} else if (logicExpression->literal.type == LOGIC_EXPRESSION_LITERAL_NUMERIC) {
-			return logicExpression->literal.numeric;
+			Variable *variable = xmalloc(sizeof (*variable));
+			variable->type = VARIABLE_NUMERIC;
+			variable->numeric = logicExpression->literal.numeric;
+			return variable;
 		} else {
 			error("unknown literal type %d.", logicExpression->literal.type);
 		}
 	} else if (logicExpression->type == LOGIC_EXPRESSION_UNARY) {
 		if (logicExpression->unary.type == LOGIC_EXPRESSION_UNARY_NEGATION)
 		{
-			return !resolve_logic_expression(logicExpression->unary.expression);
+			Variable *variable = variable_to_bool(resolve_logic_expression(logicExpression));
+			variable->numeric = !variable->numeric;
+			return variable;
 		} else {
 			error("unknown unary expression type %d.", logicExpression->unary.type);
 		}
 	} else if (logicExpression->type == LOGIC_EXPRESSION_BINARY) {
+		Variable *left;
+		Variable *right;
 		if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_OR)
 		{
-			return resolve_logic_expression(logicExpression->binary.left) || resolve_logic_expression(logicExpression->binary.right);
+			left = variable_to_bool(resolve_logic_expression(logicExpression->binary.left));
+			right = variable_to_bool(resolve_logic_expression(logicExpression->binary.right));
+			left->numeric = left->numeric || right->numeric;
+			free_variable(right);
 		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_AND) {
-			return resolve_logic_expression(logicExpression->binary.left) && resolve_logic_expression(logicExpression->binary.right);
+			left = variable_to_bool(resolve_logic_expression(logicExpression->binary.left));
+			right = variable_to_bool(resolve_logic_expression(logicExpression->binary.right));
+			left->numeric = left->numeric && right->numeric;
+			free_variable(right);
 		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_ADD) {
-			return resolve_logic_expression(logicExpression->binary.left) + resolve_logic_expression(logicExpression->binary.right);
+			left = resolve_logic_expression(logicExpression->binary.left);
+			if (left->type == VARIABLE_NUMERIC)
+			{
+				right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
+				left->numeric += right->numeric;
+				free_variable(right);
+			} else if (left->type == VARIABLE_STRING) {
+				right = variable_to_string(resolve_logic_expression(logicExpression->binary.right));
+				strappend(&left->string, right->string);
+				free_variable(right);
+			} else {
+				error("unknown variable type %d.", left->type);
+			}
 		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_DIVISE) {
-			return resolve_logic_expression(logicExpression->binary.left) / resolve_logic_expression(logicExpression->binary.right);
+			left = variable_to_numeric(resolve_logic_expression(logicExpression->binary.left));
+			right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
+			left->numeric /= right->numeric;
+			free_variable(right);
 		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_EQUALS) {
-			return resolve_logic_expression(logicExpression->binary.left) == resolve_logic_expression(logicExpression->binary.right);
+			left = resolve_logic_expression(logicExpression->binary.left);
+			printf(":%d", logicExpression->type);
+			if (left->type == VARIABLE_NUMERIC)
+			{
+				right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
+				left->numeric = left->numeric == right->numeric;
+				free_variable(right);
+			} else if (left->type == VARIABLE_STRING) {
+				right = variable_to_string(resolve_logic_expression(logicExpression->binary.right));
+				left->numeric = strmatch(left->string, right->string);
+				buf_free(left->string);
+				left->string = NULL;
+				left->type = VARIABLE_NUMERIC;
+				free_variable(right);
+			} else {
+				error("unknown variable type %d.", left->type);
+			}
 		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_DIFFERS) {
-			return resolve_logic_expression(logicExpression->binary.left) != resolve_logic_expression(logicExpression->binary.right);
+			left = resolve_logic_expression(logicExpression->binary.left);
+			if (left->type == VARIABLE_NUMERIC)
+			{
+				right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
+				left->numeric = left->numeric != right->numeric;
+				free_variable(right);
+			} else if (left->type == VARIABLE_STRING) {
+				right = variable_to_string(resolve_logic_expression(logicExpression->binary.right));
+				left->numeric = !strmatch(left->string, right->string);
+				buf_free(left->string);
+				left->type = VARIABLE_NUMERIC;
+				free_variable(right);
+			} else {
+				error("unknown variable type %d.", left->type);
+			}
 		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_INFERIOR) {
-			return resolve_logic_expression(logicExpression->binary.left) < resolve_logic_expression(logicExpression->binary.right);
+			left = variable_to_numeric(resolve_logic_expression(logicExpression->binary.left));
+			right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
+			left->numeric = left->numeric < right->numeric;
+			free_variable(right);
 		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_MULTIPLY) {
-			return resolve_logic_expression(logicExpression->binary.left) * resolve_logic_expression(logicExpression->binary.right);
-		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_MULTIPLY) {
-			return resolve_logic_expression(logicExpression->binary.left) * resolve_logic_expression(logicExpression->binary.right);
+			left = variable_to_numeric(resolve_logic_expression(logicExpression->binary.left));
+			right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
+			left->numeric *= right->numeric;
+			free_variable(right);
 		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_SUBTRACT) {
-			return resolve_logic_expression(logicExpression->binary.left) - resolve_logic_expression(logicExpression->binary.right);
+			left = variable_to_numeric(resolve_logic_expression(logicExpression->binary.left));
+			right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
+			left->numeric -= right->numeric;
+			free_variable(right);
 		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_SUPERIOR) {
-			return resolve_logic_expression(logicExpression->binary.left) > resolve_logic_expression(logicExpression->binary.right);
+			left = variable_to_numeric(resolve_logic_expression(logicExpression->binary.left));
+			right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
+			left->numeric = left->numeric > right->numeric;
+			free_variable(right);
 		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_SUPERIOR_EQUALS) {
-			return resolve_logic_expression(logicExpression->binary.left) >= resolve_logic_expression(logicExpression->binary.right);
+			left = variable_to_numeric(resolve_logic_expression(logicExpression->binary.left));
+			right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
+			left->numeric = left->numeric >= right->numeric;
+			free_variable(right);
 		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_INFERIOR_EQUALS) {
-			return resolve_logic_expression(logicExpression->binary.left) <= resolve_logic_expression(logicExpression->binary.right);
+			left = variable_to_numeric(resolve_logic_expression(logicExpression->binary.left));
+			right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
+			left->numeric = left->numeric <= right->numeric;
+			free_variable(right);
 		} else {
 			error("unknown operation %d.", logicExpression->binary.operation);
 		}
+		return left;
 	} else if (logicExpression->type == LOGIC_EXPRESSION_GROUPING) {
 		return resolve_logic_expression(logicExpression->grouping.expression);
 	} else {
@@ -114,8 +256,8 @@ static LogicExpression *create_logic_expression_literal_string(char *string)
 	LogicExpression *logicExpression = xmalloc(sizeof (*logicExpression));
 	logicExpression->type = LOGIC_EXPRESSION_LITERAL;
 	logicExpression->literal.type = LOGIC_EXPRESSION_LITERAL_STRING;
-	logicExpression->literal.text = NULL;
-	strcopy(&logicExpression->literal.text, string);
+	logicExpression->literal.string = NULL;
+	strcopy(&logicExpression->literal.string, string);
 	return logicExpression;
 }
 
@@ -124,8 +266,8 @@ static LogicExpression *create_logic_expression_literal_identifier(char *name)
 	LogicExpression *logicExpression = xmalloc(sizeof (*logicExpression));
 	logicExpression->type = LOGIC_EXPRESSION_LITERAL;
 	logicExpression->literal.type = LOGIC_EXPRESSION_LITERAL_IDENTIFIER;
-	logicExpression->literal.text = NULL;
-	strcopy(&logicExpression->literal.text, name);
+	logicExpression->literal.string = NULL;
+	strcopy(&logicExpression->literal.string, name);
 	return logicExpression;
 }
 
@@ -214,10 +356,11 @@ static LogicExpression *parse_logic_expression_base(int line)
 	if (token_match_on_line(line, 1, TOKEN_NUMERIC)) {
 		logicExpression = create_logic_expression_literal_numeric(tokens[currentToken]->numeric);
 	} else if (token_match_on_line(line, 1, TOKEN_STRING)) {
-		logicExpression = create_logic_expression_literal_string(tokens[currentToken]->text);
+		logicExpression = create_logic_expression_literal_string(tokens[currentToken]->string);
 	} else if (token_match_on_line(line, 1, TOKEN_IDENTIFIER)) {
-		logicExpression = create_logic_expression_literal_identifier(tokens[currentToken]->text);
+		logicExpression = create_logic_expression_literal_identifier(tokens[currentToken]->string);
 	} else if (token_match_on_line(line, 1, TOKEN_OPEN_PARENTHESIS)) {
+		step_in_tokens();
 		LogicExpression *groupedLogicExpression = parse_logic_expression(line);
 		if (token_match_on_line(line, 1, TOKEN_CLOSE_PARENTHESIS))
 		{
@@ -445,7 +588,7 @@ static Command *parse_command()
 {
 	Command *command = xmalloc(sizeof (*command));
 
-	if (strmatch(tokens[currentToken]->text, "SET_BACKGROUND")) {
+	if (strmatch(tokens[currentToken]->string, "SET_BACKGROUND")) {
 		step_in_tokens();
 		if (token_match_on_line(tokens[currentToken - 1]->line, 3, TOKEN_STRING, TOKEN_SCOPE, TOKEN_STRING))
 		{
@@ -456,21 +599,21 @@ static Command *parse_command()
 				command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 			}
 			command->arguments[0]->type = PARAMETER_STRING;
-			command->arguments[0]->text = NULL;
-			strcopy(&command->arguments[0]->text, tokens[currentToken]->text);
+			command->arguments[0]->string = NULL;
+			strcopy(&command->arguments[0]->string, tokens[currentToken]->string);
 			command->arguments[1]->type = PARAMETER_STRING;
-			command->arguments[1]->text = NULL;
-			strcopy(&command->arguments[1]->text, tokens[currentToken + 2]->text);
+			command->arguments[1]->string = NULL;
+			strcopy(&command->arguments[1]->string, tokens[currentToken + 2]->string);
 			steps_in_tokens(3);
-			add_to_background_list(command->arguments[0]->text);
+			add_to_background_list(command->arguments[0]->string);
 		} else {
-			error("in %s at line %d, bad argument for #%s command , usage is #%s background-pack-identifier::background-identifier.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->text, tokens[currentToken - 1]->text);
+			error("in %s at line %d, bad argument for #%s command , usage is #%s background-pack-identifier::background-identifier.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->string, tokens[currentToken - 1]->string);
 		}
-	} else if (strmatch(tokens[currentToken]->text, "CLEAR_BACKGROUND")) {
+	} else if (strmatch(tokens[currentToken]->string, "CLEAR_BACKGROUND")) {
 		step_in_tokens();
 		command->type = COMMAND_CLEAR_BACKGROUND;
 		command->arguments = NULL;
-	} else if (strmatch(tokens[currentToken]->text, "SET_CHARACTER")) {
+	} else if (strmatch(tokens[currentToken]->string, "SET_CHARACTER")) {
 		step_in_tokens();
 		if (token_match_on_line(tokens[currentToken - 1]->line, 4, TOKEN_IDENTIFIER, TOKEN_STRING, TOKEN_SCOPE, TOKEN_STRING))
 		{
@@ -481,19 +624,19 @@ static Command *parse_command()
 				command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 			}
 			command->arguments[0]->type = PARAMETER_NUMERIC;
-			command->arguments[0]->numeric = position_identifier_to_int(tokens[currentToken]->text, tokens[currentToken - 1]->line);
+			command->arguments[0]->numeric = position_identifier_to_int(tokens[currentToken]->string, tokens[currentToken - 1]->line);
 			command->arguments[1]->type = PARAMETER_STRING;
-			command->arguments[1]->text = NULL;
-			strcopy(&command->arguments[1]->text, tokens[currentToken + 1]->text);
+			command->arguments[1]->string = NULL;
+			strcopy(&command->arguments[1]->string, tokens[currentToken + 1]->string);
 			command->arguments[2]->type = PARAMETER_STRING;
-			command->arguments[2]->text = NULL;
-			strcopy(&command->arguments[2]->text, tokens[currentToken + 3]->text);
+			command->arguments[2]->string = NULL;
+			strcopy(&command->arguments[2]->string, tokens[currentToken + 3]->string);
 			steps_in_tokens(4);
-			add_to_character_list(command->arguments[1]->text);
+			add_to_character_list(command->arguments[1]->string);
 		} else {
-			error("in %s at line %d, bad arguments for #%s command, usage is #%s position-identifier character-identifier::animation-identifier.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->text, tokens[currentToken - 1]->text);
+			error("in %s at line %d, bad arguments for #%s command, usage is #%s position-identifier character-identifier::animation-identifier.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->string, tokens[currentToken - 1]->string);
 		}
-	} else if (strmatch(tokens[currentToken]->text, "CLEAR_CHARACTER_POSITION")) {
+	} else if (strmatch(tokens[currentToken]->string, "CLEAR_CHARACTER_POSITION")) {
 		step_in_tokens();
 		if (token_match_on_line(tokens[currentToken - 1]->line, 1, TOKEN_IDENTIFIER))
 		{
@@ -504,16 +647,16 @@ static Command *parse_command()
 				command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 			}
 			command->arguments[0]->type = PARAMETER_NUMERIC;
-			command->arguments[0]->numeric = position_identifier_to_int(tokens[currentToken]->text, tokens[currentToken - 1]->line);
+			command->arguments[0]->numeric = position_identifier_to_int(tokens[currentToken]->string, tokens[currentToken - 1]->line);
 			step_in_tokens();
 		} else {
-			error("in %s at line %d, bad argument for #%s command, expected position identifier token.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->text);
+			error("in %s at line %d, bad argument for #%s command, expected position identifier token.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->string);
 		}
-	} else if (strmatch(tokens[currentToken]->text, "CLEAR_CHARACTER_POSITIONS")) {
+	} else if (strmatch(tokens[currentToken]->string, "CLEAR_CHARACTER_POSITIONS")) {
 		step_in_tokens();
 		command->type = COMMAND_CLEAR_CHARACTER_POSITIONS;
 		command->arguments = NULL;
-	} else if (strmatch(tokens[currentToken]->text, "END")) {
+	} else if (strmatch(tokens[currentToken]->string, "END")) {
 		step_in_tokens();
 		command->type = COMMAND_END;
 		command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
@@ -522,20 +665,20 @@ static Command *parse_command()
 			command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 		}
 		command->arguments[0]->type = PARAMETER_STRING;
-		command->arguments[0]->text = NULL;
+		command->arguments[0]->string = NULL;
 		command->arguments[1]->type = PARAMETER_STRING;
-		command->arguments[1]->text = NULL;
+		command->arguments[1]->string = NULL;
 		if (token_match_on_line(tokens[currentToken - 1]->line, 1, TOKEN_STRING))
 		{
-			strcopy(&command->arguments[0]->text, tokens[currentToken]->text);
+			strcopy(&command->arguments[0]->string, tokens[currentToken]->string);
 			step_in_tokens();
 			if (token_match_on_line(tokens[currentToken - 1]->line, 1, TOKEN_KNOT))
 			{
-				strcopy(&command->arguments[1]->text, tokens[currentToken]->text);
+				strcopy(&command->arguments[1]->string, tokens[currentToken]->string);
 				step_in_tokens();
 			}
 		}
-	} else if (strmatch(tokens[currentToken]->text, "ASSIGN")) {
+	} else if (strmatch(tokens[currentToken]->string, "ASSIGN")) {
 		step_in_tokens();
 		if (token_match_on_line(tokens[currentToken - 1]->line, 1, TOKEN_IDENTIFIER))
 		{
@@ -546,15 +689,15 @@ static Command *parse_command()
 				command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 			}
 			command->arguments[0]->type = PARAMETER_IDENTIFIER;
-			command->arguments[0]->text = NULL;
-			strcopy(&command->arguments[0]->text, tokens[currentToken]->text);
+			command->arguments[0]->string = NULL;
+			strcopy(&command->arguments[0]->string, tokens[currentToken]->string);
 			step_in_tokens();
 			command->arguments[1]->type = PARAMETER_LOGIC_EXPRESSION;
 			command->arguments[1]->logicExpression = parse_logic_expression(tokens[currentToken - 1]->line);
 		} else {
-			error("in %s at line %d, bad arguments for #%s command, expected variable identifier token first.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->text);
+			error("in %s at line %d, bad arguments for #%s command, expected variable identifier token first.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->string);
 		}
-	} else if (strmatch(tokens[currentToken]->text, "GO_TO")) {
+	} else if (strmatch(tokens[currentToken]->string, "GO_TO")) {
 		step_in_tokens();
 		if (token_match_on_line(tokens[currentToken - 1]->line, 1, TOKEN_SENTENCE))
 		{
@@ -565,18 +708,18 @@ static Command *parse_command()
 				command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
 			}
 			command->arguments[0]->type = PARAMETER_STRING;
-			command->arguments[0]->text = NULL;
-			strcopy(&command->arguments[0]->text, tokens[currentToken]->text);
+			command->arguments[0]->string = NULL;
+			strcopy(&command->arguments[0]->string, tokens[currentToken]->string);
 			step_in_tokens();
 		} else {
-			error("in %s at line %d, bad argument for #%s command, expected knot name token.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->text);
+			error("in %s at line %d, bad argument for #%s command, expected knot name token.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->string);
 		}
-	} else if (strmatch(tokens[currentToken]->text, "HIDE_UI")) {
+	} else if (strmatch(tokens[currentToken]->string, "HIDE_UI")) {
 		step_in_tokens();
 		command->type = COMMAND_HIDE_UI;
 		command->arguments = NULL;
 	} else {
-		error("in %s at line %d, unknown command #%s found.", filePath, tokens[currentToken]->line, tokens[currentToken]->text);
+		error("in %s at line %d, unknown command #%s found.", filePath, tokens[currentToken]->line, tokens[currentToken]->string);
 	}
 	return command;
 }
@@ -598,7 +741,7 @@ static Choice *parse_choice()
 	{
 		error("in %s at line %d, expected a \"->\" go to indicator and a sentence after a choice declaration.", filePath, tokens[currentToken]->line);
 	}
-	if (!strmatch(tokens[currentToken]->text, "GO_TO"))
+	if (!strmatch(tokens[currentToken]->string, "GO_TO"))
 	{
 		error("in %s at line %d, expected \"->\" go to indicator and sentence after a choice declaration, got a %s token instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type]);
 	}
@@ -612,7 +755,16 @@ static Choice *parse_choice()
 	}
 	choice->sentence = xmalloc(sizeof (*choice->sentence));
 	choice->sentence->string = NULL;
-	strcopy(&choice->sentence->string, tokens[currentToken - 1]->text);
+	choice->sentence->autoSkip = false;
+	strcopy(&choice->sentence->string, tokens[currentToken - 1]->string);
+	if (buf_len(choice->sentence->string) > 3)
+	{
+		if (choice->sentence->string[buf_len(choice->sentence->string) - 2] == '>' && choice->sentence->string[buf_len(choice->sentence->string) - 3] == '>')
+		{
+			choice->sentence->string[buf_len(choice->sentence->string) - 3] = '\0';
+			choice->sentence->autoSkip = true;
+		}
+	}
 	choice->goToCommand = xmalloc(sizeof (*choice->goToCommand));
 	choice->goToCommand->type = COMMAND_GO_TO;
 	choice->goToCommand->arguments = xmalloc(sizeof (*choice->goToCommand->arguments) * nbArguments[COMMAND_GO_TO]);
@@ -621,8 +773,8 @@ static Choice *parse_choice()
 		choice->goToCommand->arguments[i] = xmalloc(sizeof (*choice->goToCommand->arguments[i]));
 	}
 	choice->goToCommand->arguments[0]->type = PARAMETER_STRING;
-	choice->goToCommand->arguments[0]->text = NULL;
-	strcopy(&choice->goToCommand->arguments[0]->text, tokens[currentToken + 1]->text);
+	choice->goToCommand->arguments[0]->string = NULL;
+	strcopy(&choice->goToCommand->arguments[0]->string, tokens[currentToken + 1]->string);
 	steps_in_tokens(2);
 	return choice;
 }
@@ -706,7 +858,16 @@ static CueExpression *parse_cue_expression()
 			cueExpression->type = CUE_EXPRESSION_SENTENCE;
 			cueExpression->sentence = xmalloc(sizeof (*cueExpression->sentence));
 			cueExpression->sentence->string = NULL;
-			strcopy(&cueExpression->sentence->string, tokens[currentToken]->text);
+			cueExpression->sentence->autoSkip = false;
+			strcopy(&cueExpression->sentence->string, tokens[currentToken]->string);
+			if (buf_len(cueExpression->sentence->string) > 3)
+			{
+				if (cueExpression->sentence->string[buf_len(cueExpression->sentence->string) - 2] == '>' && cueExpression->sentence->string[buf_len(cueExpression->sentence->string) - 3] == '>')
+				{
+					cueExpression->sentence->string[buf_len(cueExpression->sentence->string) - 3] = '\0';
+					cueExpression->sentence->autoSkip = true;
+				}
+			}
 			step_in_tokens();
 		} else {
 			error("in %s at line %d, found sentence after a choice.", filePath, tokens[currentToken]->line);
@@ -744,8 +905,8 @@ static Cue *parse_cue()
 			error("in %s at line %d, the speaker name identifier and the position identifier must be on the same line as their corresponding \">\" speaker indicator token.", filePath, tokens[currentToken]->line);
 		}
 		cue->characterName = NULL;
-		strcopy(&cue->characterName, tokens[currentToken]->text);
-		cue->characterNamePosition = position_identifier_to_int(tokens[currentToken + 1]->text, tokens[currentToken - 1]->line);
+		strcopy(&cue->characterName, tokens[currentToken]->string);
+		cue->characterNamePosition = position_identifier_to_int(tokens[currentToken + 1]->string, tokens[currentToken - 1]->line);
 		steps_in_tokens(2);
 
 		if (token_match_on_line(tokens[currentToken - 1]->line, 2, TOKEN_STRING, TOKEN_IDENTIFIER))
@@ -761,17 +922,17 @@ static Cue *parse_cue()
 				set_character_command->arguments[i] = xmalloc(sizeof (*set_character_command->arguments[i]));
 			}
 			set_character_command->arguments[0]->type = PARAMETER_NUMERIC;
-			set_character_command->arguments[0]->numeric = position_identifier_to_int(tokens[currentToken + 1]->text, tokens[currentToken - 1]->line);
+			set_character_command->arguments[0]->numeric = position_identifier_to_int(tokens[currentToken + 1]->string, tokens[currentToken - 1]->line);
 			set_character_command->arguments[1]->type = PARAMETER_STRING;
-			set_character_command->arguments[1]->text = NULL;
-			strcopy(&set_character_command->arguments[1]->text, tokens[currentToken - 2]->text);
+			set_character_command->arguments[1]->string = NULL;
+			strcopy(&set_character_command->arguments[1]->string, tokens[currentToken - 2]->string);
 			set_character_command->arguments[2]->type = PARAMETER_STRING;
-			set_character_command->arguments[2]->text = NULL;
-			strcopy(&set_character_command->arguments[2]->text, tokens[currentToken]->text);
+			set_character_command->arguments[2]->string = NULL;
+			strcopy(&set_character_command->arguments[2]->string, tokens[currentToken]->string);
 			cueExpression->command = set_character_command;
 			buf_add(cue->cueExpressions, cueExpression);
 			steps_in_tokens(2);
-			add_to_character_list(set_character_command->arguments[1]->text);
+			add_to_character_list(set_character_command->arguments[1]->string);
 		} else {
 			cue->setCharacterInDeclaration = false;
 		}
@@ -889,12 +1050,12 @@ static Knot *parse_knot()
 			}
 			for (unsigned int i = 0; i < buf_len(currentDialog->knots) - 1; i++)
 			{
-				if (strmatch(currentDialog->knots[i]->name, tokens[currentToken]->text))
+				if (strmatch(currentDialog->knots[i]->name, tokens[currentToken]->string))
 				{
-					error("in %s at line %d, knot name %s was already used.", filePath, tokens[currentToken]->line, tokens[currentToken]->text);
+					error("in %s at line %d, knot name %s was already used.", filePath, tokens[currentToken]->line, tokens[currentToken]->string);
 				}
 			}
-			strcopy(&knot->name, tokens[currentToken]->text);
+			strcopy(&knot->name, tokens[currentToken]->string);
 			step_in_tokens();
         } else {
 			error("in %s at line %d, expected knot token, got a %s token instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type]);
@@ -926,7 +1087,7 @@ Dialog *create_dialog(char *_filePath, Token **_tokens)
 	{
 		if (token_match(1, TOKEN_SENTENCE))
 		{
-			strcopy(&windowName, tokens[currentToken]->text);
+			strcopy(&windowName, tokens[currentToken]->string);
 			step_in_tokens();
 		} else {
 			error("expected game name at beginning of start.dlg, got %s token instead.", tokenStrings[tokens[currentToken]->type]);
@@ -962,9 +1123,9 @@ static void free_logic_expression(LogicExpression *logicExpression)
 	{
 		if (logicExpression->literal.type == LOGIC_EXPRESSION_LITERAL_STRING)
 		{
-			buf_free(logicExpression->literal.text);
+			buf_free(logicExpression->literal.string);
 		} else if (logicExpression->literal.type == LOGIC_EXPRESSION_LITERAL_IDENTIFIER) {
-			buf_free(logicExpression->literal.text);
+			buf_free(logicExpression->literal.string);
 		}
 	} else if (logicExpression->type == LOGIC_EXPRESSION_UNARY) {
 		free_logic_expression(logicExpression->unary.expression);
@@ -981,14 +1142,14 @@ static void free_argument(Argument *argument)
 {
 	if (argument->type == PARAMETER_STRING)
 	{
-		if (argument->text)
+		if (argument->string)
 		{
-			buf_free(argument->text);
+			buf_free(argument->string);
 		}
 	} else if (argument->type == PARAMETER_IDENTIFIER) {
-		if (argument->text)
+		if (argument->string)
 		{
-			buf_free(argument->text);
+			buf_free(argument->string);
 		}
 	} else if (argument->type == PARAMETER_LOGIC_EXPRESSION) {
 		free_logic_expression(argument->logicExpression);

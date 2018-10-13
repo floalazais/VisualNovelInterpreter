@@ -38,13 +38,12 @@ typedef struct Token
     DialogTokenType type;
     int line;
     int indentationLevel;
-    union {char *text; double numeric;};
+    union {char *string; double numeric;};
 } Token;
 
 extern const char *tokenStrings[];
 
 void print_token(Token *token);
-
 void free_token(Token *token);
 
 #endif /* end of include guard: TOKEN_H */

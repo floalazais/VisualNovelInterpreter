@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stddef.h>
 
+#include <stdio.h>
+
 #include "maths.h"
 #include "error.h"
 #include "user_input.h"
@@ -11,6 +13,7 @@
 #include "token.h"
 #include "stroperation.h"
 #include "graphics.h"
+#include "variable.h"
 #include "dialog.h"
 #include "interpret.h"
 #include "globals.h"
@@ -42,6 +45,7 @@ static bool appearingCharacter;
 static bool displayDialogUI;
 static bool displaySpeakerName;
 static bool sentenceFirstUpdate;
+static float timeDuringCurrentChar;
 
 void init_dialog_ui()
 {
@@ -135,7 +139,7 @@ static bool update_command(Command *command)
 			bool foundPack = false;
 			for (unsigned int i = 0; i < buf_len(interpretingDialog->backgroundPacksNames); i++)
 			{
-				if (strmatch(command->arguments[0]->text, interpretingDialog->backgroundPacksNames[i]))
+				if (strmatch(command->arguments[0]->string, interpretingDialog->backgroundPacksNames[i]))
 				{
 					if (backgroundSprite->animations)
 					{
@@ -147,7 +151,7 @@ static bool update_command(Command *command)
 					bool foundAnimation = false;
 					for (unsigned int j = 0; j < buf_len(backgroundSprite->animations); j++)
 					{
-						if (strmatch(command->arguments[1]->text, backgroundSprite->animations[j]->name))
+						if (strmatch(command->arguments[1]->string, backgroundSprite->animations[j]->name))
 						{
 							backgroundSprite->currentAnimation = j;
 							backgroundSprite->textureId = backgroundSprite->animations[j]->animationPhases[0]->textureId;
@@ -157,7 +161,7 @@ static bool update_command(Command *command)
 					}
 					if (!foundAnimation)
 					{
-						error("background %s of background pack %s does not exist.", command->arguments[1]->text, command->arguments[0]->text);
+						error("background %s of background pack %s does not exist.", command->arguments[1]->string, command->arguments[0]->string);
 					}
 					foundPack = true;
 					break;
@@ -165,7 +169,7 @@ static bool update_command(Command *command)
 			}
 			if (!foundPack)
 			{
-				error("background pack %s does not exist.", command->arguments[0]->text);
+				error("background pack %s does not exist.", command->arguments[0]->string);
 			}
 			appearingBackground = true;
 			backgroundSprite->opacity = 0.0f;
@@ -209,7 +213,7 @@ static bool update_command(Command *command)
 			bool foundCharacter = false;
 			for (unsigned int i = 0; i < buf_len(interpretingDialog->charactersNames); i++)
 			{
-				if (strmatch(command->arguments[1]->text, interpretingDialog->charactersNames[i]))
+				if (strmatch(command->arguments[1]->string, interpretingDialog->charactersNames[i]))
 				{
 					charactersNames[position] = interpretingDialog->charactersNames[i];
 					if (charactersSprites[position]->animations)
@@ -226,7 +230,7 @@ static bool update_command(Command *command)
 					bool foundAnimation = false;
 					for (unsigned int j = 0; j < buf_len(charactersSprites[position]->animations); j++)
 					{
-						if (strmatch(command->arguments[2]->text, charactersSprites[position]->animations[j]->name))
+						if (strmatch(command->arguments[2]->string, charactersSprites[position]->animations[j]->name))
 						{
 							charactersSprites[position]->position.x = (int)((windowDimensions.x * position / 6.0f) - (charactersSprites[position]->animations[j]->animationPhases[0]->width / 2));
 							charactersSprites[position]->position.y = (int)(windowDimensions.y - charactersSprites[position]->animations[j]->animationPhases[0]->height);
@@ -240,7 +244,7 @@ static bool update_command(Command *command)
 					}
 					if (!foundAnimation)
 					{
-						error("animation %s of character %s does not exist.", command->arguments[2]->text, command->arguments[1]->text);
+						error("animation %s of character %s does not exist.", command->arguments[2]->string, command->arguments[1]->string);
 					}
 					foundCharacter = true;
 					break;
@@ -248,7 +252,7 @@ static bool update_command(Command *command)
 			}
 			if (!foundCharacter)
 			{
-				error("character %s does not exist.", command->arguments[1]->text);
+				error("character %s does not exist.", command->arguments[1]->string);
 			}
 			appearingCharacter = true;
 			charactersSprites[position]->opacity = 0.0f;
@@ -311,32 +315,32 @@ static bool update_command(Command *command)
 	} else if (command->type == COMMAND_END) {
 		end = true;
 		moving = true;
-		if (command->arguments[0]->text)
+		if (command->arguments[0]->string)
 		{
 			strcopy(&nextDialogName, "Dialogs/");
-			strappend(&nextDialogName, command->arguments[0]->text);
-			if (command->arguments[0]->text)
+			strappend(&nextDialogName, command->arguments[0]->string);
+			if (command->arguments[0]->string)
 			{
-				strcopy(&nextDialogStartKnotName, command->arguments[1]->text);
+				strcopy(&nextDialogStartKnotName, command->arguments[1]->string);
 			}
 		}
 	} else if (command->type == COMMAND_ASSIGN) {
 		for (unsigned int i = 0; i < buf_len(variablesNames); i++)
 		{
-			if (strmatch(command->arguments[0]->text, variablesNames[i]))
+			if (strmatch(command->arguments[0]->string, variablesNames[i]))
 			{
 				variablesValues[i] = resolve_logic_expression(command->arguments[1]->logicExpression);
 				return true;
 			}
 		}
 		char *variableName = NULL;
-		strcopy(&variableName, command->arguments[0]->text);
+		strcopy(&variableName, command->arguments[0]->string);
 		buf_add(variablesNames, variableName);
 		buf_add(variablesValues, resolve_logic_expression(command->arguments[1]->logicExpression));
 	} else if (command->type == COMMAND_GO_TO) {
 		for (int i = 0; buf_len(interpretingDialog->knots); i++)
 		{
-			if (strmatch(interpretingDialog->knots[i]->name, command->arguments[0]->text))
+			if (strmatch(interpretingDialog->knots[i]->name, command->arguments[0]->string))
 			{
 				interpretingDialog->currentKnot = i;
 				moving = true;
@@ -345,6 +349,8 @@ static bool update_command(Command *command)
 		}
 	} else if (command->type == COMMAND_HIDE_UI) {
 		displayDialogUI = false;
+	} else {
+		error("unknown command type %d", command->type);
 	}
 	return true;
 }
@@ -353,7 +359,9 @@ static bool update_sentence(Sentence *sentence)
 {
 	if (sentenceFirstUpdate)
 	{
+		
 		sentenceFirstUpdate = false;
+		timeDuringCurrentChar = 0.0f;
 		set_string_to_text(currentSentence, sentence->string);
 		currentSentence->nbCharToDisplay = 0;
 		if (currentSpeakerSpriteIndex != -1)
@@ -368,7 +376,17 @@ static bool update_sentence(Sentence *sentence)
 		{
 			currentSentence->nbCharToDisplay = currentSentence->nbMaxCharToDisplay;
 		} else {
-			currentSentence->nbCharToDisplay++;
+			timeDuringCurrentChar += deltaTime;
+			if (timeDuringCurrentChar >= 0.01f)
+			{
+				int nbCharToSkip = timeDuringCurrentChar / 0.01f;
+				currentSentence->nbCharToDisplay += nbCharToSkip;
+				if (currentSentence->nbCharToDisplay >= currentSentence->nbMaxCharToDisplay)
+				{
+					currentSentence->nbCharToDisplay = currentSentence->nbMaxCharToDisplay;
+				}
+				timeDuringCurrentChar = 0.0f;
+			}
 		}
 
 		if (currentSentence->nbCharToDisplay == currentSentence->nbMaxCharToDisplay)
@@ -378,7 +396,7 @@ static bool update_sentence(Sentence *sentence)
 				charactersSprites[currentSpeakerSpriteIndex]->animations[charactersSprites[currentSpeakerSpriteIndex]->currentAnimation]->stopping = true;
 			}
 		}
-	} else if (is_input_key_pressed(INPUT_KEY_ENTER)) {
+	} else if (is_input_key_pressed(INPUT_KEY_ENTER) || sentence->autoSkip) {
 		sentenceFirstUpdate = true;
 		set_string_to_text(currentSentence, NULL);
 		if (currentSpeakerSpriteIndex != -1)
@@ -410,7 +428,26 @@ static bool update_cue_condition(CueCondition *cueCondition)
 {
 	if (!cueCondition->resolved)
 	{
-		cueCondition->result = resolve_logic_expression(cueCondition->logicExpression);
+		Variable *variable = resolve_logic_expression(cueCondition->logicExpression);
+		if (variable->type == VARIABLE_NUMERIC)
+		{
+			cueCondition->result = (bool)variable->numeric;
+		} else if (variable->type == VARIABLE_STRING) {
+			if (buf_len(variable->string) == 1)
+			{
+				if (variable->string[0] == '\0')
+				{
+					cueCondition->result = false;
+				} else {
+					cueCondition->result = true;
+				}
+			} else {
+				cueCondition->result = false;
+			}
+		} else {
+			error("unknown logic expression type %d.", variable->type);
+		}
+		free_variable(variable);
 		cueCondition->resolved = true;
 	}
 	if (cueCondition->result)
@@ -459,6 +496,8 @@ static bool update_cue_expression(CueExpression *cueExpression)
 		return update_cue_condition(cueExpression->cueCondition);
 	} else if (cueExpression->type == CUE_EXPRESSION_COMMAND) {
 		return update_command(cueExpression->command);
+	} else {
+		error("unknown cue expression type %d.", cueExpression->type);
 	}
 	return false;
 }
@@ -490,7 +529,26 @@ static void display_choice(CueExpression *cueExpression)
 	} else if (cueExpression->type == CUE_EXPRESSION_CUE_CONDITION) {
 		if (!cueExpression->cueCondition->resolved)
 		{
-			cueExpression->cueCondition->result = resolve_logic_expression(cueExpression->cueCondition->logicExpression);
+			Variable *variable = resolve_logic_expression(cueExpression->cueCondition->logicExpression);
+			if (variable->type == VARIABLE_NUMERIC)
+			{
+				cueExpression->cueCondition->result = (bool)variable->numeric;
+			} else if (variable->type == VARIABLE_STRING) {
+				if (buf_len(variable->string) == 1)
+				{
+					if (variable->string[0] == '\0')
+					{
+						cueExpression->cueCondition->result = false;
+					} else {
+						cueExpression->cueCondition->result = true;
+					}
+				} else {
+					cueExpression->cueCondition->result = false;
+				}
+			} else {
+				error("unknown logic expression type %d.");
+			}
+			free_variable(variable);
 			cueExpression->cueCondition->resolved = true;
 		}
 		if (cueExpression->cueCondition->result)
@@ -505,6 +563,8 @@ static void display_choice(CueExpression *cueExpression)
 				display_choice(cueExpression->cueCondition->cueExpressionsElse[cueExpression->cueCondition->currentExpression]);
 			}
 		}
+	} else {
+		error("got sentence or command after entering choice mode.");
 	}
 }
 
@@ -636,7 +696,26 @@ static bool update_knot_condition(KnotCondition *knotCondition)
 {
 	if (!knotCondition->resolved)
 	{
-		knotCondition->result = resolve_logic_expression(knotCondition->logicExpression);
+		Variable *variable = resolve_logic_expression(knotCondition->logicExpression);
+		if (variable->type == VARIABLE_NUMERIC)
+		{
+			knotCondition->result = (bool)variable->numeric;
+		} else if (variable->type == VARIABLE_STRING) {
+			if (buf_len(variable->string) == 1)
+			{
+				if (variable->string[0] == '\0')
+				{
+					knotCondition->result = false;
+				} else {
+					knotCondition->result = true;
+				}
+			} else {
+				knotCondition->result = false;
+			}
+		} else {
+			error("unknown logic expression type %d.");
+		}
+		free_variable(variable);
 		knotCondition->resolved = true;
 	}
 	if (knotCondition->result)
@@ -689,6 +768,8 @@ static bool update_knot_expression(KnotExpression *knotExpression)
 		}
 	} else if (knotExpression->type == KNOT_EXPRESSION_COMMAND) {
 		return update_command(knotExpression->command);
+	} else {
+		error("unknown knot expression type %d", knotExpression->type);
 	}
 	return false;
 }

@@ -41,13 +41,14 @@ typedef struct LogicExpression LogicExpression;
 
 typedef struct LogicExpression
 {
+	VariableType returnType;
 	LogicExpressionType type;
 	union
 	{
 		struct
 		{
 			LogicExpressionLiteralType type;
-			union {double numeric; char *text;};
+			union {double numeric; char *string;};
 		} literal;
 
 		struct
@@ -99,7 +100,7 @@ typedef enum ArgumentType
 typedef struct Argument
 {
     ArgumentType type;
-    union {char *text; double numeric; LogicExpression *logicExpression;};
+    union {char *string; double numeric; LogicExpression *logicExpression;};
 } Argument;
 
 typedef struct Command
@@ -111,6 +112,7 @@ typedef struct Command
 typedef struct Sentence
 {
 	char *string;
+	bool autoSkip;
 } Sentence;
 
 typedef struct Choice
@@ -208,8 +210,8 @@ typedef struct Dialog
 	bool end;
 } Dialog;
 
-double resolve_variable(char *variableName);
-bool resolve_logic_expression(LogicExpression *logicExpression);
+Variable *get_variable(char *variableName);
+Variable *resolve_logic_expression(LogicExpression *logicExpression);
 Dialog *create_dialog(char *_filePath, Token **_tokens);
 void free_dialog(Dialog *dialog);
 void free_command(Command *command);
