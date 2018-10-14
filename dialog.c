@@ -31,273 +31,6 @@ typedef enum CueMode
 
 static CueMode currentCueMode;
 
-Variable *get_variable(char *variableName)
-{
-	Variable *variable = xmalloc(sizeof (*variable));
-	for (unsigned int i = 0; i < buf_len(variablesNames); i++)
-	{
-		if (strmatch(variablesNames[i], variableName))
-		{
-			variable->type = variablesValues[i]->type;
-			if (variable->type == VARIABLE_NUMERIC)
-			{
-				variable->numeric = variablesValues[i]->numeric;
-			} else if (variable->type == VARIABLE_STRING) {
-				variable->string = NULL;
-				strcopy(&variable->string, variablesValues[i]->string);
-			} else {
-				error("unknown variable type %d.", variablesValues[i]->type);
-			}
-			return variable;
-		}
-	}
-	error("variable %s not found.", variableName);
-}
-
-static Variable *variable_to_bool(Variable *variable)
-{
-	if (variable->type == VARIABLE_NUMERIC)
-	{
-		variable->numeric = !variable->numeric;
-	} else if (variable->type == VARIABLE_STRING) {
-		if (strlen(variable->string) == 1)
-		{
-			if (variable->string[0] == '\0')
-			{
-				variable->numeric = false;
-			} else {
-				variable->numeric = true;
-			}
-		} else {
-			variable->numeric = true;
-		}
-		buf_free(variable->string);
-		variable->string = NULL;
-		variable->type = VARIABLE_NUMERIC;
-	} else {
-		error("unknown variable type %d.", variable->type);
-	}
-	return variable;
-}
-
-static Variable *variable_to_numeric(Variable *variable)
-{
-	if (variable->type == VARIABLE_NUMERIC)
-	{
-		return variable;
-	} else if (variable->type == VARIABLE_STRING) {
-		error("expected numeric variable, got string variable instead.");
-	} else {
-		error("unknown variable type %d.", variable->type);
-	}
-}
-
-static Variable *variable_to_string(Variable *variable)
-{
-	if (variable->type == VARIABLE_NUMERIC)
-	{
-		error("expected string variable, got numeric variable instead.");
-	} else if (variable->type == VARIABLE_STRING) {
-		return variable;
-	} else {
-		error("unknown variable type %d.", variable->type);
-	}
-}
-
-Variable *resolve_logic_expression(LogicExpression *logicExpression)
-{
-	if (logicExpression->type == LOGIC_EXPRESSION_LITERAL)
-	{
-		if (logicExpression->literal.type == LOGIC_EXPRESSION_LITERAL_STRING)
-		{
-			Variable *variable = xmalloc(sizeof (*variable));
-			variable->type = VARIABLE_STRING;
-			variable->string = NULL;
-			strcopy(&variable->string, logicExpression->literal.string);
-			return variable;
-		} else if (logicExpression->literal.type == LOGIC_EXPRESSION_LITERAL_IDENTIFIER) {
-			return get_variable(logicExpression->literal.string);
-		} else if (logicExpression->literal.type == LOGIC_EXPRESSION_LITERAL_NUMERIC) {
-			Variable *variable = xmalloc(sizeof (*variable));
-			variable->type = VARIABLE_NUMERIC;
-			variable->numeric = logicExpression->literal.numeric;
-			return variable;
-		} else {
-			error("unknown literal type %d.", logicExpression->literal.type);
-		}
-	} else if (logicExpression->type == LOGIC_EXPRESSION_UNARY) {
-		if (logicExpression->unary.type == LOGIC_EXPRESSION_UNARY_NEGATION)
-		{
-			Variable *variable = variable_to_bool(resolve_logic_expression(logicExpression));
-			variable->numeric = !variable->numeric;
-			return variable;
-		} else {
-			error("unknown unary expression type %d.", logicExpression->unary.type);
-		}
-	} else if (logicExpression->type == LOGIC_EXPRESSION_BINARY) {
-		Variable *left;
-		Variable *right;
-		if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_OR)
-		{
-			left = variable_to_bool(resolve_logic_expression(logicExpression->binary.left));
-			right = variable_to_bool(resolve_logic_expression(logicExpression->binary.right));
-			left->numeric = left->numeric || right->numeric;
-			free_variable(right);
-		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_AND) {
-			left = variable_to_bool(resolve_logic_expression(logicExpression->binary.left));
-			right = variable_to_bool(resolve_logic_expression(logicExpression->binary.right));
-			left->numeric = left->numeric && right->numeric;
-			free_variable(right);
-		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_ADD) {
-			left = resolve_logic_expression(logicExpression->binary.left);
-			if (left->type == VARIABLE_NUMERIC)
-			{
-				right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
-				left->numeric += right->numeric;
-				free_variable(right);
-			} else if (left->type == VARIABLE_STRING) {
-				right = variable_to_string(resolve_logic_expression(logicExpression->binary.right));
-				strappend(&left->string, right->string);
-				free_variable(right);
-			} else {
-				error("unknown variable type %d.", left->type);
-			}
-		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_DIVISE) {
-			left = variable_to_numeric(resolve_logic_expression(logicExpression->binary.left));
-			right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
-			left->numeric /= right->numeric;
-			free_variable(right);
-		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_EQUALS) {
-			left = resolve_logic_expression(logicExpression->binary.left);
-			printf(":%d", logicExpression->type);
-			if (left->type == VARIABLE_NUMERIC)
-			{
-				right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
-				left->numeric = left->numeric == right->numeric;
-				free_variable(right);
-			} else if (left->type == VARIABLE_STRING) {
-				right = variable_to_string(resolve_logic_expression(logicExpression->binary.right));
-				left->numeric = strmatch(left->string, right->string);
-				buf_free(left->string);
-				left->string = NULL;
-				left->type = VARIABLE_NUMERIC;
-				free_variable(right);
-			} else {
-				error("unknown variable type %d.", left->type);
-			}
-		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_DIFFERS) {
-			left = resolve_logic_expression(logicExpression->binary.left);
-			if (left->type == VARIABLE_NUMERIC)
-			{
-				right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
-				left->numeric = left->numeric != right->numeric;
-				free_variable(right);
-			} else if (left->type == VARIABLE_STRING) {
-				right = variable_to_string(resolve_logic_expression(logicExpression->binary.right));
-				left->numeric = !strmatch(left->string, right->string);
-				buf_free(left->string);
-				left->type = VARIABLE_NUMERIC;
-				free_variable(right);
-			} else {
-				error("unknown variable type %d.", left->type);
-			}
-		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_INFERIOR) {
-			left = variable_to_numeric(resolve_logic_expression(logicExpression->binary.left));
-			right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
-			left->numeric = left->numeric < right->numeric;
-			free_variable(right);
-		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_MULTIPLY) {
-			left = variable_to_numeric(resolve_logic_expression(logicExpression->binary.left));
-			right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
-			left->numeric *= right->numeric;
-			free_variable(right);
-		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_SUBTRACT) {
-			left = variable_to_numeric(resolve_logic_expression(logicExpression->binary.left));
-			right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
-			left->numeric -= right->numeric;
-			free_variable(right);
-		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_SUPERIOR) {
-			left = variable_to_numeric(resolve_logic_expression(logicExpression->binary.left));
-			right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
-			left->numeric = left->numeric > right->numeric;
-			free_variable(right);
-		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_SUPERIOR_EQUALS) {
-			left = variable_to_numeric(resolve_logic_expression(logicExpression->binary.left));
-			right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
-			left->numeric = left->numeric >= right->numeric;
-			free_variable(right);
-		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_INFERIOR_EQUALS) {
-			left = variable_to_numeric(resolve_logic_expression(logicExpression->binary.left));
-			right = variable_to_numeric(resolve_logic_expression(logicExpression->binary.right));
-			left->numeric = left->numeric <= right->numeric;
-			free_variable(right);
-		} else {
-			error("unknown operation %d.", logicExpression->binary.operation);
-		}
-		return left;
-	} else if (logicExpression->type == LOGIC_EXPRESSION_GROUPING) {
-		return resolve_logic_expression(logicExpression->grouping.expression);
-	} else {
-		error("unknown logic expression type %d.", logicExpression->type);
-	}
-}
-
-static LogicExpression *create_logic_expression_literal_numeric(double value)
-{
-	LogicExpression *logicExpression = xmalloc(sizeof (*logicExpression));
-	logicExpression->type = LOGIC_EXPRESSION_LITERAL;
-	logicExpression->literal.type = LOGIC_EXPRESSION_LITERAL_NUMERIC;
-	logicExpression->literal.numeric = value;
-	return logicExpression;
-}
-
-static LogicExpression *create_logic_expression_literal_string(char *string)
-{
-	LogicExpression *logicExpression = xmalloc(sizeof (*logicExpression));
-	logicExpression->type = LOGIC_EXPRESSION_LITERAL;
-	logicExpression->literal.type = LOGIC_EXPRESSION_LITERAL_STRING;
-	logicExpression->literal.string = NULL;
-	strcopy(&logicExpression->literal.string, string);
-	return logicExpression;
-}
-
-static LogicExpression *create_logic_expression_literal_identifier(char *name)
-{
-	LogicExpression *logicExpression = xmalloc(sizeof (*logicExpression));
-	logicExpression->type = LOGIC_EXPRESSION_LITERAL;
-	logicExpression->literal.type = LOGIC_EXPRESSION_LITERAL_IDENTIFIER;
-	logicExpression->literal.string = NULL;
-	strcopy(&logicExpression->literal.string, name);
-	return logicExpression;
-}
-
-static LogicExpression *create_logic_expression_grouping(LogicExpression *logicExpression)
-{
-	LogicExpression *groupedLogicExpression = xmalloc(sizeof (*logicExpression));
-	logicExpression->type = LOGIC_EXPRESSION_GROUPING;
-	logicExpression->grouping.expression = logicExpression;
-	return groupedLogicExpression;
-}
-
-static LogicExpression *create_logic_expression_unary(LogicExpressionUnaryType operation, LogicExpression *logicExpression)
-{
-	LogicExpression *negativeLogicExpression = xmalloc(sizeof (*logicExpression));
-	logicExpression->type = LOGIC_EXPRESSION_UNARY;
-	logicExpression->unary.type = operation;
-	logicExpression->unary.expression = logicExpression;
-	return negativeLogicExpression;
-}
-
-static LogicExpression *create_logic_expression_binary(LogicExpression *left, LogicExpressionBinaryOperation operation, LogicExpression *right)
-{
-	LogicExpression *logicExpression = xmalloc(sizeof (*logicExpression));
-	logicExpression->type = LOGIC_EXPRESSION_BINARY;
-	logicExpression->binary.left = left;
-	logicExpression->binary.operation = operation;
-	logicExpression->binary.right = right;
-	return logicExpression;
-}
-
 static void step_in_tokens()
 {
     if (tokens[currentToken++]->type == TOKEN_END_OF_FILE)
@@ -346,6 +79,64 @@ static bool token_match_on_line(int line, int nb, ...)
     }
 	va_end(arg);
     return match;
+}
+
+static LogicExpression *create_logic_expression_literal_numeric(double value)
+{
+	LogicExpression *logicExpression = xmalloc(sizeof (*logicExpression));
+	logicExpression->type = LOGIC_EXPRESSION_LITERAL;
+	logicExpression->returnType = VARIABLE_NUMERIC;
+	logicExpression->literal.type = LOGIC_EXPRESSION_LITERAL_NUMERIC;
+	logicExpression->literal.numeric = value;
+	return logicExpression;
+}
+
+static LogicExpression *create_logic_expression_literal_string(char *string)
+{
+	LogicExpression *logicExpression = xmalloc(sizeof (*logicExpression));
+	logicExpression->type = LOGIC_EXPRESSION_LITERAL;
+	logicExpression->returnType = VARIABLE_STRING;
+	logicExpression->literal.type = LOGIC_EXPRESSION_LITERAL_STRING;
+	logicExpression->literal.string = NULL;
+	strcopy(&logicExpression->literal.string, string);
+	return logicExpression;
+}
+
+static LogicExpression *create_logic_expression_literal_identifier(char *identifier)
+{
+	LogicExpression *logicExpression = xmalloc(sizeof (*logicExpression));
+	logicExpression->type = LOGIC_EXPRESSION_LITERAL;
+	logicExpression->literal.type = LOGIC_EXPRESSION_LITERAL_IDENTIFIER;
+	logicExpression->literal.string = NULL;
+	strcopy(&logicExpression->literal.string, identifier);
+	return logicExpression;
+}
+
+static LogicExpression *create_logic_expression_grouping(LogicExpression *groupedLogicExpression)
+{
+	LogicExpression *logicExpression = xmalloc(sizeof (*logicExpression));
+	logicExpression->type = LOGIC_EXPRESSION_GROUPING;
+	logicExpression->grouping.expression = groupedLogicExpression;
+	return logicExpression;
+}
+
+static LogicExpression *create_logic_expression_unary(LogicExpressionUnaryType operation, LogicExpression *logicExpression)
+{
+	LogicExpression *negativeLogicExpression = xmalloc(sizeof (*logicExpression));
+	logicExpression->type = LOGIC_EXPRESSION_UNARY;
+	logicExpression->unary.type = operation;
+	logicExpression->unary.expression = logicExpression;
+	return negativeLogicExpression;
+}
+
+static LogicExpression *create_logic_expression_binary(LogicExpression *left, LogicExpressionBinaryOperation operation, LogicExpression *right)
+{
+	LogicExpression *logicExpression = xmalloc(sizeof (*logicExpression));
+	logicExpression->type = LOGIC_EXPRESSION_BINARY;
+	logicExpression->binary.left = left;
+	logicExpression->binary.operation = operation;
+	logicExpression->binary.right = right;
+	return logicExpression;
 }
 
 static LogicExpression *parse_logic_expression(int line);
@@ -484,6 +275,312 @@ static LogicExpression *parse_logic_expression_or(int line)
 static LogicExpression *parse_logic_expression(int line)
 {
 	return parse_logic_expression_or(line);
+}
+
+Variable *get_variable(char *variableName)
+{
+	Variable *variable = xmalloc(sizeof (*variable));
+	for (unsigned int i = 0; i < buf_len(variablesNames); i++)
+	{
+		if (strmatch(variablesNames[i], variableName))
+		{
+			variable->type = variablesValues[i]->type;
+			if (variable->type == VARIABLE_NUMERIC)
+			{
+				variable->numeric = variablesValues[i]->numeric;
+			} else if (variable->type == VARIABLE_STRING) {
+				variable->string = NULL;
+				strcopy(&variable->string, variablesValues[i]->string);
+			} else {
+				error("unknown variable type %d.", variablesValues[i]->type);
+			}
+			return variable;
+		}
+	}
+	error("variable %s not found.", variableName);
+}
+
+static Variable *convert_variable_content_to_bool(Variable *variable)
+{
+	if (variable->type == VARIABLE_NUMERIC)
+	{
+		variable->numeric = variable->numeric;
+	} else if (variable->type == VARIABLE_STRING) {
+		if (strlen(variable->string) == 1)
+		{
+			if (variable->string[0] == '\0')
+			{
+				variable->numeric = false;
+			} else {
+				variable->numeric = true;
+			}
+		} else {
+			variable->numeric = true;
+		}
+		buf_free(variable->string);
+		variable->string = NULL;
+		variable->type = VARIABLE_NUMERIC;
+	} else {
+		error("unknown variable type %d.", variable->type);
+	}
+	return variable;
+}
+
+Variable *resolve_logic_expression(LogicExpression *logicExpression)
+{
+	if (logicExpression->type == LOGIC_EXPRESSION_LITERAL)
+	{
+		if (logicExpression->literal.type == LOGIC_EXPRESSION_LITERAL_STRING)
+		{
+			Variable *variable = xmalloc(sizeof (*variable));
+			variable->type = VARIABLE_STRING;
+			variable->string = NULL;
+			strcopy(&variable->string, logicExpression->literal.string);
+			return variable;
+		} else if (logicExpression->literal.type == LOGIC_EXPRESSION_LITERAL_IDENTIFIER) {
+			return get_variable(logicExpression->literal.string);
+		} else if (logicExpression->literal.type == LOGIC_EXPRESSION_LITERAL_NUMERIC) {
+			Variable *variable = xmalloc(sizeof (*variable));
+			variable->type = VARIABLE_NUMERIC;
+			variable->numeric = logicExpression->literal.numeric;
+			return variable;
+		} else {
+			error("unknown literal type %d.", logicExpression->literal.type);
+		}
+	} else if (logicExpression->type == LOGIC_EXPRESSION_UNARY) {
+		if (logicExpression->unary.type == LOGIC_EXPRESSION_UNARY_NEGATION)
+		{
+			Variable *variable = convert_variable_content_to_bool(resolve_logic_expression(logicExpression));
+			variable->numeric = !variable->numeric;
+			return variable;
+		} else {
+			error("unknown unary expression type %d.", logicExpression->unary.type);
+		}
+	} else if (logicExpression->type == LOGIC_EXPRESSION_BINARY) {
+		Variable *left;
+		Variable *right;
+		if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_OR)
+		{
+			left = convert_variable_content_to_bool(resolve_logic_expression(logicExpression->binary.left));
+			right = convert_variable_content_to_bool(resolve_logic_expression(logicExpression->binary.right));
+			left->numeric = left->numeric || right->numeric;
+			free_variable(right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_AND) {
+			left = convert_variable_content_to_bool(resolve_logic_expression(logicExpression->binary.left));
+			right = convert_variable_content_to_bool(resolve_logic_expression(logicExpression->binary.right));
+			left->numeric = left->numeric && right->numeric;
+			free_variable(right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_ADD) {
+			left = resolve_logic_expression(logicExpression->binary.left);
+			if (left->type == VARIABLE_NUMERIC)
+			{
+				right = resolve_logic_expression(logicExpression->binary.right);
+				if (right->type == VARIABLE_STRING)
+				{
+					error("cannot compute \"%f + %s\".", left->numeric, right->string);
+				} else {
+					error("unknown variable type %d.", right->type);
+				}
+				left->numeric += right->numeric;
+				free_variable(right);
+			} else if (left->type == VARIABLE_STRING) {
+				right = resolve_logic_expression(logicExpression->binary.right);
+				if (right->type == VARIABLE_NUMERIC)
+				{
+					error("cannot compute \"%s + %f\".", left->string, right->numeric);
+				} else {
+					error("unknown variable type %d.", right->type);
+				}
+				strappend(&left->string, right->string);
+				free_variable(right);
+			} else {
+				error("unknown variable type %d.", left->type);
+			}
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_DIVISE) {
+			left = resolve_logic_expression(logicExpression->binary.left);
+			if (left->type == VARIABLE_STRING)
+			{
+				error("cannot compute a division on a string : \"%s\".", left->string);
+			} else {
+				error("unknown variable type %d.", left->type);
+			}
+			right = resolve_logic_expression(logicExpression->binary.right);
+			if (right->type == VARIABLE_STRING)
+			{
+				error("cannot compute a division on a string : \"%s\".", right->string);
+			} else {
+				error("unknown variable type %d.", right->type);
+			}
+			left->numeric /= right->numeric;
+			free_variable(right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_EQUALS) {
+			left = resolve_logic_expression(logicExpression->binary.left);
+			if (left->type == VARIABLE_NUMERIC)
+			{
+				right = resolve_logic_expression(logicExpression->binary.right);
+				if (right->type == VARIABLE_STRING)
+				{
+					error("cannot compute \"%f == %s\".", left->numeric, right->string);
+				} else {
+					error("unknown variable type %d.", right->type);
+				}
+				left->numeric = left->numeric == right->numeric;
+				free_variable(right);
+			} else if (left->type == VARIABLE_STRING) {
+				right = resolve_logic_expression(logicExpression->binary.right);
+				if (right->type == VARIABLE_NUMERIC)
+				{
+					error("cannot compute \"%s == %f\".", left->string, right->numeric);
+				} else {
+					error("unknown variable type %d.", right->type);
+				}
+				left->numeric = strmatch(left->string, right->string);
+				buf_free(left->string);
+				left->string = NULL;
+				left->type = VARIABLE_NUMERIC;
+				free_variable(right);
+			} else {
+				error("unknown variable type %d.", left->type);
+			}
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_DIFFERS) {
+			left = resolve_logic_expression(logicExpression->binary.left);
+			if (left->type == VARIABLE_NUMERIC)
+			{
+				right = resolve_logic_expression(logicExpression->binary.right);
+				if (right->type == VARIABLE_STRING)
+				{
+					error("cannot compute \"%f != %s\".", left->numeric, right->string);
+				} else {
+					error("unknown variable type %d.", right->type);
+				}
+				left->numeric = left->numeric != right->numeric;
+				free_variable(right);
+			} else if (left->type == VARIABLE_STRING) {
+				right = resolve_logic_expression(logicExpression->binary.right);
+				if (right->type == VARIABLE_NUMERIC)
+				{
+					error("cannot compute \"%s == %f\".", left->string, right->numeric);
+				} else {
+					error("unknown variable type %d.", right->type);
+				}
+				left->numeric = !strmatch(left->string, right->string);
+				buf_free(left->string);
+				left->type = VARIABLE_NUMERIC;
+				free_variable(right);
+			} else {
+				error("unknown variable type %d.", left->type);
+			}
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_INFERIOR) {
+			left = resolve_logic_expression(logicExpression->binary.left);
+			if (left->type == VARIABLE_STRING)
+			{
+				error("cannot compute an inferior comparison on a string : \"%s\".", left->string);
+			} else {
+				error("unknown variable type %d.", left->type);
+			}
+			right = resolve_logic_expression(logicExpression->binary.right);
+			if (right->type == VARIABLE_STRING)
+			{
+				error("cannot compute an inferior comparison on a string : \"%s\".", right->string);
+			} else {
+				error("unknown variable type %d.", right->type);
+			}
+			left->numeric = left->numeric < right->numeric;
+			free_variable(right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_MULTIPLY) {
+			left = resolve_logic_expression(logicExpression->binary.left);
+			if (left->type == VARIABLE_STRING)
+			{
+				error("cannot compute a multiplication on a string : \"%s\".", left->string);
+			} else {
+				error("unknown variable type %d.", left->type);
+			}
+			right = resolve_logic_expression(logicExpression->binary.right);
+			if (right->type == VARIABLE_STRING)
+			{
+				error("cannot compute a multiplication on a string : \"%s\".", right->string);
+			} else {
+				error("unknown variable type %d.", right->type);
+			}
+			left->numeric *= right->numeric;
+			free_variable(right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_SUBTRACT) {
+			left = resolve_logic_expression(logicExpression->binary.left);
+			if (left->type == VARIABLE_STRING)
+			{
+				error("cannot compute a subtraction on a string : \"%s\".", left->string);
+			} else {
+				error("unknown variable type %d.", left->type);
+			}
+			right = resolve_logic_expression(logicExpression->binary.right);
+			if (right->type == VARIABLE_STRING)
+			{
+				error("cannot compute a subtraction on a string : \"%s\".", right->string);
+			} else {
+				error("unknown variable type %d.", right->type);
+			}
+			left->numeric -= right->numeric;
+			free_variable(right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_SUPERIOR) {
+			left = resolve_logic_expression(logicExpression->binary.left);
+			if (left->type == VARIABLE_STRING)
+			{
+				error("cannot compute a superior comparison on a string : \"%s\".", left->string);
+			} else {
+				error("unknown variable type %d.", left->type);
+			}
+			right = resolve_logic_expression(logicExpression->binary.right);
+			if (right->type == VARIABLE_STRING)
+			{
+				error("cannot compute a superior comparison on a string : \"%s\".", right->string);
+			} else {
+				error("unknown variable type %d.", right->type);
+			}
+			left->numeric = left->numeric > right->numeric;
+			free_variable(right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_SUPERIOR_EQUALS) {
+			left = resolve_logic_expression(logicExpression->binary.left);
+			if (left->type == VARIABLE_STRING)
+			{
+				error("cannot compute a superior or equals comparison on a string : \"%s\".", left->string);
+			} else {
+				error("unknown variable type %d.", left->type);
+			}
+			right = resolve_logic_expression(logicExpression->binary.right);
+			if (right->type == VARIABLE_STRING)
+			{
+				error("cannot compute a superior or equals comparison on a string : \"%s\".", right->string);
+			} else {
+				error("unknown variable type %d.", right->type);
+			}
+			left->numeric = left->numeric >= right->numeric;
+			free_variable(right);
+		} else if (logicExpression->binary.operation == LOGIC_EXPRESSION_BINARY_INFERIOR_EQUALS) {
+			left = resolve_logic_expression(logicExpression->binary.left);
+			if (left->type == VARIABLE_STRING)
+			{
+				error("cannot compute an inferior or equals comparison on a string : \"%s\".", left->string);
+			} else {
+				error("unknown variable type %d.", left->type);
+			}
+			right = resolve_logic_expression(logicExpression->binary.right);
+			if (right->type == VARIABLE_STRING)
+			{
+				error("cannot compute an inferior or equals comparison on a string : \"%s\".", right->string);
+			} else {
+				error("unknown variable type %d.", right->type);
+			}
+			left->numeric = left->numeric <= right->numeric;
+			free_variable(right);
+		} else {
+			error("unknown operation %d.", logicExpression->binary.operation);
+		}
+		return left;
+	} else if (logicExpression->type == LOGIC_EXPRESSION_GROUPING) {
+		return resolve_logic_expression(logicExpression->grouping.expression);
+	} else {
+		error("unknown logic expression type %d.", logicExpression->type);
+	}
 }
 
 static int position_identifier_to_int(char *identifier, int line)
@@ -757,11 +854,11 @@ static Choice *parse_choice()
 	choice->sentence->string = NULL;
 	choice->sentence->autoSkip = false;
 	strcopy(&choice->sentence->string, tokens[currentToken - 1]->string);
-	if (buf_len(choice->sentence->string) > 3)
+	if (buf_len(choice->sentence->string) >= 6)
 	{
-		if (choice->sentence->string[buf_len(choice->sentence->string) - 2] == '>' && choice->sentence->string[buf_len(choice->sentence->string) - 3] == '>')
+		if (strmatch(&choice->sentence->string[buf_len(choice->sentence->string) - 6], " AUTO"))
 		{
-			choice->sentence->string[buf_len(choice->sentence->string) - 3] = '\0';
+			choice->sentence->string[buf_len(choice->sentence->string) - 6] = '\0';
 			choice->sentence->autoSkip = true;
 		}
 	}
@@ -860,11 +957,11 @@ static CueExpression *parse_cue_expression()
 			cueExpression->sentence->string = NULL;
 			cueExpression->sentence->autoSkip = false;
 			strcopy(&cueExpression->sentence->string, tokens[currentToken]->string);
-			if (buf_len(cueExpression->sentence->string) > 3)
+			if (buf_len(cueExpression->sentence->string) >= 6)
 			{
-				if (cueExpression->sentence->string[buf_len(cueExpression->sentence->string) - 2] == '>' && cueExpression->sentence->string[buf_len(cueExpression->sentence->string) - 3] == '>')
+				if (strmatch(&cueExpression->sentence->string[buf_len(cueExpression->sentence->string) - 6], " AUTO"))
 				{
-					cueExpression->sentence->string[buf_len(cueExpression->sentence->string) - 3] = '\0';
+					cueExpression->sentence->string[buf_len(cueExpression->sentence->string) - 6] = '\0';
 					cueExpression->sentence->autoSkip = true;
 				}
 			}

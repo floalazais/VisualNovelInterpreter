@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stddef.h>
-
 #include <stdio.h>
 
 #include "window.h"
@@ -45,7 +44,13 @@ int main(int argc, char** argv)
 
 	init_dialog_ui();
 	strcopy(&interpretingDialogName, "Dialogs/start.dlg");
+
 	Token **tokens = lex(interpretingDialogName);
+	/*for (unsigned int i = 0; i < buf_len(tokens); i++)
+	{
+		print_token(tokens[i]);
+	}*/
+
 	interpretingDialog = create_dialog(interpretingDialogName, tokens);
 
 	update_window_name();
@@ -104,16 +109,8 @@ int main(int argc, char** argv)
 	for (unsigned int i = 0; i < buf_len(variablesValues); i++)
 	{
 		printf("%s", variablesNames[i]);
-		if (variablesValues[i]->type == VARIABLE_NUMERIC) {
-			printf(" : \"%f\"\n", variablesValues[i]->numeric);
-		} else if (variablesValues[i]->type == VARIABLE_STRING)
-		{
-			printf(" : \"%s\"", variablesValues[i]->string);
-		} else {
-			error("unknown variable type %d.", variablesValues[i]->type);
-		}
-		printf("\n");
 		buf_free(variablesNames[i]);
+		print_variable(variablesValues[i]);
 		free_variable(variablesValues[i]);
 	}
 

@@ -329,6 +329,7 @@ static bool update_command(Command *command)
 		{
 			if (strmatch(command->arguments[0]->string, variablesNames[i]))
 			{
+				free_variable(variablesValues[i]);
 				variablesValues[i] = resolve_logic_expression(command->arguments[1]->logicExpression);
 				return true;
 			}
@@ -359,7 +360,7 @@ static bool update_sentence(Sentence *sentence)
 {
 	if (sentenceFirstUpdate)
 	{
-		
+
 		sentenceFirstUpdate = false;
 		timeDuringCurrentChar = 0.0f;
 		set_string_to_text(currentSentence, sentence->string);
@@ -377,9 +378,9 @@ static bool update_sentence(Sentence *sentence)
 			currentSentence->nbCharToDisplay = currentSentence->nbMaxCharToDisplay;
 		} else {
 			timeDuringCurrentChar += deltaTime;
-			if (timeDuringCurrentChar >= 0.01f)
+			if (timeDuringCurrentChar >= 0.02f)
 			{
-				int nbCharToSkip = timeDuringCurrentChar / 0.01f;
+				int nbCharToSkip = timeDuringCurrentChar / 0.02f;
 				currentSentence->nbCharToDisplay += nbCharToSkip;
 				if (currentSentence->nbCharToDisplay >= currentSentence->nbMaxCharToDisplay)
 				{
