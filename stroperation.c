@@ -5,35 +5,37 @@
 #include "stretchy_buffer.h"
 #include "stroperation.h"
 
-void strcopy(char **destination, char *source)
+char *strcopy(char *destination, char *source)
 {
 	for (unsigned int i = 0; i < strlen(source); i++)
 	{
-		buf_add(*destination, source[i]);
+		buf_add(destination, source[i]);
 	}
-	buf_add(*destination, '\0');
+	buf_add(destination, '\0');
+	return destination;
 }
 
-void strappend(char **destination, char *suffix)
+char *strappend(char *destination, char *suffix)
 {
-	if (buf_len(*destination) >= 1)
+	if (buf_len(destination) >= 1)
 	{
-		if ((*destination)[buf_len(*destination) - 1] == '\0')
+		if (destination[buf_len(destination) - 1] == '\0')
 		{
-			(*destination)[buf_len(*destination) - 1] = suffix[0];
+			destination[buf_len(destination) - 1] = suffix[0];
 			for (unsigned int i = 1; i < strlen(suffix); i++)
 			{
-				buf_add(*destination, suffix[i]);
+				buf_add(destination, suffix[i]);
 			}
 		}
 	}
 	 else {
 		for (unsigned int i = 0; i < strlen(suffix); i++)
 		{
-			buf_add(*destination, suffix[i]);
+			buf_add(destination, suffix[i]);
 		}
 	}
-	buf_add(*destination, '\0');
+	buf_add(destination, '\0');
+	return destination;
 }
 
 bool strmatch(char *a, char *b)

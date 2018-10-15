@@ -1,24 +1,26 @@
 #include <stdlib.h>
 #include <stddef.h>
+#include <stdbool.h>
 
+#include "xalloc.h"
 #include "stretchy_buffer.h"
 
-void* sbuffer_create_or_grow_if_needed(void *buffer, size_t elementSize)
+void* sbuffer_create_or_grow_if_needed(void *buffer, size_t elementSize, char *file, int line)
 {
 	if (buf_len(buffer) == _buf_capacity(buffer))
 	{
 		StretchyBufferHeader *newHeader;
 		if (!buffer)
 		{
-			size_t newCapacity = 1;
-			newHeader = malloc(offsetof(StretchyBufferHeader, data) + elementSize * newCapacity);
+			size_t newCapacity = 10;
+			newHeader = xmalloc_int(offsetof(StretchyBufferHeader, data) + elementSize * newCapacity, file, line, true);
 			newHeader->capacity = newCapacity;
 			newHeader->count = 0;
 			return newHeader->data;
 		} else {
 			newHeader = _buf_header(buffer);
 			newHeader->capacity *= 2;
-			newHeader = realloc(newHeader, offsetof(StretchyBufferHeader, data) + _buf_capacity(buffer) * elementSize);
+			newHeader = xrealloc(newHeader, offsetof(StretchyBufferHeader, data) + _buf_capacity(buffer) * elementSize, file, line);
 			return newHeader->data;
 		}
 	} else {
