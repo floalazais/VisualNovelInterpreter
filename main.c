@@ -94,7 +94,6 @@ int main(int argc, char** argv)
 		if (nextDialogName)
 		{
 			free_dialog(interpretingDialog);
-			//print_leaks();
 			tokens = lex(nextDialogName);
 			interpretingDialog = create_dialog(nextDialogName, tokens);
 			if (interpretingDialogName != nextDialogName)
@@ -139,7 +138,6 @@ int main(int argc, char** argv)
 	buf_free(interpretingDialogName);
 	buf_free(nextDialogName);
 	buf_free(windowName);
-
 	free_graphics();
 
 	print_leaks();
