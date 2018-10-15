@@ -29,10 +29,10 @@
 	"smiling2.gif" 0.1 0.3 0.75
 
 "shocked" loop
-	"shocked1.gif" 0.1 0.3 0.75
-	"shocked2.gif" 0.1 0.3 0.75
-	"shocked3.gif" 0.1 0.3 0.75
-	"shocked2.gif" 0.1 0.3 0.75
+	"shocked1.gif" 0.1 0.5 0.75
+	"shocked2.gif" 0.1 0.5 0.75
+	"shocked3.gif" 0.1 0.5 0.75
+	"shocked2.gif" 0.1 0.5 0.75
 
 "thinking" loop
 	"thinking1.gif" 0.1 0.3 0.75

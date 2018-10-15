@@ -121,13 +121,15 @@ int main(int argc, char** argv)
 	free_dialog(interpretingDialog);
 	free_dialog_ui();
 
+	printf("---Variables---\n");
 	for (unsigned int i = 0; i < buf_len(variablesValues); i++)
 	{
-		printf("%s", variablesNames[i]);
+		printf("	-%s", variablesNames[i]);
 		buf_free(variablesNames[i]);
 		print_variable(variablesValues[i]);
 		free_variable(variablesValues[i]);
 	}
+	printf("%d variables.\n\n", buf_len(variablesValues));
 	buf_free(variablesNames);
 	buf_free(variablesValues);
 

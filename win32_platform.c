@@ -1,4 +1,5 @@
 #ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
 
 #include <Windows.h>
 #include <Windowsx.h>
@@ -6,6 +7,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #include "error.h"
 #include "maths.h"
