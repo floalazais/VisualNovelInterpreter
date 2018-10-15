@@ -162,6 +162,8 @@ void free_graphics()
 		xfree(ttfBuffers[i]);
 		buf_free(ttfFilesPaths[i]);
 	}
+	buf_free(ttfBuffers);
+	buf_free(ttfFilesPaths);
 
 	for (unsigned int i = 0; i < buf_len(texturesPaths); i++)
 	{
@@ -176,6 +178,7 @@ void free_graphics()
 	{
 		free_font(fonts[i]);
 	}
+	buf_free(fonts);
 }
 
 unsigned int get_texture_id_from_path(char *texturePath, int *_width, int *_height)

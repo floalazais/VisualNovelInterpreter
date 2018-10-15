@@ -197,6 +197,13 @@ static Token *get_next_token()
         	currentLexMode = LEX_MODE_CODE;
 		}
         char *command = NULL;
+		if (isalpha(fileString[currentChar]) || fileString[currentChar] == '_')
+		{
+			buf_add(command, fileString[currentChar]);
+		} else {
+			error("in %s at line %d command must start with a letter or an underscore.", filePath, currentLine);
+		}
+		step_in_source();
         while (isalnum(fileString[currentChar]) || fileString[currentChar] == '_')
 		{
             buf_add(command, fileString[currentChar]);
