@@ -317,11 +317,11 @@ static bool update_command(Command *command)
 		moving = true;
 		if (command->arguments[0]->string)
 		{
-			strcopy(&nextDialogName, "Dialogs/");
-			strappend(&nextDialogName, command->arguments[0]->string);
+			nextDialogName = strcopy(nextDialogName, "Dialogs/");
+			nextDialogName = strappend(nextDialogName, command->arguments[0]->string);
 			if (command->arguments[0]->string)
 			{
-				strcopy(&nextDialogStartKnotName, command->arguments[1]->string);
+				nextDialogStartKnotName = strcopy(nextDialogStartKnotName, command->arguments[1]->string);
 			}
 		}
 	} else if (command->type == COMMAND_ASSIGN) {
@@ -335,7 +335,7 @@ static bool update_command(Command *command)
 			}
 		}
 		char *variableName = NULL;
-		strcopy(&variableName, command->arguments[0]->string);
+		variableName = strcopy(variableName, command->arguments[0]->string);
 		buf_add(variablesNames, variableName);
 		buf_add(variablesValues, resolve_logic_expression(command->arguments[1]->logicExpression));
 	} else if (command->type == COMMAND_GO_TO) {

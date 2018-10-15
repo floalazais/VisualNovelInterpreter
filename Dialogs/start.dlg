@@ -55,7 +55,7 @@
 
 @search again
 
-#ASSIGN firstClassSearchedAgain true
+#ASSIGN searched_first_class_cabin_again true
 
 >"Junpei" LEFT
 	It cost nothing to check this room again.
@@ -287,6 +287,7 @@
 @get out
 
 #ASSIGN knows_about_ninth_bracelet false
+#ASSIGN searched_first_class_cabin_again false
 
 >"Junpei" LEFT
 	Let's find the others, maybe we found the safe and they found the key.

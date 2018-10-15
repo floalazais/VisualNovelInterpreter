@@ -98,7 +98,7 @@ static LogicExpression *create_logic_expression_literal_string(char *string)
 	logicExpression->returnType = VARIABLE_STRING;
 	logicExpression->literal.type = LOGIC_EXPRESSION_LITERAL_STRING;
 	logicExpression->literal.string = NULL;
-	strcopy(&logicExpression->literal.string, string);
+	logicExpression->literal.string = strcopy(logicExpression->literal.string, string);
 	return logicExpression;
 }
 
@@ -108,7 +108,7 @@ static LogicExpression *create_logic_expression_literal_identifier(char *identif
 	logicExpression->type = LOGIC_EXPRESSION_LITERAL;
 	logicExpression->literal.type = LOGIC_EXPRESSION_LITERAL_IDENTIFIER;
 	logicExpression->literal.string = NULL;
-	strcopy(&logicExpression->literal.string, identifier);
+	logicExpression->literal.string = strcopy(logicExpression->literal.string, identifier);
 	return logicExpression;
 }
 
@@ -290,7 +290,7 @@ Variable *get_variable(char *variableName)
 				variable->numeric = variablesValues[i]->numeric;
 			} else if (variable->type == VARIABLE_STRING) {
 				variable->string = NULL;
-				strcopy(&variable->string, variablesValues[i]->string);
+				variable->string = strcopy(variable->string, variablesValues[i]->string);
 			} else {
 				error("unknown variable type %d.", variablesValues[i]->type);
 			}
@@ -335,7 +335,7 @@ Variable *resolve_logic_expression(LogicExpression *logicExpression)
 			Variable *variable = xmalloc(sizeof (*variable));
 			variable->type = VARIABLE_STRING;
 			variable->string = NULL;
-			strcopy(&variable->string, logicExpression->literal.string);
+			variable->string = strcopy(variable->string, logicExpression->literal.string);
 			return variable;
 		} else if (logicExpression->literal.type == LOGIC_EXPRESSION_LITERAL_IDENTIFIER) {
 			return get_variable(logicExpression->literal.string);
@@ -391,7 +391,7 @@ Variable *resolve_logic_expression(LogicExpression *logicExpression)
 				} else {
 					error("unknown variable type %d.", right->type);
 				}
-				strappend(&left->string, right->string);
+				left->string = strappend(left->string, right->string);
 				free_variable(right);
 			} else {
 				error("unknown variable type %d.", left->type);
@@ -619,7 +619,7 @@ static void add_to_background_list(char *backgroundPackName)
 	if (!foundPack)
 	{
 		char *newBackgroundPackName = NULL;
-		strcopy(&newBackgroundPackName, backgroundPackName);
+		newBackgroundPackName = strcopy(newBackgroundPackName, backgroundPackName);
 		buf_add(currentDialog->backgroundPacksNames, newBackgroundPackName);
 		Sprite *newBackgroundPack = create_sprite(SPRITE_ANIMATED);
 		newBackgroundPack->position.x = 0;
@@ -627,9 +627,9 @@ static void add_to_background_list(char *backgroundPackName)
 		newBackgroundPack->width = windowDimensions.x;
 		newBackgroundPack->height = windowDimensions.y;
 		char *animationFilePath = NULL;
-		strcopy(&animationFilePath, "Animation files/");
-		strappend(&animationFilePath, backgroundPackName);
-		strappend(&animationFilePath, ".anm");
+		animationFilePath = strcopy(animationFilePath, "Animation files/");
+		animationFilePath = strappend(animationFilePath, backgroundPackName);
+		animationFilePath = strappend(animationFilePath, ".anm");
 		set_animations_to_animated_sprite(newBackgroundPack, animationFilePath, backgroundPackName);
 		buf_add(currentDialog->backgroundPacks, newBackgroundPack);
 		buf_free(animationFilePath);
@@ -650,14 +650,14 @@ static void add_to_character_list(char *characterName)
 	if (!foundCharacter)
 	{
 		char *newCharacterName = NULL;
-		strcopy(&newCharacterName, characterName);
+		newCharacterName = strcopy(newCharacterName, characterName);
 		buf_add(currentDialog->charactersNames, newCharacterName);
 		Sprite *newCharacterSprite = create_sprite(SPRITE_ANIMATED);
 		buf_add(currentDialog->charactersSprites, newCharacterSprite);
 		char *animationFilePath = NULL;
-		strcopy(&animationFilePath, "Animation files/");
-		strappend(&animationFilePath, characterName);
-		strappend(&animationFilePath, ".anm");
+		animationFilePath = strcopy(animationFilePath, "Animation files/");
+		animationFilePath = strappend(animationFilePath, characterName);
+		animationFilePath = strappend(animationFilePath, ".anm");
 		set_animations_to_animated_sprite(newCharacterSprite, animationFilePath, characterName);
 		buf_free(animationFilePath);
 	}
@@ -697,10 +697,10 @@ static Command *parse_command()
 			}
 			command->arguments[0]->type = PARAMETER_STRING;
 			command->arguments[0]->string = NULL;
-			strcopy(&command->arguments[0]->string, tokens[currentToken]->string);
+			command->arguments[0]->string = strcopy(command->arguments[0]->string, tokens[currentToken]->string);
 			command->arguments[1]->type = PARAMETER_STRING;
 			command->arguments[1]->string = NULL;
-			strcopy(&command->arguments[1]->string, tokens[currentToken + 2]->string);
+			command->arguments[1]->string = strcopy(command->arguments[1]->string, tokens[currentToken + 2]->string);
 			steps_in_tokens(3);
 			add_to_background_list(command->arguments[0]->string);
 		} else {
@@ -724,10 +724,10 @@ static Command *parse_command()
 			command->arguments[0]->numeric = position_identifier_to_int(tokens[currentToken]->string, tokens[currentToken - 1]->line);
 			command->arguments[1]->type = PARAMETER_STRING;
 			command->arguments[1]->string = NULL;
-			strcopy(&command->arguments[1]->string, tokens[currentToken + 1]->string);
+			command->arguments[1]->string = strcopy(command->arguments[1]->string, tokens[currentToken + 1]->string);
 			command->arguments[2]->type = PARAMETER_STRING;
 			command->arguments[2]->string = NULL;
-			strcopy(&command->arguments[2]->string, tokens[currentToken + 3]->string);
+			command->arguments[2]->string = strcopy(command->arguments[2]->string, tokens[currentToken + 3]->string);
 			steps_in_tokens(4);
 			add_to_character_list(command->arguments[1]->string);
 		} else {
@@ -767,11 +767,11 @@ static Command *parse_command()
 		command->arguments[1]->string = NULL;
 		if (token_match_on_line(tokens[currentToken - 1]->line, 1, TOKEN_STRING))
 		{
-			strcopy(&command->arguments[0]->string, tokens[currentToken]->string);
+			command->arguments[0]->string = strcopy(command->arguments[0]->string, tokens[currentToken]->string);
 			step_in_tokens();
 			if (token_match_on_line(tokens[currentToken - 1]->line, 1, TOKEN_KNOT))
 			{
-				strcopy(&command->arguments[1]->string, tokens[currentToken]->string);
+				command->arguments[1]->string = strcopy(command->arguments[1]->string, tokens[currentToken]->string);
 				step_in_tokens();
 			}
 		}
@@ -787,7 +787,7 @@ static Command *parse_command()
 			}
 			command->arguments[0]->type = PARAMETER_IDENTIFIER;
 			command->arguments[0]->string = NULL;
-			strcopy(&command->arguments[0]->string, tokens[currentToken]->string);
+			command->arguments[0]->string = strcopy(command->arguments[0]->string, tokens[currentToken]->string);
 			step_in_tokens();
 			command->arguments[1]->type = PARAMETER_LOGIC_EXPRESSION;
 			command->arguments[1]->logicExpression = parse_logic_expression(tokens[currentToken - 1]->line);
@@ -806,7 +806,7 @@ static Command *parse_command()
 			}
 			command->arguments[0]->type = PARAMETER_STRING;
 			command->arguments[0]->string = NULL;
-			strcopy(&command->arguments[0]->string, tokens[currentToken]->string);
+			command->arguments[0]->string = strcopy(command->arguments[0]->string, tokens[currentToken]->string);
 			step_in_tokens();
 		} else {
 			error("in %s at line %d, bad argument for #%s command, expected knot name token.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->string);
@@ -853,7 +853,7 @@ static Choice *parse_choice()
 	choice->sentence = xmalloc(sizeof (*choice->sentence));
 	choice->sentence->string = NULL;
 	choice->sentence->autoSkip = false;
-	strcopy(&choice->sentence->string, tokens[currentToken - 1]->string);
+	choice->sentence->string = strcopy(choice->sentence->string, tokens[currentToken - 1]->string);
 	if (buf_len(choice->sentence->string) >= 6)
 	{
 		if (strmatch(&choice->sentence->string[buf_len(choice->sentence->string) - 6], " AUTO"))
@@ -871,7 +871,7 @@ static Choice *parse_choice()
 	}
 	choice->goToCommand->arguments[0]->type = PARAMETER_STRING;
 	choice->goToCommand->arguments[0]->string = NULL;
-	strcopy(&choice->goToCommand->arguments[0]->string, tokens[currentToken + 1]->string);
+	choice->goToCommand->arguments[0]->string = strcopy(choice->goToCommand->arguments[0]->string, tokens[currentToken + 1]->string);
 	steps_in_tokens(2);
 	return choice;
 }
@@ -956,7 +956,7 @@ static CueExpression *parse_cue_expression()
 			cueExpression->sentence = xmalloc(sizeof (*cueExpression->sentence));
 			cueExpression->sentence->string = NULL;
 			cueExpression->sentence->autoSkip = false;
-			strcopy(&cueExpression->sentence->string, tokens[currentToken]->string);
+			cueExpression->sentence->string = strcopy(cueExpression->sentence->string, tokens[currentToken]->string);
 			if (buf_len(cueExpression->sentence->string) >= 6)
 			{
 				if (strmatch(&cueExpression->sentence->string[buf_len(cueExpression->sentence->string) - 6], " AUTO"))
@@ -1002,7 +1002,7 @@ static Cue *parse_cue()
 			error("in %s at line %d, the speaker name identifier and the position identifier must be on the same line as their corresponding \">\" speaker indicator token.", filePath, tokens[currentToken]->line);
 		}
 		cue->characterName = NULL;
-		strcopy(&cue->characterName, tokens[currentToken]->string);
+		cue->characterName = strcopy(cue->characterName, tokens[currentToken]->string);
 		cue->characterNamePosition = position_identifier_to_int(tokens[currentToken + 1]->string, tokens[currentToken - 1]->line);
 		steps_in_tokens(2);
 
@@ -1022,10 +1022,10 @@ static Cue *parse_cue()
 			set_character_command->arguments[0]->numeric = position_identifier_to_int(tokens[currentToken + 1]->string, tokens[currentToken - 1]->line);
 			set_character_command->arguments[1]->type = PARAMETER_STRING;
 			set_character_command->arguments[1]->string = NULL;
-			strcopy(&set_character_command->arguments[1]->string, tokens[currentToken - 2]->string);
+			set_character_command->arguments[1]->string = strcopy(set_character_command->arguments[1]->string, tokens[currentToken - 2]->string);
 			set_character_command->arguments[2]->type = PARAMETER_STRING;
 			set_character_command->arguments[2]->string = NULL;
-			strcopy(&set_character_command->arguments[2]->string, tokens[currentToken]->string);
+			set_character_command->arguments[2]->string = strcopy(set_character_command->arguments[2]->string, tokens[currentToken]->string);
 			cueExpression->command = set_character_command;
 			buf_add(cue->cueExpressions, cueExpression);
 			steps_in_tokens(2);
@@ -1137,7 +1137,7 @@ static Knot *parse_knot()
     if (firstKnot)
     {
         firstKnot = false;
-		strcopy(&knot->name, "start");
+		knot->name = strcopy(knot->name, "start");
     } else {
         if (tokens[currentToken]->type == TOKEN_KNOT)
         {
@@ -1152,7 +1152,7 @@ static Knot *parse_knot()
 					error("in %s at line %d, knot name %s was already used.", filePath, tokens[currentToken]->line, tokens[currentToken]->string);
 				}
 			}
-			strcopy(&knot->name, tokens[currentToken]->string);
+			knot->name = strcopy(knot->name, tokens[currentToken]->string);
 			step_in_tokens();
         } else {
 			error("in %s at line %d, expected knot token, got a %s token instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type]);
@@ -1184,7 +1184,7 @@ Dialog *create_dialog(char *_filePath, Token **_tokens)
 	{
 		if (token_match(1, TOKEN_SENTENCE))
 		{
-			strcopy(&windowName, tokens[currentToken]->string);
+			windowName = strcopy(windowName, tokens[currentToken]->string);
 			step_in_tokens();
 		} else {
 			error("expected game name at beginning of start.dlg, got %s token instead.", tokenStrings[tokens[currentToken]->type]);

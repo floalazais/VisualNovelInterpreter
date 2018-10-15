@@ -96,7 +96,7 @@ static Token *get_next_token()
             steps_in_source(2);
             token->type = TOKEN_COMMAND;
 			token->string = NULL;
-			strcopy(&token->string, "GO_TO");
+			token->string = strcopy(token->string, "GO_TO");
         } else {
             step_in_source();
             token->type = TOKEN_MINUS;
@@ -197,6 +197,13 @@ static Token *get_next_token()
         	currentLexMode = LEX_MODE_CODE;
 		}
         char *command = NULL;
+		if (isalpha(fileString[currentChar]) || fileString[currentChar] == '_')
+		{
+			buf_add(command, fileString[currentChar]);
+		} else {
+			error("in %s at line %d command must start with a letter or an underscore.", filePath, currentLine);
+		}
+		step_in_source();
         while (isalnum(fileString[currentChar]) || fileString[currentChar] == '_')
 		{
             buf_add(command, fileString[currentChar]);

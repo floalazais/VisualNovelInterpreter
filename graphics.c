@@ -162,6 +162,8 @@ void free_graphics()
 		xfree(ttfBuffers[i]);
 		buf_free(ttfFilesPaths[i]);
 	}
+	buf_free(ttfBuffers);
+	buf_free(ttfFilesPaths);
 
 	for (unsigned int i = 0; i < buf_len(texturesPaths); i++)
 	{
@@ -176,6 +178,7 @@ void free_graphics()
 	{
 		free_font(fonts[i]);
 	}
+	buf_free(fonts);
 }
 
 unsigned int get_texture_id_from_path(char *texturePath, int *_width, int *_height)
@@ -224,7 +227,7 @@ unsigned int get_texture_id_from_path(char *texturePath, int *_width, int *_heig
 		}
 
 		char *newTexturePath = NULL;
-		strcopy(&newTexturePath, texturePath);
+		newTexturePath = strcopy(newTexturePath, texturePath);
 		buf_add(texturesPaths, newTexturePath);
 		buf_add(texturesIds, textureId);
 		buf_add(texturesWidths, width);
@@ -326,10 +329,10 @@ static AnimationPhase *parse_animation_phase(char *spriteName)
 	if (token_match_on_line(tokens[currentToken]->line, 2, TOKEN_STRING, TOKEN_NUMERIC))
 	{
 		char *textureFilePath = NULL;
-		strcopy(&textureFilePath, "Textures/");
-		strappend(&textureFilePath, spriteName);
-		strappend(&textureFilePath, "/");
-		strappend(&textureFilePath, tokens[currentToken]->string);
+		textureFilePath = strcopy(textureFilePath, "Textures/");
+		textureFilePath = strappend(textureFilePath, spriteName);
+		textureFilePath = strappend(textureFilePath, "/");
+		textureFilePath = strappend(textureFilePath, tokens[currentToken]->string);
 		animationPhase->textureId = get_texture_id_from_path(textureFilePath, &animationPhase->width, &animationPhase->height);
 		animationPhase->length = tokens[currentToken + 1]->numeric;
 		buf_free(textureFilePath);
@@ -361,7 +364,7 @@ static Animation *parse_animation(char *spriteName)
 	if (token_match_on_line(tokens[currentToken]->line, 2, TOKEN_STRING, TOKEN_IDENTIFIER))
 	{
 		animation->name = NULL;
-		strcopy(&animation->name, tokens[currentToken]->string);
+		animation->name = strcopy(animation->name, tokens[currentToken]->string);
 		if (strmatch(tokens[currentToken + 1]->string, "loop"))
 		{
 			animation->looping = true;
@@ -371,7 +374,7 @@ static Animation *parse_animation(char *spriteName)
 		steps_in_tokens(2);
 	} else if (token_match(1, TOKEN_STRING)) {
 		animation->name = NULL;
-		strcopy(&animation->name, tokens[currentToken]->string);
+		animation->name = strcopy(animation->name, tokens[currentToken]->string);
 		animation->looping = false;
 		step_in_tokens();
 	} else {
@@ -513,7 +516,7 @@ static void load_font(char *fontPath, int textHeight)
 		ttfBuffer = (unsigned char *)file_to_string(fontPath);
 		buf_add(ttfBuffers, ttfBuffer);
 		char *newFontPath = NULL;
-		strcopy(&newFontPath, fontPath);
+		newFontPath = strcopy(newFontPath, fontPath);
 		buf_add(ttfFilesPaths, newFontPath);
 	}
 	stbtt_InitFont(fontInfo, ttfBuffer, stbtt_GetFontOffsetForIndex(ttfBuffer, 0));
@@ -530,7 +533,7 @@ static void load_font(char *fontPath, int textHeight)
 	}
 	font->fontInfo = fontInfo;
 	font->fontPath = NULL;
-	strcopy(&font->fontPath, fontPath);
+	font->fontPath = strcopy(font->fontPath, fontPath);
 	font->height = textHeight;
 	font->scale = stbtt_ScaleForPixelHeight(font->fontInfo, (float)textHeight);
     font->ascent = (int)(ascent * font->scale);

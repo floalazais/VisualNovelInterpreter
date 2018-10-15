@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "error.h"
 #include "stretchy_buffer.h"
@@ -11,7 +12,7 @@ void print_variable(Variable *variable)
 {
 	if (variable->type == VARIABLE_NUMERIC)
 	{
-		printf(" : \"%f\"\n", variable->numeric);
+		printf(" : \"%f\"", variable->numeric);
 	} else if (variable->type == VARIABLE_STRING) {
 		printf(" : \"%s\"", variable->string);
 	} else {

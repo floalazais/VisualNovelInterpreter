@@ -27,6 +27,7 @@ Variable **variablesValues = NULL;
 
 static float timeDuringCurrentSecond = 0.0f;
 static Text *fpsDisplayText;
+static Sprite *fpsDisplayBox;
 static char *fpsDisplayString;
 static int fpsNumber = 0;
 
@@ -38,12 +39,17 @@ int main(int argc, char** argv)
 
 	fpsDisplayText = create_text();
 	set_font_to_text(fpsDisplayText, "Fonts/arial.ttf", TEXT_SIZE_SMALL);
-	vec3 white = {1.0f, 1.0f, 1.0f};
-	fpsDisplayText->color = white;
-	fpsDisplayString = xmalloc(sizeof(char) * 4);
+	vec3 green = {0.0f, 1.0f, 0.0f};
+	fpsDisplayText->color = green;
+	fpsDisplayString = xmalloc(sizeof(char) * 8);
+
+	fpsDisplayBox = create_sprite(SPRITE_COLOR);
+	vec3 black = {0.0f, 0.0f, 0.0f};
+	fpsDisplayBox->color = black;
+	fpsDisplayBox->height = fpsDisplayText->height + 2;
 
 	init_dialog_ui();
-	strcopy(&interpretingDialogName, "Dialogs/start.dlg");
+	interpretingDialogName = strcopy(interpretingDialogName, "Dialogs/start.dlg");
 
 	Token **tokens = lex(interpretingDialogName);
 	/*for (unsigned int i = 0; i < buf_len(tokens); i++)
@@ -69,25 +75,34 @@ int main(int argc, char** argv)
 		if (timeDuringCurrentSecond >= 1.0f)
 		{
 			timeDuringCurrentSecond = 0.0f;
-			sprintf(fpsDisplayString, "%d", fpsNumber);
+			if (fpsNumber >= 1000)
+			{
+				fpsNumber = 999;
+			}
+			sprintf(fpsDisplayString, "%d FPS", fpsNumber);
 			set_string_to_text(fpsDisplayText, fpsDisplayString);
+			fpsDisplayBox->width = fpsDisplayText->width + 2;
 			fpsNumber = 0;
 		}
 
 		if (is_input_key_pressed(INPUT_KEY_R))
 		{
+			buf_free(nextDialogName);
 			nextDialogName = interpretingDialogName;
 		}
 
 		if (nextDialogName)
 		{
 			free_dialog(interpretingDialog);
+			//print_leaks();
 			tokens = lex(nextDialogName);
 			interpretingDialog = create_dialog(nextDialogName, tokens);
 			if (interpretingDialogName != nextDialogName)
 			{
 				buf_free(interpretingDialogName);
-				interpretingDialogName = nextDialogName;
+				interpretingDialogName = NULL;
+				interpretingDialogName = strcopy(interpretingDialogName, nextDialogName);
+				buf_free(nextDialogName);
 			}
 			nextDialogName = NULL;
 			dialogChanged = true;
@@ -97,6 +112,7 @@ int main(int argc, char** argv)
 			ask_window_to_close();
 		}
 
+		add_sprite_to_draw_list(fpsDisplayBox, DRAW_LAYER_UI);
 		add_text_to_draw_list(fpsDisplayText, DRAW_LAYER_UI);
 
 		draw_all();
@@ -113,9 +129,16 @@ int main(int argc, char** argv)
 		print_variable(variablesValues[i]);
 		free_variable(variablesValues[i]);
 	}
+	buf_free(variablesNames);
+	buf_free(variablesValues);
 
 	xfree(fpsDisplayString);
 	free_text(fpsDisplayText);
+	free_sprite(fpsDisplayBox);
+
+	buf_free(interpretingDialogName);
+	buf_free(nextDialogName);
+	buf_free(windowName);
 
 	free_graphics();
 
