@@ -15,6 +15,7 @@ typedef struct Animation
 	AnimationPhase **animationPhases;
 	int currentAnimationPhase;
 	double timeDuringCurrentAnimationPhase;
+	bool isStatic;
 	bool looping;
 	bool updating;
 	bool stopping;
@@ -39,6 +40,7 @@ typedef struct Sprite
 	int textureId;
 	Animation **animations;
 	int currentAnimation;
+	bool fixedSize;
 } Sprite;
 
 extern const char *spritesStrings[];
@@ -91,7 +93,8 @@ typedef enum TextSize
 
 unsigned int get_texture_id_from_path(char *texturePath, int *width, int *height);
 Sprite *create_sprite(SpriteType spriteType);
-void set_animations_to_animated_sprite(Sprite *sprite, char *animationFilePath, char *spriteName);
+Animation **get_animations_from_file(char *animationFilePath, char *spriteName);
+void free_animation(Animation *animation);
 void free_sprite(Sprite *sprite);
 Text *create_text();
 void set_position_to_text(Text *text, ivec2 position);

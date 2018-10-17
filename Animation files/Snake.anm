@@ -1,5 +1,5 @@
-"angry"
-	"angry.png" 0 0.3 0.75
+"angry" static
+	"angry.png" 0.3 0.75
 
 "disapproving" loop
 	"disapproving1.gif" 0.1 0.3 0.75
@@ -19,8 +19,8 @@
 	"satisfied3.gif" 0.1 0.3 0.75
 	"satisfied2.gif" 0.1 0.3 0.75
 
-"sad"
-	"sad.png" 0 0.3 0.75
+"sad" static
+	"sad.png" 0.3 0.75
 
 "smiling" loop
 	"smiling1.gif" 0.1 0.3 0.75

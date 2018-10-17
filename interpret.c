@@ -56,7 +56,7 @@ void init_dialog_ui()
 
 	currentSentence = create_text();
 	set_font_to_text(currentSentence, "Fonts/arial.ttf", TEXT_SIZE_NORMAL);
-	set_width_limit_to_text(currentSentence, 0.97f * windowDimensions.x);
+	set_width_limit_to_text(currentSentence, (int)(0.97f * windowDimensions.x));
 	currentSentence->position.x = (int)(0.015f * windowDimensions.x);
 	currentSentence->position.y = (int)(0.8f * windowDimensions.y + 2);
 	currentSentence->color = white;
@@ -88,17 +88,21 @@ void init_dialog_ui()
 	oldBackgroundSprite->position.y = 0;
 	oldBackgroundSprite->width = windowDimensions.x;
 	oldBackgroundSprite->height = windowDimensions.y;
+	oldBackgroundSprite->fixedSize = true;
 	backgroundSprite = create_sprite(SPRITE_ANIMATED);
 	backgroundSprite->position.x = 0;
 	backgroundSprite->position.y = 0;
 	backgroundSprite->width = windowDimensions.x;
 	backgroundSprite->height = windowDimensions.y;
+	backgroundSprite->fixedSize = true;
 
 	for (int i = 0; i < 7; i++)
 	{
 		charactersNames[i] = NULL;
 		oldCharactersSprites[i] = create_sprite(SPRITE_ANIMATED);
+		oldCharactersSprites[i]->fixedSize = false;
 		charactersSprites[i] = create_sprite(SPRITE_ANIMATED);
+		charactersSprites[i]->fixedSize = false;
 	}
 	currentChoices = NULL;
 	goToCommands = NULL;
@@ -145,16 +149,16 @@ static bool update_command(Command *command)
 					{
 						oldBackgroundSprite->animations = backgroundSprite->animations;
 						oldBackgroundSprite->currentAnimation = backgroundSprite->currentAnimation;
-						oldBackgroundSprite->textureId = oldBackgroundSprite->animations[oldBackgroundSprite->currentAnimation]->animationPhases[0]->textureId;
+						oldBackgroundSprite->animations[oldBackgroundSprite->currentAnimation]->currentAnimationPhase = 0;
 					}
-					backgroundSprite->animations = interpretingDialog->backgroundPacks[i]->animations;
+					backgroundSprite->animations = interpretingDialog->backgroundPacks[i];
 					bool foundAnimation = false;
 					for (unsigned int j = 0; j < buf_len(backgroundSprite->animations); j++)
 					{
 						if (strmatch(command->arguments[1]->string, backgroundSprite->animations[j]->name))
 						{
 							backgroundSprite->currentAnimation = j;
-							backgroundSprite->textureId = backgroundSprite->animations[j]->animationPhases[0]->textureId;
+							backgroundSprite->animations[j]->currentAnimationPhase = 0;
 							foundAnimation = true;
 							break;
 						}
@@ -221,12 +225,10 @@ static bool update_command(Command *command)
 						oldCharactersSprites[position]->animations = charactersSprites[position]->animations;
 						oldCharactersSprites[position]->position.x = charactersSprites[position]->position.x;
 						oldCharactersSprites[position]->position.y = charactersSprites[position]->position.y;
-						oldCharactersSprites[position]->width = charactersSprites[position]->width;
-						oldCharactersSprites[position]->height = charactersSprites[position]->height;
 						oldCharactersSprites[position]->currentAnimation = charactersSprites[position]->currentAnimation;
-						oldCharactersSprites[position]->textureId = oldCharactersSprites[position]->animations[oldCharactersSprites[position]->currentAnimation]->animationPhases[0]->textureId;
+						oldCharactersSprites[position]->animations[oldCharactersSprites[position]->currentAnimation]->currentAnimationPhase = 0;
 					}
-					charactersSprites[position]->animations = interpretingDialog->charactersSprites[i]->animations;
+					charactersSprites[position]->animations = interpretingDialog->charactersAnimations[i];
 					bool foundAnimation = false;
 					for (unsigned int j = 0; j < buf_len(charactersSprites[position]->animations); j++)
 					{
@@ -234,10 +236,8 @@ static bool update_command(Command *command)
 						{
 							charactersSprites[position]->position.x = (int)((windowDimensions.x * position / 6.0f) - (charactersSprites[position]->animations[j]->animationPhases[0]->width / 2));
 							charactersSprites[position]->position.y = (int)(windowDimensions.y - charactersSprites[position]->animations[j]->animationPhases[0]->height);
-							charactersSprites[position]->width = charactersSprites[position]->animations[j]->animationPhases[0]->width;
-							charactersSprites[position]->height = charactersSprites[position]->animations[j]->animationPhases[0]->height;
 							charactersSprites[position]->currentAnimation = j;
-							charactersSprites[position]->textureId = charactersSprites[position]->animations[j]->animationPhases[0]->textureId;
+							charactersSprites[position]->animations[charactersSprites[position]->currentAnimation]->currentAnimationPhase = 0;
 							foundAnimation = true;
 							break;
 						}
@@ -380,13 +380,13 @@ static bool update_sentence(Sentence *sentence)
 			timeDuringCurrentChar += deltaTime;
 			if (timeDuringCurrentChar >= 0.02f)
 			{
-				int nbCharToSkip = timeDuringCurrentChar / 0.02f;
+				int nbCharToSkip = (int)(timeDuringCurrentChar / 0.02f);
 				currentSentence->nbCharToDisplay += nbCharToSkip;
 				if (currentSentence->nbCharToDisplay >= currentSentence->nbMaxCharToDisplay)
 				{
 					currentSentence->nbCharToDisplay = currentSentence->nbMaxCharToDisplay;
 				}
-				timeDuringCurrentChar = 0.0f;
+				timeDuringCurrentChar -= nbCharToSkip * 0.02f;
 			}
 		}
 
@@ -415,10 +415,8 @@ static bool update_sentence(Sentence *sentence)
 	{
 		Sprite *currentSpeakerSprite = charactersSprites[currentSpeakerSpriteIndex];
 		AnimationPhase *currentSpeakerSpriteAnimationPhase = currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->animationPhases[currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->currentAnimationPhase];
-		charactersSprites[currentSpeakerSpriteIndex]->position.x = (int)((windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentSpeakerSpriteAnimationPhase->width / 2));
-		charactersSprites[currentSpeakerSpriteIndex]->position.y = (int)(windowDimensions.y - currentSpeakerSpriteAnimationPhase->height);
-		charactersSprites[currentSpeakerSpriteIndex]->width = currentSpeakerSpriteAnimationPhase->width;
-		charactersSprites[currentSpeakerSpriteIndex]->height = currentSpeakerSpriteAnimationPhase->height;
+		currentSpeakerSprite->position.x = (int)((windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentSpeakerSpriteAnimationPhase->width / 2));
+		currentSpeakerSprite->position.y = (int)(windowDimensions.y - currentSpeakerSpriteAnimationPhase->height);
 	}
 	return false;
 }

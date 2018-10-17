@@ -1,20 +1,20 @@
-"doors"
-	"doors.png" 0
+"doors" static
+	"doors.png"
 
-"escape door"
-	"escape door.png" 0
+"escape door" static
+	"escape door.png"
 
-"piano"
-	"piano.png" 0
+"piano" static
+	"piano.png"
 
-"safe room"
-	"safe room.png" 0
+"safe room" static
+	"safe room.png"
 
-"hallway"
-	"hallway.png" 0
+"hallway" static
+	"hallway.png"
 	
-"living room"
-	"living room.png" 0
+"living room" static
+	"living room.png"
 	
-"ninth man corpse"
-	"ninth man corpse.png" 0
+"ninth man corpse" static
+	"ninth man corpse.png"

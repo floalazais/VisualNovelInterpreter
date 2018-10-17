@@ -1,5 +1,5 @@
-"disappointed"
-	"disappointed1.png" 0 0.6 0.75
+"disappointed" static
+	"disappointed1.png" 0.6 0.75
 
 "angry" loop
 	"angry1.gif" 0.1 0.6 0.75

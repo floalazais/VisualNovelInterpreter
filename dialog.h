@@ -49,25 +49,25 @@ typedef struct LogicExpression
 		{
 			LogicExpressionLiteralType type;
 			union {double numeric; char *string;};
-		} literal;
+		} *literal;
 
 		struct
 		{
 			LogicExpressionUnaryType type;
 			LogicExpression *expression;
-		} unary;
+		} *unary;
 
 		struct
 		{
 			LogicExpression *left;
 			LogicExpressionBinaryOperation operation;
 			LogicExpression *right;
-		} binary;
+		} *binary;
 
 		struct
 		{
 			LogicExpression *expression;
-		} grouping;
+		} *grouping;
 	};
 } LogicExpression;
 
@@ -202,9 +202,9 @@ typedef struct Knot
 typedef struct Dialog
 {
     char **backgroundPacksNames;
-    Sprite **backgroundPacks;
+    Animation ***backgroundPacks;
     char **charactersNames;
-    Sprite **charactersSprites;
+    Animation ***charactersAnimations;
     Knot **knots;
     int currentKnot;
 	bool end;
