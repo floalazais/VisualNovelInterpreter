@@ -41,8 +41,6 @@ typedef struct Sprite
 	int currentAnimation;
 } Sprite;
 
-extern const char *spritesStrings[];
-
 typedef struct Glyph
 {
 	int xOffset;

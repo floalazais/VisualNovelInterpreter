@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#include "sound_manager.h"
 #include "window.h"
 #include "maths.h"
 #include "user_input.h"
@@ -59,6 +60,8 @@ int main(int argc, char** argv)
 
 	interpretingDialog = create_dialog(interpretingDialogName, tokens);
 
+	int sound = play_sound("Musics/14 Imaginary.mp3");
+
 	update_window_name();
 
 	init_window_clock();
@@ -89,6 +92,10 @@ int main(int argc, char** argv)
 		{
 			buf_free(nextDialogName);
 			nextDialogName = interpretingDialogName;
+		} else if (is_input_key_pressed(INPUT_KEY_A)) {
+			pause_sound(sound);
+		} else if (is_input_key_pressed(INPUT_KEY_E)) {
+			resume_sound(sound);
 		}
 
 		if (nextDialogName)

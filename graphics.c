@@ -20,14 +20,6 @@
 #include "dialog.h"
 #include "globals.h"
 
-const char *spritesStrings[] =
-{
-    [SPRITE_COLOR] = "color sprite",
-    [SPRITE_TEXTURE] = "texture sprite",
-    [SPRITE_GLYPH] = "glyph sprite",
-	[SPRITE_ANIMATED] = "animated sprite"
-};
-
 static char *filePath;
 static Token **tokens;
 static int currentToken;
