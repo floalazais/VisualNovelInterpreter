@@ -19,9 +19,9 @@
 #include "dialog.h"
 #include "globals.h"
 
+char *nextDialogName = NULL;
 Dialog *interpretingDialog = NULL;
 char *interpretingDialogName = NULL;
-char *nextDialogName = NULL;
 bool dialogChanged = true;
 char **variablesNames = NULL;
 Variable **variablesValues = NULL;
@@ -35,6 +35,7 @@ static int fpsNumber = 0;
 int main(int argc, char** argv)
 {
 	init_window();
+	set_window_name("Visual Novel Interpreter Window");
 
 	init_graphics();
 
@@ -61,8 +62,6 @@ int main(int argc, char** argv)
 	interpretingDialog = create_dialog(interpretingDialogName, tokens);
 
 	int sound = play_sound("Musics/14 Imaginary.mp3");
-
-	update_window_name();
 
 	init_window_clock();
 
@@ -146,7 +145,6 @@ int main(int argc, char** argv)
 
 	buf_free(interpretingDialogName);
 	buf_free(nextDialogName);
-	buf_free(windowName);
 	free_graphics();
 
 	print_leaks();

@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 
+#include "window.h"
 #include "maths.h"
 #include "error.h"
 #include "user_input.h"
@@ -46,6 +47,7 @@ static bool displayDialogUI;
 static bool displaySpeakerName;
 static bool sentenceFirstUpdate;
 static float timeDuringCurrentChar;
+static float waitTimer;
 
 void init_dialog_ui()
 {
@@ -56,7 +58,7 @@ void init_dialog_ui()
 
 	currentSentence = create_text();
 	set_font_to_text(currentSentence, "Fonts/arial.ttf", TEXT_SIZE_NORMAL);
-	set_width_limit_to_text(currentSentence, 0.97f * windowDimensions.x);
+	set_width_limit_to_text(currentSentence, (int)(0.97f * windowDimensions.x));
 	currentSentence->position.x = (int)(0.015f * windowDimensions.x);
 	currentSentence->position.y = (int)(0.8f * windowDimensions.y + 2);
 	currentSentence->color = white;
@@ -88,20 +90,26 @@ void init_dialog_ui()
 	oldBackgroundSprite->position.y = 0;
 	oldBackgroundSprite->width = windowDimensions.x;
 	oldBackgroundSprite->height = windowDimensions.y;
+	oldBackgroundSprite->fixedSize = true;
 	backgroundSprite = create_sprite(SPRITE_ANIMATED);
 	backgroundSprite->position.x = 0;
 	backgroundSprite->position.y = 0;
 	backgroundSprite->width = windowDimensions.x;
 	backgroundSprite->height = windowDimensions.y;
+	backgroundSprite->fixedSize = true;
 
 	for (int i = 0; i < 7; i++)
 	{
 		charactersNames[i] = NULL;
 		oldCharactersSprites[i] = create_sprite(SPRITE_ANIMATED);
+		oldCharactersSprites[i]->fixedSize = false;
 		charactersSprites[i] = create_sprite(SPRITE_ANIMATED);
+		charactersSprites[i]->fixedSize = false;
 	}
 	currentChoices = NULL;
 	goToCommands = NULL;
+
+	waitTimer = 0.0f;
 }
 
 void free_dialog_ui()
@@ -145,16 +153,16 @@ static bool update_command(Command *command)
 					{
 						oldBackgroundSprite->animations = backgroundSprite->animations;
 						oldBackgroundSprite->currentAnimation = backgroundSprite->currentAnimation;
-						oldBackgroundSprite->textureId = oldBackgroundSprite->animations[oldBackgroundSprite->currentAnimation]->animationPhases[0]->textureId;
+						oldBackgroundSprite->animations[oldBackgroundSprite->currentAnimation]->currentAnimationPhase = 0;
 					}
-					backgroundSprite->animations = interpretingDialog->backgroundPacks[i]->animations;
+					backgroundSprite->animations = interpretingDialog->backgroundPacks[i];
 					bool foundAnimation = false;
 					for (unsigned int j = 0; j < buf_len(backgroundSprite->animations); j++)
 					{
 						if (strmatch(command->arguments[1]->string, backgroundSprite->animations[j]->name))
 						{
 							backgroundSprite->currentAnimation = j;
-							backgroundSprite->textureId = backgroundSprite->animations[j]->animationPhases[0]->textureId;
+							backgroundSprite->animations[j]->currentAnimationPhase = 0;
 							foundAnimation = true;
 							break;
 						}
@@ -177,6 +185,7 @@ static bool update_command(Command *command)
 			{
 				oldBackgroundSprite->opacity = 1.0f;
 			}
+			return false;
 		} else {
 			if (backgroundSprite->opacity >= 1.0f)
 			{
@@ -187,16 +196,15 @@ static bool update_command(Command *command)
 				}
 				oldBackgroundSprite->animations = NULL;
 				appearingBackground = false;
-				return true;
 			} else {
 				if (oldBackgroundSprite->animations)
 				{
 					oldBackgroundSprite->opacity -= deltaTime;
 				}
 				backgroundSprite->opacity += deltaTime;
+				return false;
 			}
 		}
-		return false;
 	} else if (command->type == COMMAND_CLEAR_BACKGROUND) {
 		if (backgroundSprite->opacity > 0.0f)
 		{
@@ -221,12 +229,10 @@ static bool update_command(Command *command)
 						oldCharactersSprites[position]->animations = charactersSprites[position]->animations;
 						oldCharactersSprites[position]->position.x = charactersSprites[position]->position.x;
 						oldCharactersSprites[position]->position.y = charactersSprites[position]->position.y;
-						oldCharactersSprites[position]->width = charactersSprites[position]->width;
-						oldCharactersSprites[position]->height = charactersSprites[position]->height;
 						oldCharactersSprites[position]->currentAnimation = charactersSprites[position]->currentAnimation;
-						oldCharactersSprites[position]->textureId = oldCharactersSprites[position]->animations[oldCharactersSprites[position]->currentAnimation]->animationPhases[0]->textureId;
+						oldCharactersSprites[position]->animations[oldCharactersSprites[position]->currentAnimation]->currentAnimationPhase = 0;
 					}
-					charactersSprites[position]->animations = interpretingDialog->charactersSprites[i]->animations;
+					charactersSprites[position]->animations = interpretingDialog->charactersAnimations[i];
 					bool foundAnimation = false;
 					for (unsigned int j = 0; j < buf_len(charactersSprites[position]->animations); j++)
 					{
@@ -234,10 +240,8 @@ static bool update_command(Command *command)
 						{
 							charactersSprites[position]->position.x = (int)((windowDimensions.x * position / 6.0f) - (charactersSprites[position]->animations[j]->animationPhases[0]->width / 2));
 							charactersSprites[position]->position.y = (int)(windowDimensions.y - charactersSprites[position]->animations[j]->animationPhases[0]->height);
-							charactersSprites[position]->width = charactersSprites[position]->animations[j]->animationPhases[0]->width;
-							charactersSprites[position]->height = charactersSprites[position]->animations[j]->animationPhases[0]->height;
 							charactersSprites[position]->currentAnimation = j;
-							charactersSprites[position]->textureId = charactersSprites[position]->animations[j]->animationPhases[0]->textureId;
+							charactersSprites[position]->animations[charactersSprites[position]->currentAnimation]->currentAnimationPhase = 0;
 							foundAnimation = true;
 							break;
 						}
@@ -260,6 +264,7 @@ static bool update_command(Command *command)
 			{
 				oldCharactersSprites[position]->opacity = 1.0f;
 			}
+			return false;
 		} else {
 			if (charactersSprites[position]->opacity >= 1.0f)
 			{
@@ -270,16 +275,15 @@ static bool update_command(Command *command)
 				}
 				oldCharactersSprites[position]->animations = NULL;
 				appearingCharacter = false;
-				return true;
 			} else {
 				if (oldCharactersSprites[position]->animations)
 				{
 					oldCharactersSprites[position]->opacity -= deltaTime * 2;
 				}
 				charactersSprites[position]->opacity += deltaTime * 2;
+				return false;
 			}
 		}
-		return false;
 	} else if (command->type == COMMAND_CLEAR_CHARACTER_POSITION) {
 		int position = (int)command->arguments[0]->numeric;
 		if (charactersSprites[position]->opacity > 0.0f)
@@ -325,19 +329,23 @@ static bool update_command(Command *command)
 			}
 		}
 	} else if (command->type == COMMAND_ASSIGN) {
+		bool foundVariable = false;
 		for (unsigned int i = 0; i < buf_len(variablesNames); i++)
 		{
 			if (strmatch(command->arguments[0]->string, variablesNames[i]))
 			{
 				free_variable(variablesValues[i]);
 				variablesValues[i] = resolve_logic_expression(command->arguments[1]->logicExpression);
-				return true;
+				foundVariable = true;
 			}
 		}
-		char *variableName = NULL;
-		variableName = strcopy(variableName, command->arguments[0]->string);
-		buf_add(variablesNames, variableName);
-		buf_add(variablesValues, resolve_logic_expression(command->arguments[1]->logicExpression));
+		if (!foundVariable)
+		{
+			char *variableName = NULL;
+			variableName = strcopy(variableName, command->arguments[0]->string);
+			buf_add(variablesNames, variableName);
+			buf_add(variablesValues, resolve_logic_expression(command->arguments[1]->logicExpression));
+		}
 	} else if (command->type == COMMAND_GO_TO) {
 		for (int i = 0; buf_len(interpretingDialog->knots); i++)
 		{
@@ -350,6 +358,40 @@ static bool update_command(Command *command)
 		}
 	} else if (command->type == COMMAND_HIDE_UI) {
 		displayDialogUI = false;
+	} else if (command->type == COMMAND_WAIT) {
+		if (waitTimer == 0.0f)
+		{
+			waitTimer = command->arguments[0]->numeric;
+		}
+		waitTimer -= deltaTime * 1000;
+		if (waitTimer <= 0.0f)
+		{
+			waitTimer = 0.0f;
+		} else {
+			return false;
+		}
+	} else if (command->type == COMMAND_SET_WINDOW_NAME) {
+		set_window_name(command->arguments[0]->string);
+		return true;
+	} else if (command->type == COMMAND_SET_NAME_COLOR) {
+		bool foundColoredName = false;
+		for (unsigned int i = 0; i < buf_len(interpretingDialog->coloredNames); i++)
+		{
+			if (strmatch(command->arguments[0]->string, interpretingDialog->coloredNames[i]))
+			{
+				interpretingDialog->namesColors[i].x = command->arguments[1]->numeric;
+				interpretingDialog->namesColors[i].y = command->arguments[2]->numeric;
+				interpretingDialog->namesColors[i].z = command->arguments[3]->numeric;
+				foundColoredName = true;
+				break;
+			}
+		}
+		if (!foundColoredName)
+		{
+			buf_add(interpretingDialog->coloredNames, command->arguments[0]->string);
+			vec3 newNameColor = {.x = command->arguments[1]->numeric, .y = command->arguments[2]->numeric, .z = command->arguments[3]->numeric};
+			buf_add(interpretingDialog->namesColors, newNameColor);
+		}
 	} else {
 		error("unknown command type %d", command->type);
 	}
@@ -380,13 +422,13 @@ static bool update_sentence(Sentence *sentence)
 			timeDuringCurrentChar += deltaTime;
 			if (timeDuringCurrentChar >= 0.02f)
 			{
-				int nbCharToSkip = timeDuringCurrentChar / 0.02f;
+				int nbCharToSkip = (int)(timeDuringCurrentChar / 0.02f);
 				currentSentence->nbCharToDisplay += nbCharToSkip;
 				if (currentSentence->nbCharToDisplay >= currentSentence->nbMaxCharToDisplay)
 				{
 					currentSentence->nbCharToDisplay = currentSentence->nbMaxCharToDisplay;
 				}
-				timeDuringCurrentChar = 0.0f;
+				timeDuringCurrentChar -= nbCharToSkip * 0.02f;
 			}
 		}
 
@@ -415,10 +457,8 @@ static bool update_sentence(Sentence *sentence)
 	{
 		Sprite *currentSpeakerSprite = charactersSprites[currentSpeakerSpriteIndex];
 		AnimationPhase *currentSpeakerSpriteAnimationPhase = currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->animationPhases[currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->currentAnimationPhase];
-		charactersSprites[currentSpeakerSpriteIndex]->position.x = (int)((windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentSpeakerSpriteAnimationPhase->width / 2));
-		charactersSprites[currentSpeakerSpriteIndex]->position.y = (int)(windowDimensions.y - currentSpeakerSpriteAnimationPhase->height);
-		charactersSprites[currentSpeakerSpriteIndex]->width = currentSpeakerSpriteAnimationPhase->width;
-		charactersSprites[currentSpeakerSpriteIndex]->height = currentSpeakerSpriteAnimationPhase->height;
+		currentSpeakerSprite->position.x = (int)((windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentSpeakerSpriteAnimationPhase->width / 2));
+		currentSpeakerSprite->position.y = (int)(windowDimensions.y - currentSpeakerSpriteAnimationPhase->height);
 	}
 	return false;
 }
@@ -597,6 +637,18 @@ static bool update_cue(Cue *cue)
 					}
 				}
 				set_string_to_text(currentSpeaker, cue->characterName);
+				vec3 nameColor = {.x = -1.0f};
+				for (unsigned int i = 0; i < buf_len(interpretingDialog->coloredNames); i++)
+				{
+					if (strmatch(cue->characterName, interpretingDialog->coloredNames[i]))
+					{
+						nameColor = interpretingDialog->namesColors[i];
+					}
+				}
+				if (nameColor.x != -1.0f)
+				{
+					currentSpeaker->color = nameColor;
+				}
 				ivec2 currentSpeakerPosition;
 				if (cue->characterNamePosition == 1)
 				{
@@ -630,6 +682,9 @@ static bool update_cue(Cue *cue)
 			cue->currentExpression = 0;
 			displayedSpeakerName = false;
 			set_string_to_text(currentSpeaker, NULL);
+			currentSpeaker->color.x = 1.0f;
+			currentSpeaker->color.y = 1.0f;
+			currentSpeaker->color.z = 1.0f;
 			return true;
 		}
 
@@ -641,6 +696,9 @@ static bool update_cue(Cue *cue)
 				cue->currentExpression = 0;
 				displayedSpeakerName = false;
 				set_string_to_text(currentSpeaker, NULL);
+				currentSpeaker->color.x = 1.0f;
+				currentSpeaker->color.y = 1.0f;
+				currentSpeaker->color.z = 1.0f;
 				return true;
 			}
 		}
@@ -685,6 +743,9 @@ static bool update_cue(Cue *cue)
 			currentChoice = 0;
 			displayedSpeakerName = false;
 			set_string_to_text(currentSpeaker, NULL);
+			currentSpeaker->color.x = 1.0f;
+			currentSpeaker->color.y = 1.0f;
+			currentSpeaker->color.z = 1.0f;
 			return true;
 		}
 	}

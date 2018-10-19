@@ -28,6 +28,12 @@ static Sprite **backgroundSprites;
 static Sprite **middlegroundSprites;
 static Sprite **foregroundSprites;
 static Sprite **UISprites;
+/*
+static Sprite *backgroundSprites[1024];
+static Sprite *middlegroundSprites[1024];
+static Sprite *foregroundSprites[1024];
+static Sprite *UISprites[512];
+*/
 
 static char **texturesPaths;
 static unsigned int *texturesIds;
@@ -149,6 +155,11 @@ static void free_font(Font *font)
 
 void free_graphics()
 {
+	buf_free(backgroundSprites);
+	buf_free(middlegroundSprites);
+	buf_free(foregroundSprites);
+	buf_free(UISprites);
+
 	for (unsigned int i = 0; i < buf_len(ttfBuffers); i++)
 	{
 		xfree(ttfBuffers[i]);
@@ -314,28 +325,49 @@ static bool token_match_on_line(int line, int nb, ...)
     return match;
 }
 
+static bool isParsingAnimationStatic;
+
 static AnimationPhase *parse_animation_phase(char *spriteName)
 {
 	AnimationPhase *animationPhase = xmalloc(sizeof (*animationPhase));
 
-	if (token_match_on_line(tokens[currentToken]->line, 2, TOKEN_STRING, TOKEN_NUMERIC))
+	if (isParsingAnimationStatic)
 	{
+		if (token_match(1, TOKEN_STRING))
+		{
+			char *textureFilePath = NULL;
+			textureFilePath = strcopy(textureFilePath, "Textures/");
+			textureFilePath = strappend(textureFilePath, spriteName);
+			textureFilePath = strappend(textureFilePath, "/");
+			textureFilePath = strappend(textureFilePath, tokens[currentToken]->string);
+			animationPhase->textureId = get_texture_id_from_path(textureFilePath, &animationPhase->width, &animationPhase->height);
+			animationPhase->length = -1;
+			buf_free(textureFilePath);
+			step_in_tokens();
+		} else {
+			error("in %s at line %d, invalid syntax for static animation phase declaration, expected texture as a string (and an optional size as two numbers), got %s token instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type]);
+		}
+	} else if (token_match_on_line(tokens[currentToken]->line, 2, TOKEN_STRING, TOKEN_NUMERIC)) {
 		char *textureFilePath = NULL;
 		textureFilePath = strcopy(textureFilePath, "Textures/");
 		textureFilePath = strappend(textureFilePath, spriteName);
 		textureFilePath = strappend(textureFilePath, "/");
 		textureFilePath = strappend(textureFilePath, tokens[currentToken]->string);
 		animationPhase->textureId = get_texture_id_from_path(textureFilePath, &animationPhase->width, &animationPhase->height);
+		if (tokens[currentToken + 1]->numeric == 0)
+		{
+			error("in %s at line %d, cannot specify a no-time length animtion phase.", filePath, tokens[currentToken]->line);
+		}
 		animationPhase->length = tokens[currentToken + 1]->numeric;
 		buf_free(textureFilePath);
+		steps_in_tokens(2);
 	} else {
-		error("in %s at line %d, invalid syntax for animation phase declaration, expected texture as a string followed by a length as a number, got %s and %s instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type], tokenStrings[tokens[currentToken + 1]->type]);
+		error("in %s at line %d, invalid syntax for animation phase declaration, expected texture as a string followed by a length as a number (and an optional size as two numbers), got %s and %s tokens instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type], tokenStrings[tokens[currentToken + 1]->type]);
 	}
-	steps_in_tokens(2);
 	if (token_match_on_line(tokens[currentToken - 1]->line, 2, TOKEN_NUMERIC, TOKEN_NUMERIC))
 	{
-		animationPhase->width = tokens[currentToken]->numeric * windowDimensions.x;
-		animationPhase->height = tokens[currentToken + 1]->numeric * windowDimensions.y;
+		animationPhase->width = (int)(tokens[currentToken]->numeric * windowDimensions.x);
+		animationPhase->height = (int)(tokens[currentToken + 1]->numeric * windowDimensions.y);
 		steps_in_tokens(2);
 	}
 	if (tokens[currentToken - 1]->line == tokens[currentToken]->line && tokens[currentToken]->type != TOKEN_END_OF_FILE)
@@ -347,6 +379,8 @@ static AnimationPhase *parse_animation_phase(char *spriteName)
 
 static Animation *parse_animation(char *spriteName)
 {
+	isParsingAnimationStatic = false;
+
 	Animation *animation = xmalloc(sizeof (*animation));
 
 	if (tokens[currentToken]->indentationLevel != 0)
@@ -360,14 +394,20 @@ static Animation *parse_animation(char *spriteName)
 		if (strmatch(tokens[currentToken + 1]->string, "loop"))
 		{
 			animation->looping = true;
+			animation->isStatic = false;
+		} else if (strmatch(tokens[currentToken + 1]->string, "static")) {
+			animation->looping = false;
+			animation->isStatic = true;
+			isParsingAnimationStatic = true;
 		} else {
-			error("in %s at line %d, expected optional \"loop\" identifier or nothing after animation name, got %s identifier instead.", filePath, tokens[currentToken]->line, tokens[currentToken + 1]->string);
+			error("in %s at line %d, expected optional \"loop\" or \"static\" identifier or nothing after animation name, got %s identifier instead.", filePath, tokens[currentToken]->line, tokens[currentToken + 1]->string);
 		}
 		steps_in_tokens(2);
 	} else if (token_match(1, TOKEN_STRING)) {
 		animation->name = NULL;
 		animation->name = strcopy(animation->name, tokens[currentToken]->string);
 		animation->looping = false;
+		animation->isStatic = false;
 		step_in_tokens();
 	} else {
 		error("in %s at line %d, expected animation name as a string, got a %s token instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type]);
@@ -385,6 +425,10 @@ static Animation *parse_animation(char *spriteName)
 	while (tokens[currentToken]->indentationLevel == 1 && tokens[currentToken]->type != TOKEN_END_OF_FILE)
 	{
 		buf_add(animation->animationPhases, parse_animation_phase(spriteName));
+		if (animation->isStatic && buf_len(animation->animationPhases) > 1)
+		{
+			error("in %s at line %d, static animations imply only one animation phase, got a second.", filePath, tokens[currentToken]->line);
+		}
 	}
 	animation->timeDuringCurrentAnimationPhase = 0.0f;
 	animation->currentAnimationPhase = 0;
@@ -393,7 +437,7 @@ static Animation *parse_animation(char *spriteName)
 	return animation;
 }
 
-static void free_animation(Animation *animation)
+void free_animation(Animation *animation)
 {
 	buf_free(animation->name);
 	for (unsigned int i = 0; i < buf_len(animation->animationPhases); i++)
@@ -404,34 +448,25 @@ static void free_animation(Animation *animation)
 	xfree(animation);
 }
 
-void set_animations_to_animated_sprite(Sprite *sprite, char *animationFilePath, char *spriteName)
+Animation **get_animations_from_file(char *animationFilePath, char *spriteName)
 {
-	if (sprite->type != SPRITE_ANIMATED)
-	{
-		error("cannot set animations to non animated sprite.");
-	}
-
 	filePath = animationFilePath;
 	currentToken = 0;
 	tokens = lex(filePath);
 
-	for (unsigned int i = 0; i < buf_len(sprite->animations); i++)
-	{
-		free_animation(sprite->animations[i]);
-	}
-	buf_free(sprite->animations);
-	sprite->animations = NULL;
+	Animation **animations = NULL;
 	while (tokens[currentToken]->type != TOKEN_END_OF_FILE)
 	{
-		buf_add(sprite->animations, parse_animation(spriteName));
+		buf_add(animations, parse_animation(spriteName));
 	}
-	sprite->currentAnimation = 0;
 
 	for (unsigned int index = 0; index < buf_len(tokens); index++)
 	{
 		free_token(tokens[index]);
 	}
 	buf_free(tokens);
+
+	return animations;
 }
 
 void free_sprite(Sprite *sprite)
@@ -696,37 +731,6 @@ void set_font_to_text(Text *text, char *fontPath, int textHeight)
 	}
 }
 
-static int offset;
-
-#define MAXUNICODE 0x10FFFF
-static int utf8_decode(const char *o)
-{
-	static const unsigned int limits[] = {0xFF, 0x7F, 0x7FF, 0xFFFF};
-	const unsigned char *s = (const unsigned char *)o;
-	unsigned int c = s[0];
-	unsigned int res = 0;  /* final result */
-	if (c < 0x80)  /* ascii? */
-	{
-		res = c;
-		offset = 1;
-	} else {
-		int count = 0;  /* to count number of continuation bytes */
-		while (c & 0x40)
-		{  /* still have continuation bytes? */
-			int cc = s[++count];  /* read next byte */
-			if ((cc & 0xC0) != 0x80)  /* not a continuation byte? */
-				return -1;  /* invalid byte sequence */
-			res = (res << 6) | (cc & 0x3F);  /* add lower 6 bits from cont. byte */
-			c <<= 1;  /* to test next bit */
-		}
-		res |= ((c & 0x7F) << (count * 5));  /* add first byte */
-		if (count > 3 || res > MAXUNICODE || res <= limits[count])
-			return -1;  /* invalid byte sequence */
-		offset = count + 1;  /* skip continuation bytes read and first byte */
-	}
-	return res;
-}
-
 void set_string_to_text(Text *text, char *string)
 {
 	buf_free(text->codes);
@@ -744,7 +748,7 @@ void set_string_to_text(Text *text, char *string)
 			} else if (code > 0xFFFF) {
 				error("unsupported character code %d.", code);
 			}
-			string += offset;
+			string += utf8Offset;
 			buf_add(text->codes, code);
 		}
 	}
@@ -799,6 +803,19 @@ static void set_mat4_uniform_to_shader(unsigned int shaderProgramId, char *unifo
 
 static void draw(Sprite *sprite)
 {
+	Animation *currentAnimation;
+	AnimationPhase *currentAnimationPhase;
+	if (sprite->type == SPRITE_ANIMATED)
+	{
+		currentAnimation = sprite->animations[sprite->currentAnimation];
+		currentAnimationPhase = currentAnimation->animationPhases[currentAnimation->currentAnimationPhase];
+		if (!sprite->fixedSize)
+		{
+			sprite->width = currentAnimationPhase->width;
+			sprite->height = currentAnimationPhase->height;
+		}
+	}
+
 	mat4 model = mat4_identity();
 	model = mat4_translate(&model, sprite->position);
 	model = mat4_scale(&model, (float)sprite->width, (float)sprite->height);
@@ -845,14 +862,14 @@ static void draw(Sprite *sprite)
 		set_mat4_uniform_to_shader(textureShaderProgramId, "model", &model);
 		glActiveTexture(GL_TEXTURE0);
 	    set_int_uniform_to_shader(textureShaderProgramId, "textureId", 0);
-		Animation *currentAnimation = sprite->animations[sprite->currentAnimation];
-		AnimationPhase *currentAnimationPhase = sprite->animations[sprite->currentAnimation]->animationPhases[sprite->animations[sprite->currentAnimation]->currentAnimationPhase];
+		currentAnimation = sprite->animations[sprite->currentAnimation];
+		currentAnimationPhase = currentAnimation->animationPhases[currentAnimation->currentAnimationPhase];
 	    glBindTexture(GL_TEXTURE_2D, currentAnimationPhase->textureId);
 		set_float_uniform_to_shader(textureShaderProgramId, "opacity", sprite->opacity);
-		if (currentAnimation->updating)
+		if (currentAnimation->updating && !currentAnimation->isStatic)
 		{
 			currentAnimation->timeDuringCurrentAnimationPhase += deltaTime;
-			if (currentAnimationPhase->length <= currentAnimation->timeDuringCurrentAnimationPhase)
+			while (currentAnimation->timeDuringCurrentAnimationPhase >= currentAnimationPhase->length)
 			{
 				if ((unsigned int)currentAnimation->currentAnimationPhase == buf_len(currentAnimation->animationPhases) - 1)
 				{
@@ -868,7 +885,8 @@ static void draw(Sprite *sprite)
 				} else {
 					currentAnimation->currentAnimationPhase++;
 				}
-				currentAnimation->timeDuringCurrentAnimationPhase = 0;
+				currentAnimation->timeDuringCurrentAnimationPhase -= currentAnimationPhase->length;
+				currentAnimationPhase = currentAnimation->animationPhases[currentAnimation->currentAnimationPhase];
 			}
 		}
 	} else {
@@ -885,26 +903,22 @@ void draw_all()
 	{
 		draw(backgroundSprites[i]);
 	}
-	buf_free(backgroundSprites);
-	backgroundSprites = NULL;
+	buf_clear(backgroundSprites);
 	for (unsigned int i = 0; i < buf_len(middlegroundSprites); i++)
 	{
 		draw(middlegroundSprites[i]);
 	}
-	buf_free(middlegroundSprites);
-	middlegroundSprites = NULL;
+	buf_clear(middlegroundSprites);
 	for (unsigned int i = 0; i < buf_len(foregroundSprites); i++)
 	{
 		draw(foregroundSprites[i]);
 	}
-	buf_free(foregroundSprites);
-	foregroundSprites = NULL;
+	buf_clear(foregroundSprites);
 	for (unsigned int i = 0; i < buf_len(UISprites); i++)
 	{
 		draw(UISprites[i]);
 	}
-	buf_free(UISprites);
-	UISprites = NULL;
+	buf_clear(UISprites);
 }
 
 void add_sprite_to_draw_list(Sprite *sprite, DrawLayer drawLayer)

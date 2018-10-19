@@ -9,6 +9,9 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include "stroperation.h"
+#include "xalloc.h"
+#include "stretchy_buffer.h"
 #include "error.h"
 #include "maths.h"
 #include "user_input.h"
@@ -427,14 +430,34 @@ void display_window()
 	wglSwapLayerBuffers(deviceContext, WGL_SWAP_MAIN_PLANE);
 }
 
-char *windowName;
-
-void update_window_name()
+void set_window_name(char *windowName)
 {
-	if (!SetWindowTextA(window, windowName))
+	wchar_t *windowNameUtf16 = NULL;
+
+	if (windowName)
+	{
+		int code;
+		while (*windowName != '\0')
+	    {
+			code = utf8_decode(windowName);
+			if (code == -1)
+			{
+				error("found incorrect utf-8 sequence in %s.", windowName);
+			} else if (code > 0xFFFF) {
+				error("unsupported character code %d.", code);
+			}
+			windowName += utf8Offset;
+			buf_add(windowNameUtf16, code);
+		}
+		buf_add(windowNameUtf16, L'\0');
+	}
+
+	if (!SetWindowTextW(window, windowNameUtf16))
 	{
 		error("could not set the game name to the window.");
 	}
+
+	buf_free(windowNameUtf16);
 }
 
 void ask_window_to_close()

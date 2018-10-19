@@ -12,6 +12,7 @@ typedef struct StretchyBufferHeader
 #define _buf_capacity(b) (!(b) ? 0 : _buf_header(b)->capacity)
 #define buf_len(b) (!(b) ? 0 : _buf_header(b)->count)
 #define buf_free(b) (!(b) ? xfree(NULL) : xfree(_buf_header(b)))
+#define buf_clear(b) (!(b) ? 0 : (_buf_header(b)->count = 0))
 
 void* sbuffer_create_or_grow_if_needed(void *buffer, size_t elementSize, char *file, int line);
 

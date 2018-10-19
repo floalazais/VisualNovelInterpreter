@@ -49,25 +49,25 @@ typedef struct LogicExpression
 		{
 			LogicExpressionLiteralType type;
 			union {double numeric; char *string;};
-		} literal;
+		} *literal;
 
 		struct
 		{
 			LogicExpressionUnaryType type;
 			LogicExpression *expression;
-		} unary;
+		} *unary;
 
 		struct
 		{
 			LogicExpression *left;
 			LogicExpressionBinaryOperation operation;
 			LogicExpression *right;
-		} binary;
+		} *binary;
 
 		struct
 		{
 			LogicExpression *expression;
-		} grouping;
+		} *grouping;
 	};
 } LogicExpression;
 
@@ -86,7 +86,13 @@ typedef enum CommandType
 
     COMMAND_GO_TO,
 
-	COMMAND_HIDE_UI
+	COMMAND_HIDE_UI,
+
+	COMMAND_WAIT, 
+
+	COMMAND_SET_WINDOW_NAME,
+
+	COMMAND_SET_NAME_COLOR
 } CommandType;
 
 typedef enum ArgumentType
@@ -202,9 +208,11 @@ typedef struct Knot
 typedef struct Dialog
 {
     char **backgroundPacksNames;
-    Sprite **backgroundPacks;
+    Animation ***backgroundPacks;
     char **charactersNames;
-    Sprite **charactersSprites;
+    Animation ***charactersAnimations;
+	char **coloredNames;
+	vec3 *namesColors;
     Knot **knots;
     int currentKnot;
 	bool end;

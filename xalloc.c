@@ -14,15 +14,11 @@ typedef struct Leak
 	bool stretchy;
 } Leak;
 
-static Leak* leaks = NULL;
-static int nbLeaks = 0;
+static Leak leaks[1000000];
+static unsigned int nbLeaks = 0;
 
 void *xmalloc_int(size_t size, char* file, int line, bool stretchy)
 {
-	if (!leaks)
-	{
-		leaks = malloc(sizeof (*leaks) * 10000000);
-	}
     void *result = malloc(size);
     if (!result)
     {
@@ -30,34 +26,31 @@ void *xmalloc_int(size_t size, char* file, int line, bool stretchy)
     } else {
         Leak leak = {result, file, line, stretchy};
         leaks[nbLeaks++] = leak;
+		if (nbLeaks == 1000000)
+		{
+			error("too much allocations.");
+		}
         return result;
     }
 }
 
-void remove_from_leaks(void *ptr)
+void *xrealloc(void *ptr, size_t size, char* file, int line)
 {
-	for (size_t i = 0; i < nbLeaks; i++)
-	{
-		if (leaks[i].ptr == ptr)
-		{
-			leaks[i].ptr = NULL;
-			break;
-		}
-	}
-}
-
-void *xrealloc(void *p, size_t size, char* file, int line)
-{
-    void *result = realloc(p, size);
+    void *result = realloc(ptr, size);
     if (!result)
     {
         error("could not allocate memory.");
     } else {
-		if (result != p)
+		if (result != ptr)
 		{
-			remove_from_leaks(p);
-			Leak leak = {result, file, line, true};
-			leaks[nbLeaks++] = leak;
+			for (size_t i = 0; i < nbLeaks; i++)
+			{
+				if (leaks[i].ptr == ptr)
+				{
+					leaks[i].ptr = result;
+					break;
+				}
+			}
 		}
         return result;
     }
@@ -67,7 +60,15 @@ void xfree(void* ptr)
 {
     if (ptr)
     {
-		remove_from_leaks(ptr);
+		for (size_t i = 0; i < nbLeaks; i++)
+		{
+			if (leaks[i].ptr == ptr)
+			{
+				leaks[i] = leaks[nbLeaks - 1];
+				nbLeaks--;
+				break;
+			}
+		}
     }
     free(ptr);
 }
