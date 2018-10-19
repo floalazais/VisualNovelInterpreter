@@ -86,7 +86,13 @@ typedef enum CommandType
 
     COMMAND_GO_TO,
 
-	COMMAND_HIDE_UI
+	COMMAND_HIDE_UI,
+
+	COMMAND_WAIT, 
+
+	COMMAND_SET_WINDOW_NAME,
+
+	COMMAND_SET_NAME_COLOR
 } CommandType;
 
 typedef enum ArgumentType
@@ -205,6 +211,8 @@ typedef struct Dialog
     Animation ***backgroundPacks;
     char **charactersNames;
     Animation ***charactersAnimations;
+	char **coloredNames;
+	vec3 *namesColors;
     Knot **knots;
     int currentKnot;
 	bool end;

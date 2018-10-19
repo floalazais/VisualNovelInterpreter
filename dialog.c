@@ -676,7 +676,13 @@ static int nbArguments[] =
 
     [COMMAND_GO_TO] = 1,
 
-	[COMMAND_HIDE_UI] = 0
+	[COMMAND_HIDE_UI] = 0,
+
+	[COMMAND_WAIT] = 1,
+
+	[COMMAND_SET_WINDOW_NAME] = 1,
+
+	[COMMAND_SET_NAME_COLOR] = 4
 };
 
 static Command *parse_command()
@@ -813,6 +819,62 @@ static Command *parse_command()
 		step_in_tokens();
 		command->type = COMMAND_HIDE_UI;
 		command->arguments = NULL;
+	} else if (strmatch(tokens[currentToken]->string, "WAIT")) {
+		step_in_tokens();
+		if (token_match_on_line(tokens[currentToken - 1]->line, 1, TOKEN_NUMERIC))
+		{
+			command->type = COMMAND_WAIT;
+			command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
+			for (int i = 0; i < nbArguments[COMMAND_WAIT]; i++)
+			{
+				command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
+			}
+			command->arguments[0]->type = PARAMETER_NUMERIC;
+			command->arguments[0]->numeric = tokens[currentToken]->numeric;
+			step_in_tokens();
+		} else {
+			error("in %s at line %d, bad argument for #%s command, expected numeric token.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->string);
+		}
+	} else if (strmatch(tokens[currentToken]->string, "SET_WINDOW_NAME")) {
+		step_in_tokens();
+		if (token_match_on_line(tokens[currentToken - 1]->line, 1, TOKEN_STRING))
+		{
+			command->type = COMMAND_SET_WINDOW_NAME;
+			command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
+			for (int i = 0; i < nbArguments[COMMAND_SET_WINDOW_NAME]; i++)
+			{
+				command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
+			}
+			command->arguments[0]->type = PARAMETER_STRING;
+			command->arguments[0]->string = NULL;
+			command->arguments[0]->string = strcopy(command->arguments[0]->string, tokens[currentToken]->string);
+			step_in_tokens();
+		} else {
+			error("in %s at line %d, bad argument for #%s command, expected numeric token.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->string);
+		}
+	} else if (strmatch(tokens[currentToken]->string, "SET_NAME_COLOR")) {
+		step_in_tokens();
+		if (token_match_on_line(tokens[currentToken - 1]->line, 2, TOKEN_STRING, TOKEN_NUMERIC))
+		{
+			command->type = COMMAND_SET_NAME_COLOR;
+			command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
+			for (int i = 0; i < nbArguments[COMMAND_SET_NAME_COLOR]; i++)
+			{
+				command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
+			}
+			command->arguments[0]->type = PARAMETER_STRING;
+			command->arguments[0]->string = NULL;
+			command->arguments[0]->string = strcopy(command->arguments[0]->string, tokens[currentToken]->string);
+			command->arguments[1]->type = PARAMETER_NUMERIC;
+			command->arguments[1]->numeric = tokens[currentToken + 1]->numeric;
+			command->arguments[2]->type = PARAMETER_NUMERIC;
+			command->arguments[2]->numeric = tokens[currentToken + 2]->numeric;
+			command->arguments[3]->type = PARAMETER_NUMERIC;
+			command->arguments[3]->numeric = tokens[currentToken + 3]->numeric;
+			steps_in_tokens(4);
+		} else {
+			error("in %s at line %d, bad argument for #%s command, expected numeric token.", filePath, tokens[currentToken - 1]->line, tokens[currentToken - 1]->string);
+		}
 	} else {
 		error("in %s at line %d, unknown command #%s found.", filePath, tokens[currentToken]->line, tokens[currentToken]->string);
 	}
@@ -1095,9 +1157,12 @@ static KnotExpression *parse_knot_expression()
 {
 	KnotExpression *knotExpression = xmalloc(sizeof (*knotExpression));
 
-	if (tokens[currentToken - 1]->line == tokens[currentToken]->line)
+	if (currentToken != 0)
 	{
-		error("in %s at line %d, current expression is followed by a %s token on the same line.", filePath, tokens[currentToken - 1]->line, tokenStrings[tokens[currentToken]->type]);
+		if (tokens[currentToken - 1]->line == tokens[currentToken]->line)
+		{
+			error("in %s at line %d, current expression is followed by a %s token on the same line.", filePath, tokens[currentToken - 1]->line, tokenStrings[tokens[currentToken]->type]);
+		}
 	}
 	if (tokens[currentToken]->indentationLevel != currentIndentationLevel)
 	{
@@ -1178,22 +1243,14 @@ Dialog *create_dialog(char *_filePath, Token **_tokens)
 
 	currentCueMode = CUE_MODE_SENTENCE;
 
-	if (strmatch(filePath, "Dialogs/start.dlg"))
-	{
-		if (token_match(1, TOKEN_SENTENCE))
-		{
-			windowName = strcopy(windowName, tokens[currentToken]->string);
-			step_in_tokens();
-		} else {
-			error("expected game name at beginning of start.dlg, got %s token instead.", tokenStrings[tokens[currentToken]->type]);
-		}
-	}
-
 	dialog->backgroundPacksNames = NULL;
 	dialog->backgroundPacks = NULL;
 
 	dialog->charactersNames = NULL;
 	dialog->charactersAnimations = NULL;
+
+	dialog->namesColors = NULL;
+	dialog->coloredNames = NULL;
 
 	dialog->knots = NULL;
     while (tokens[currentToken]->type != TOKEN_END_OF_FILE)
@@ -1395,6 +1452,12 @@ void free_dialog(Dialog *dialog)
 		buf_free(dialog->charactersNames[index]);
 	}
 	buf_free(dialog->charactersNames);
+	buf_free(dialog->namesColors);
+	for (unsigned int index = 0; index < buf_len(dialog->coloredNames); index++)
+    {
+		buf_free(dialog->coloredNames[index]);
+	}
+	buf_free(dialog->coloredNames);
 	for (unsigned int index = 0; index < buf_len(dialog->knots); index++)
     {
 		free_knot(dialog->knots[index]);

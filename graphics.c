@@ -731,37 +731,6 @@ void set_font_to_text(Text *text, char *fontPath, int textHeight)
 	}
 }
 
-static int offset;
-
-#define MAXUNICODE 0x10FFFF
-static int utf8_decode(const char *o)
-{
-	static const unsigned int limits[] = {0xFF, 0x7F, 0x7FF, 0xFFFF};
-	const unsigned char *s = (const unsigned char *)o;
-	unsigned int c = s[0];
-	unsigned int res = 0;  /* final result */
-	if (c < 0x80)  /* ascii? */
-	{
-		res = c;
-		offset = 1;
-	} else {
-		int count = 0;  /* to count number of continuation bytes */
-		while (c & 0x40)
-		{  /* still have continuation bytes? */
-			int cc = s[++count];  /* read next byte */
-			if ((cc & 0xC0) != 0x80)  /* not a continuation byte? */
-				return -1;  /* invalid byte sequence */
-			res = (res << 6) | (cc & 0x3F);  /* add lower 6 bits from cont. byte */
-			c <<= 1;  /* to test next bit */
-		}
-		res |= ((c & 0x7F) << (count * 5));  /* add first byte */
-		if (count > 3 || res > MAXUNICODE || res <= limits[count])
-			return -1;  /* invalid byte sequence */
-		offset = count + 1;  /* skip continuation bytes read and first byte */
-	}
-	return res;
-}
-
 void set_string_to_text(Text *text, char *string)
 {
 	buf_free(text->codes);
@@ -779,7 +748,7 @@ void set_string_to_text(Text *text, char *string)
 			} else if (code > 0xFFFF) {
 				error("unsupported character code %d.", code);
 			}
-			string += offset;
+			string += utf8Offset;
 			buf_add(text->codes, code);
 		}
 	}

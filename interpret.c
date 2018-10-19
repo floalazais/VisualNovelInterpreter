@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 
+#include "window.h"
 #include "maths.h"
 #include "error.h"
 #include "user_input.h"
@@ -46,6 +47,7 @@ static bool displayDialogUI;
 static bool displaySpeakerName;
 static bool sentenceFirstUpdate;
 static float timeDuringCurrentChar;
+static float waitTimer;
 
 void init_dialog_ui()
 {
@@ -106,6 +108,8 @@ void init_dialog_ui()
 	}
 	currentChoices = NULL;
 	goToCommands = NULL;
+
+	waitTimer = 0.0f;
 }
 
 void free_dialog_ui()
@@ -181,6 +185,7 @@ static bool update_command(Command *command)
 			{
 				oldBackgroundSprite->opacity = 1.0f;
 			}
+			return false;
 		} else {
 			if (backgroundSprite->opacity >= 1.0f)
 			{
@@ -191,16 +196,15 @@ static bool update_command(Command *command)
 				}
 				oldBackgroundSprite->animations = NULL;
 				appearingBackground = false;
-				return true;
 			} else {
 				if (oldBackgroundSprite->animations)
 				{
 					oldBackgroundSprite->opacity -= deltaTime;
 				}
 				backgroundSprite->opacity += deltaTime;
+				return false;
 			}
 		}
-		return false;
 	} else if (command->type == COMMAND_CLEAR_BACKGROUND) {
 		if (backgroundSprite->opacity > 0.0f)
 		{
@@ -260,6 +264,7 @@ static bool update_command(Command *command)
 			{
 				oldCharactersSprites[position]->opacity = 1.0f;
 			}
+			return false;
 		} else {
 			if (charactersSprites[position]->opacity >= 1.0f)
 			{
@@ -270,16 +275,15 @@ static bool update_command(Command *command)
 				}
 				oldCharactersSprites[position]->animations = NULL;
 				appearingCharacter = false;
-				return true;
 			} else {
 				if (oldCharactersSprites[position]->animations)
 				{
 					oldCharactersSprites[position]->opacity -= deltaTime * 2;
 				}
 				charactersSprites[position]->opacity += deltaTime * 2;
+				return false;
 			}
 		}
-		return false;
 	} else if (command->type == COMMAND_CLEAR_CHARACTER_POSITION) {
 		int position = (int)command->arguments[0]->numeric;
 		if (charactersSprites[position]->opacity > 0.0f)
@@ -325,19 +329,23 @@ static bool update_command(Command *command)
 			}
 		}
 	} else if (command->type == COMMAND_ASSIGN) {
+		bool foundVariable = false;
 		for (unsigned int i = 0; i < buf_len(variablesNames); i++)
 		{
 			if (strmatch(command->arguments[0]->string, variablesNames[i]))
 			{
 				free_variable(variablesValues[i]);
 				variablesValues[i] = resolve_logic_expression(command->arguments[1]->logicExpression);
-				return true;
+				foundVariable = true;
 			}
 		}
-		char *variableName = NULL;
-		variableName = strcopy(variableName, command->arguments[0]->string);
-		buf_add(variablesNames, variableName);
-		buf_add(variablesValues, resolve_logic_expression(command->arguments[1]->logicExpression));
+		if (!foundVariable)
+		{
+			char *variableName = NULL;
+			variableName = strcopy(variableName, command->arguments[0]->string);
+			buf_add(variablesNames, variableName);
+			buf_add(variablesValues, resolve_logic_expression(command->arguments[1]->logicExpression));
+		}
 	} else if (command->type == COMMAND_GO_TO) {
 		for (int i = 0; buf_len(interpretingDialog->knots); i++)
 		{
@@ -350,6 +358,40 @@ static bool update_command(Command *command)
 		}
 	} else if (command->type == COMMAND_HIDE_UI) {
 		displayDialogUI = false;
+	} else if (command->type == COMMAND_WAIT) {
+		if (waitTimer == 0.0f)
+		{
+			waitTimer = command->arguments[0]->numeric;
+		}
+		waitTimer -= deltaTime * 1000;
+		if (waitTimer <= 0.0f)
+		{
+			waitTimer = 0.0f;
+		} else {
+			return false;
+		}
+	} else if (command->type == COMMAND_SET_WINDOW_NAME) {
+		set_window_name(command->arguments[0]->string);
+		return true;
+	} else if (command->type == COMMAND_SET_NAME_COLOR) {
+		bool foundColoredName = false;
+		for (unsigned int i = 0; i < buf_len(interpretingDialog->coloredNames); i++)
+		{
+			if (strmatch(command->arguments[0]->string, interpretingDialog->coloredNames[i]))
+			{
+				interpretingDialog->namesColors[i].x = command->arguments[1]->numeric;
+				interpretingDialog->namesColors[i].y = command->arguments[2]->numeric;
+				interpretingDialog->namesColors[i].z = command->arguments[3]->numeric;
+				foundColoredName = true;
+				break;
+			}
+		}
+		if (!foundColoredName)
+		{
+			buf_add(interpretingDialog->coloredNames, command->arguments[0]->string);
+			vec3 newNameColor = {.x = command->arguments[1]->numeric, .y = command->arguments[2]->numeric, .z = command->arguments[3]->numeric};
+			buf_add(interpretingDialog->namesColors, newNameColor);
+		}
 	} else {
 		error("unknown command type %d", command->type);
 	}
@@ -595,6 +637,18 @@ static bool update_cue(Cue *cue)
 					}
 				}
 				set_string_to_text(currentSpeaker, cue->characterName);
+				vec3 nameColor = {.x = -1.0f};
+				for (unsigned int i = 0; i < buf_len(interpretingDialog->coloredNames); i++)
+				{
+					if (strmatch(cue->characterName, interpretingDialog->coloredNames[i]))
+					{
+						nameColor = interpretingDialog->namesColors[i];
+					}
+				}
+				if (nameColor.x != -1.0f)
+				{
+					currentSpeaker->color = nameColor;
+				}
 				ivec2 currentSpeakerPosition;
 				if (cue->characterNamePosition == 1)
 				{
@@ -628,6 +682,9 @@ static bool update_cue(Cue *cue)
 			cue->currentExpression = 0;
 			displayedSpeakerName = false;
 			set_string_to_text(currentSpeaker, NULL);
+			currentSpeaker->color.x = 1.0f;
+			currentSpeaker->color.y = 1.0f;
+			currentSpeaker->color.z = 1.0f;
 			return true;
 		}
 
@@ -639,6 +696,9 @@ static bool update_cue(Cue *cue)
 				cue->currentExpression = 0;
 				displayedSpeakerName = false;
 				set_string_to_text(currentSpeaker, NULL);
+				currentSpeaker->color.x = 1.0f;
+				currentSpeaker->color.y = 1.0f;
+				currentSpeaker->color.z = 1.0f;
 				return true;
 			}
 		}
@@ -683,6 +743,9 @@ static bool update_cue(Cue *cue)
 			currentChoice = 0;
 			displayedSpeakerName = false;
 			set_string_to_text(currentSpeaker, NULL);
+			currentSpeaker->color.x = 1.0f;
+			currentSpeaker->color.y = 1.0f;
+			currentSpeaker->color.z = 1.0f;
 			return true;
 		}
 	}
