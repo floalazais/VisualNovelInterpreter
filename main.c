@@ -61,7 +61,11 @@ int main(int argc, char** argv)
 
 	interpretingDialog = create_dialog(interpretingDialogName, tokens);
 
-	int sound = play_sound("Musics/14 Imaginary.mp3");
+	Sound *sound = create_sound("Musics/14 Imaginary.mp3");
+	Sound *sound2 = create_sound("Musics/07 Foreboding.mp3");
+	sound2->volume = 0.0f;
+
+	bool fading = false;
 
 	init_window_clock();
 
@@ -91,10 +95,31 @@ int main(int argc, char** argv)
 		{
 			buf_free(nextDialogName);
 			nextDialogName = interpretingDialogName;
+		} else if (is_input_key_pressed(INPUT_KEY_P)) {
+			sound->playing = !sound->playing;
 		} else if (is_input_key_pressed(INPUT_KEY_A)) {
-			pause_sound(sound);
+			sound->volume -= 0.1f;
 		} else if (is_input_key_pressed(INPUT_KEY_E)) {
-			resume_sound(sound);
+			sound->volume += 0.1f;
+		} else if (is_input_key_pressed(INPUT_KEY_F)) {
+			fading = true;
+		}
+		printf("%f\n", sound->volume);
+		fflush(stdout);
+
+		if (fading)
+		{
+			if (sound->volume > 0.0f)
+			{
+				sound->volume -= 0.01f;
+				sound2->volume += 0.01f;
+				sound2->playing = true;
+			}
+			if (sound->volume < 0.0f)
+			{
+				sound->volume = 0.0f;
+				sound->playing = false;
+			}
 		}
 
 		if (nextDialogName)
@@ -111,6 +136,7 @@ int main(int argc, char** argv)
 			}
 			nextDialogName = NULL;
 			dialogChanged = true;
+			reset_sound(sound);
 		}
 		if (!interpret_current_dialog())
 		{
@@ -122,7 +148,7 @@ int main(int argc, char** argv)
 
 		draw_all();
 
-		display_window();
+		swap_window_buffers();
 	}
 	free_dialog(interpretingDialog);
 	free_dialog_ui();
@@ -146,6 +172,8 @@ int main(int argc, char** argv)
 	buf_free(interpretingDialogName);
 	buf_free(nextDialogName);
 	free_graphics();
+
+	free_audio();
 
 	print_leaks();
 

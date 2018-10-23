@@ -54,6 +54,18 @@ NO_RETURN void error(char *format, ...)
 	exit(EXIT_FAILURE);
 }
 
+void warning(char *format, ...)
+{
+	char buffer[1024] = "WARNING : ";
+	va_list arguments;
+	va_start(arguments, format);
+    vsprintf(buffer + 8, format, arguments);
+	va_end(arguments);
+	strcat(buffer, "\n");
+	MessageBoxA(window, buffer, "Visual Novel Interpreter Warning MessageBox", MB_ICONWARNING);
+	exit(EXIT_FAILURE);
+}
+
 static void is_input_key_supported(InputKey inputKey)
 {
 	if (inputKey < 0 || inputKey > INPUT_KEY_COUNT)
@@ -104,7 +116,8 @@ static LRESULT WINAPI WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 {
 	if (message == WM_CLOSE)
 	{
-		return DefWindowProc(hwnd, message, wParam, lParam);
+		DestroyWindow(hwnd);
+		return 0;
 	} else if (message == WM_DESTROY) {
 		PostQuitMessage(0);
 	} else if (message == WM_KEYUP || message == WM_KEYDOWN) {
@@ -264,7 +277,7 @@ void init_window()
 		error("could not register window class.");
 	}
 
-	window = CreateWindowEx(0, windowClass.lpszClassName, NULL, (WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME) | WS_VISIBLE | WS_POPUP, 0, 0, windowDimensions.x, windowDimensions.y, NULL, NULL, hInstance, NULL);
+	window = CreateWindowEx(0, windowClass.lpszClassName, NULL, ((WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME) & ~WS_MAXIMIZEBOX) | WS_VISIBLE | WS_POPUP, 0, 0, windowDimensions.x, windowDimensions.y, NULL, NULL, hInstance, NULL);
 	if (!window)
 	{
 		error("could not create window.");
@@ -401,6 +414,7 @@ void init_window_clock()
 }
 
 static MSG msg;
+bool isWindowActive;
 
 bool update_window()
 {
@@ -422,10 +436,17 @@ bool update_window()
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
+	isWindowActive = (GetActiveWindow() == window);
+
 	return true;
 }
 
-void display_window()
+bool is_window_active()
+{
+	return GetActiveWindow() == window;
+}
+
+void swap_window_buffers()
 {
 	wglSwapLayerBuffers(deviceContext, WGL_SWAP_MAIN_PLANE);
 }

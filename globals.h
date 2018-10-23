@@ -1,6 +1,7 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
 
+extern bool isWindowActive;
 extern ivec2 windowDimensions;
 extern mat4 projection;
 extern float deltaTime;

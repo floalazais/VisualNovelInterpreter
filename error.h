@@ -11,5 +11,6 @@
 #endif
 
 NO_RETURN void error(char *string, ...);
+void warning(char *string, ...);
 
 #endif /* end of include guard: ERROR_H */

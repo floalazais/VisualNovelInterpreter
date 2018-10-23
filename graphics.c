@@ -28,12 +28,6 @@ static Sprite **backgroundSprites;
 static Sprite **middlegroundSprites;
 static Sprite **foregroundSprites;
 static Sprite **UISprites;
-/*
-static Sprite *backgroundSprites[1024];
-static Sprite *middlegroundSprites[1024];
-static Sprite *foregroundSprites[1024];
-static Sprite *UISprites[512];
-*/
 
 static char **texturesPaths;
 static unsigned int *texturesIds;
