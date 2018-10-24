@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include "audio.h"
 #include "stroperation.h"
 #include "xalloc.h"
 #include "stretchy_buffer.h"

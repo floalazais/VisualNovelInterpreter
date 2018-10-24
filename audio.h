@@ -1,22 +1,27 @@
 #ifndef AUDIO_H
 #define AUDIO_H
 
-typedef struct mal_device mal_device;
-typedef struct mal_decoder mal_decoder;
+typedef enum SoundType
+{
+	SOUND_SOUND,
+	SOUND_MUSIC
+} SoundType;
 
 typedef struct Sound
 {
-	int id;
-	mal_decoder *decoder;
-	mal_device *device;
+	SoundType soundType;
+	void *decoder;
+	void *device;
 	float volume;
 	bool playing;
+	bool stopping;
 } Sound;
 
-Sound *create_sound(char *fileName);
+Sound create_sound(SoundType soundType, char *fileName);
 void reset_sound(Sound *sound);
 void stop_sound(Sound *sound);
-void free_sound(Sound *sound);
-void free_audio();
+
+extern float soundVolume;
+extern float musicVolume;
 
 #endif /* end of include guard: AUDIO_H */

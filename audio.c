@@ -20,11 +20,12 @@
 #include "dialog.h"
 #include "globals.h"
 
-Sound **sounds = NULL;
+float soundVolume = 1.0f;
+float musicVolume = 1.0f;
 
 static mal_uint32 update_sound(mal_device* device, mal_uint32 frameCount, void* samples)
 {
-	Sound *sound = (Sound *)device->pUserData;
+	Sound *sound = (Sound *)&(device->pUserData);
 
 	if (!sound->playing)
 	{
@@ -40,25 +41,31 @@ static mal_uint32 update_sound(mal_device* device, mal_uint32 frameCount, void* 
 
 	if (nbFramesRead == 0)
 	{
-		sound->playing = false;
-		mal_decoder_seek_to_frame(sound->decoder, 0);
+		reset_sound(sound);
 	}
 
 	if (isWindowActive)
 	{
 		for (unsigned int frame = 0; frame < nbFramesRead; frame++)
 		{
-			for (unsigned int channel = 0; channel < sound->decoder->outputChannels; channel++)
+			for (unsigned int channel = 0; channel < sound->decoder.outputChannels; channel++)
 			{
-				((float *)samples)[sound->decoder->outputChannels * frame + channel] *= sound->volume;
+				if (sound->soundType == SOUND_SOUND)
+				{
+					((float *)samples)[sound->decoder.outputChannels * frame + channel] *= sound->volume * soundVolume;
+				} else if (sound->soundType == SOUND_MUSIC) {
+					((float *)samples)[sound->decoder.outputChannels * frame + channel] *= sound->volume * musicVolume;
+				} else {
+					error("unknown sound type %d.", sound->soundType);
+				}
 			}
 		}
 	} else {
 		for (unsigned int frame = 0; frame < nbFramesRead; frame++)
 		{
-			for (unsigned int channel = 0; channel < sound->decoder->outputChannels; channel++)
+			for (unsigned int channel = 0; channel < sound->decoder.outputChannels; channel++)
 			{
-				((float *)samples)[sound->decoder->outputChannels * frame + channel] = 0;
+				((float *)samples)[sound->decoder.outputChannels * frame + channel] = 0;
 			}
 		}
 	}
@@ -66,11 +73,12 @@ static mal_uint32 update_sound(mal_device* device, mal_uint32 frameCount, void* 
 	return nbFramesRead;
 }
 
-Sound *create_sound(char *fileName)
+Sound create_sound(SoundType soundType, char *fileName)
 {
 	Sound *sound = xmalloc(sizeof (*sound));
-	sound->id = buf_len(sounds);
+	sound->soundType = soundType;
 	sound->playing = false;
+	sound->stopping = false;
 	sound->volume = 1.0f;
 
 	sound->decoder = xmalloc(sizeof (*sound->decoder));
@@ -80,7 +88,7 @@ Sound *create_sound(char *fileName)
         error("could not decode %s.", fileName);
     }
 
-    mal_device_config config = mal_device_config_init_playback(sound->decoder->outputFormat, sound->decoder->outputChannels, sound->decoder->outputSampleRate, update_sound);
+    mal_device_config config = mal_device_config_init_playback(sound->decoder.outputFormat, sound->decoder.outputChannels, sound->decoder.outputSampleRate, update_sound);
 
 	sound->device = xmalloc(sizeof (*sound->device));
     if (mal_device_init(NULL, mal_device_type_playback, NULL, &config, sound, sound->device) != MAL_SUCCESS)
@@ -96,43 +104,16 @@ Sound *create_sound(char *fileName)
         error("Failed to start playback device.");
     }
 
-	buf_add(sounds, sound);
 	return sound;
 }
 
 void reset_sound(Sound *sound)
 {
+	sound->playing = false;
 	mal_decoder_seek_to_frame(sound->decoder, 0);
 }
 
 void stop_sound(Sound *sound)
 {
-    mal_decoder_uninit(sound->decoder);
-	mal_device_uninit(sound->device);
-
-	free_sound(sound);
-}
-
-void free_sound(Sound *sound)
-{
-	xfree(sound->device);
-    xfree(sound->decoder);
-
-	int soundId = sound->id;
-
-	xfree(sound);
-
-	sounds[soundId] = NULL;
-}
-
-void free_audio()
-{
-	for (unsigned int i = 0; i < buf_len(sounds); i++)
-	{
-		if (sounds[i])
-		{
-			stop_sound(sounds[i]);
-		}
-	}
-	buf_free(sounds);
+    sound->stopping = true;
 }

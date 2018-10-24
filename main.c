@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#include "sound_manager.h"
+#include "audio.h"
 #include "window.h"
 #include "maths.h"
 #include "user_input.h"
@@ -40,7 +40,7 @@ int main(int argc, char** argv)
 	init_graphics();
 
 	fpsDisplayText = create_text();
-	set_font_to_text(fpsDisplayText, "Fonts/arial.ttf", TEXT_SIZE_SMALL);
+	set_font_to_text(fpsDisplayText, "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_SMALL);
 	vec3 green = {0.0f, 1.0f, 0.0f};
 	fpsDisplayText->color = green;
 	fpsDisplayString = xmalloc(sizeof(char) * 8);
@@ -60,12 +60,6 @@ int main(int argc, char** argv)
 	}*/
 
 	interpretingDialog = create_dialog(interpretingDialogName, tokens);
-
-	Sound *sound = create_sound("Musics/14 Imaginary.mp3");
-	Sound *sound2 = create_sound("Musics/07 Foreboding.mp3");
-	sound2->volume = 0.0f;
-
-	bool fading = false;
 
 	init_window_clock();
 
@@ -95,31 +89,6 @@ int main(int argc, char** argv)
 		{
 			buf_free(nextDialogName);
 			nextDialogName = interpretingDialogName;
-		} else if (is_input_key_pressed(INPUT_KEY_P)) {
-			sound->playing = !sound->playing;
-		} else if (is_input_key_pressed(INPUT_KEY_A)) {
-			sound->volume -= 0.1f;
-		} else if (is_input_key_pressed(INPUT_KEY_E)) {
-			sound->volume += 0.1f;
-		} else if (is_input_key_pressed(INPUT_KEY_F)) {
-			fading = true;
-		}
-		printf("%f\n", sound->volume);
-		fflush(stdout);
-
-		if (fading)
-		{
-			if (sound->volume > 0.0f)
-			{
-				sound->volume -= 0.01f;
-				sound2->volume += 0.01f;
-				sound2->playing = true;
-			}
-			if (sound->volume < 0.0f)
-			{
-				sound->volume = 0.0f;
-				sound->playing = false;
-			}
 		}
 
 		if (nextDialogName)
@@ -136,7 +105,6 @@ int main(int argc, char** argv)
 			}
 			nextDialogName = NULL;
 			dialogChanged = true;
-			reset_sound(sound);
 		}
 		if (!interpret_current_dialog())
 		{
@@ -172,8 +140,6 @@ int main(int argc, char** argv)
 	buf_free(interpretingDialogName);
 	buf_free(nextDialogName);
 	free_graphics();
-
-	free_audio();
 
 	print_leaks();
 

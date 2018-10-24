@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "audio.h"
 #include "stb_truetype.h"
 #include "stb_image.h"
 #include "maths.h"

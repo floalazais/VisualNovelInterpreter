@@ -80,6 +80,14 @@ typedef enum CommandType
     COMMAND_CLEAR_CHARACTER_POSITION,
     COMMAND_CLEAR_CHARACTER_POSITIONS,
 
+	COMMAND_PLAY_MUSIC,
+	COMMAND_STOP_MUSIC,
+	COMMAND_SET_MUSIC_VOLUME,
+
+	COMMAND_PLAY_SOUND,
+	COMMAND_STOP_SOUND,
+	COMMAND_SET_SOUND_VOLUME,
+
     COMMAND_END,
 
     COMMAND_ASSIGN,
@@ -88,7 +96,7 @@ typedef enum CommandType
 
 	COMMAND_HIDE_UI,
 
-	COMMAND_WAIT, 
+	COMMAND_WAIT,
 
 	COMMAND_SET_WINDOW_NAME,
 
@@ -213,6 +221,10 @@ typedef struct Dialog
     Animation ***charactersAnimations;
 	char **coloredNames;
 	vec3 *namesColors;
+	char **soundsNames;
+	Sound **sounds;
+	char **musicsNames;
+	Sound **musics;
     Knot **knots;
     int currentKnot;
 	bool end;

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "audio.h"
 #include "maths.h"
 #include "token.h"
 #include "stroperation.h"
@@ -661,6 +662,57 @@ static void add_to_character_list(char *characterName)
 	}
 }
 
+static void add_to_sound_list(char *soundName)
+{
+	bool foundSound = false;
+	for (unsigned int index = 0; index < buf_len(currentDialog->soundsNames); index++)
+	{
+		if (strmatch(soundName, currentDialog->soundsNames[index]))
+		{
+			foundSound = true;
+			break;
+		}
+	}
+	if (!foundSound)
+	{
+		char *newSoundName = NULL;
+		newSoundName = strcopy(newSoundName, soundName);
+		buf_add(currentDialog->soundsNames, newSoundName);
+		char *soundFilePath = NULL;
+		soundFilePath = strcopy(soundFilePath, "Sound files/");
+		soundFilePath = strappend(soundFilePath, soundName);
+		soundFilePath = strappend(soundFilePath, ".snd");
+		buf_add(currentDialog->sounds, create_sound(SOUND_SOUND, soundFilePath));
+		buf_free(soundFilePath);
+	}
+}
+
+static void add_to_music_list(char *musicName)
+{
+	bool foundMusic = false;
+	for (unsigned int index = 0; index < buf_len(currentDialog->musicsNames); index++)
+	{
+		if (strmatch(musicName, currentDialog->musicsNames[index]))
+		{
+			foundMusic = true;
+			break;
+		}
+	}
+	if (!foundMusic)
+	{
+		char *newSoundName = NULL;
+		newSoundName = strcopy(newSoundName, musicName);
+		buf_add(currentDialog->musicsNames, newSoundName);
+		char *musicFilePath = NULL;
+		//musicFilePath = strcopy(musicFilePath, "Sound files/");
+		musicFilePath = strcopy(musicFilePath, "Musics/");
+		musicFilePath = strappend(musicFilePath, musicName);
+		//musicFilePath = strappend(musicFilePath, ".snd");
+		buf_add(currentDialog->musics, create_sound(SOUND_MUSIC, musicFilePath));
+		buf_free(musicFilePath);
+	}
+}
+
 static int nbArguments[] =
 {
     [COMMAND_SET_BACKGROUND] = 2,
@@ -669,6 +721,14 @@ static int nbArguments[] =
     [COMMAND_SET_CHARACTER] = 3,
     [COMMAND_CLEAR_CHARACTER_POSITION] = 1,
     [COMMAND_CLEAR_CHARACTER_POSITIONS] = 0,
+
+	[COMMAND_PLAY_MUSIC] = 1,
+	[COMMAND_STOP_MUSIC] = 0,
+	[COMMAND_SET_MUSIC_VOLUME] = 1,
+
+	[COMMAND_PLAY_SOUND] = 1,
+	[COMMAND_STOP_SOUND] = 0,
+	[COMMAND_SET_SOUND_VOLUME] = 1,
 
     [COMMAND_END] = 2,
 
@@ -757,6 +817,60 @@ static Command *parse_command()
 		step_in_tokens();
 		command->type = COMMAND_CLEAR_CHARACTER_POSITIONS;
 		command->arguments = NULL;
+	} else if (strmatch(tokens[currentToken]->string, "PLAY_MUSIC")) {
+		step_in_tokens();
+		command->type = COMMAND_PLAY_MUSIC;
+		command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
+		for (int i = 0; i < nbArguments[COMMAND_PLAY_MUSIC]; i++)
+		{
+			command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
+		}
+		command->arguments[0]->type = PARAMETER_STRING;
+		command->arguments[0]->string = NULL;
+		command->arguments[0]->string = strcopy(command->arguments[0]->string, tokens[currentToken]->string);
+		step_in_tokens();
+		add_to_music_list(command->arguments[0]->string);
+	} else if (strmatch(tokens[currentToken]->string, "STOP_MUSIC")) {
+		step_in_tokens();
+		command->type = COMMAND_STOP_MUSIC;
+		command->arguments = NULL;
+	} else if (strmatch(tokens[currentToken]->string, "SET_MUSIC_VOLUME")) {
+		step_in_tokens();
+		command->type = COMMAND_SET_MUSIC_VOLUME;
+		command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
+		for (int i = 0; i < nbArguments[COMMAND_SET_MUSIC_VOLUME]; i++)
+		{
+			command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
+		}
+		command->arguments[0]->type = PARAMETER_NUMERIC;
+		command->arguments[0]->numeric = tokens[currentToken]->numeric;
+	} else if (strmatch(tokens[currentToken]->string, "PLAY_SOUND")) {
+		step_in_tokens();
+		command->type = COMMAND_PLAY_SOUND;
+		command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
+		for (int i = 0; i < nbArguments[COMMAND_PLAY_SOUND]; i++)
+		{
+			command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
+		}
+		command->arguments[0]->type = PARAMETER_STRING;
+		command->arguments[0]->string = NULL;
+		command->arguments[0]->string = strcopy(command->arguments[0]->string, tokens[currentToken]->string);
+		step_in_tokens();
+		add_to_sound_list(command->arguments[0]->string);
+	} else if (strmatch(tokens[currentToken]->string, "STOP_SOUND")) {
+		step_in_tokens();
+		command->type = COMMAND_STOP_SOUND;
+		command->arguments = NULL;
+	} else if (strmatch(tokens[currentToken]->string, "SET_SOUND_VOLUME")) {
+		step_in_tokens();
+		command->type = COMMAND_SET_SOUND_VOLUME;
+		command->arguments = xmalloc(sizeof (*command->arguments) * nbArguments[command->type]);
+		for (int i = 0; i < nbArguments[COMMAND_SET_SOUND_VOLUME]; i++)
+		{
+			command->arguments[i] = xmalloc(sizeof (*command->arguments[i]));
+		}
+		command->arguments[0]->type = PARAMETER_NUMERIC;
+		command->arguments[0]->numeric = tokens[currentToken]->numeric;
 	} else if (strmatch(tokens[currentToken]->string, "END")) {
 		step_in_tokens();
 		command->type = COMMAND_END;
@@ -1252,6 +1366,12 @@ Dialog *create_dialog(char *_filePath, Token **_tokens)
 	dialog->namesColors = NULL;
 	dialog->coloredNames = NULL;
 
+	dialog->soundsNames = NULL;
+	dialog->sounds = NULL;
+
+	dialog->musicsNames = NULL;
+	dialog->musics = NULL;
+
 	dialog->knots = NULL;
     while (tokens[currentToken]->type != TOKEN_END_OF_FILE)
     {
@@ -1458,6 +1578,26 @@ void free_dialog(Dialog *dialog)
 		buf_free(dialog->coloredNames[index]);
 	}
 	buf_free(dialog->coloredNames);
+	for (unsigned int index = 0; index < buf_len(dialog->sounds); index++)
+    {
+		stop_sound(dialog->sounds[index]);
+	}
+	buf_free(dialog->sounds);
+	for (unsigned int index = 0; index < buf_len(dialog->soundsNames); index++)
+    {
+		buf_free(dialog->soundsNames[index]);
+	}
+	buf_free(dialog->soundsNames);
+	for (unsigned int index = 0; index < buf_len(dialog->musics); index++)
+    {
+		stop_sound(dialog->musics[index]);
+	}
+	buf_free(dialog->musics);
+	for (unsigned int index = 0; index < buf_len(dialog->musicsNames); index++)
+    {
+		buf_free(dialog->musicsNames[index]);
+	}
+	buf_free(dialog->musicsNames);
 	for (unsigned int index = 0; index < buf_len(dialog->knots); index++)
     {
 		free_knot(dialog->knots[index]);
