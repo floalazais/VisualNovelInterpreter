@@ -1,119 +1,93 @@
-#define DR_MP3_IMPLEMENTATION
-#define DR_WAV_IMPLEMENTATION
-#define MINI_AL_IMPLEMENTATION
-
-#include <stdio.h>
+#include <stdlib.h>
+#include <stddef.h>
 #include <stdbool.h>
-#include <wchar.h>
 
-#include "dr_mp3.h"
-#include "dr_wav.h"
-#include "mini_al.h"
-#include "error.h"
-#include "xalloc.h"
+#include "soloud_c.h"
 #include "stretchy_buffer.h"
+#include "xalloc.h"
+#include "stroperation.h"
 #include "audio.h"
-#include "maths.h"
-#include "token.h"
-#include "graphics.h"
-#include "variable.h"
-#include "dialog.h"
-#include "globals.h"
 
-float soundVolume = 1.0f;
-float musicVolume = 1.0f;
+static Soloud *soloud;
 
-static mal_uint32 update_sound(mal_device* device, mal_uint32 frameCount, void* samples)
+static void **soundSources;
+static char **soundSourcesPaths;
+
+float soundVolume;
+float musicVolume;
+
+void init_audio()
 {
-	Sound *sound = (Sound *)&(device->pUserData);
+	soloud = Soloud_create();
+	Soloud_initEx(soloud, SOLOUD_CLIP_ROUNDOFF, SOLOUD_AUTO, SOLOUD_AUTO, SOLOUD_AUTO, SOLOUD_AUTO);
+	Soloud_setGlobalVolume(soloud, 0.1f);
 
-	if (!sound->playing)
+	soundSources = NULL;
+	soundSourcesPaths = NULL;
+
+	soundVolume = 1.0f;
+	musicVolume = 1.0f;
+}
+
+void free_audio()
+{
+	for (unsigned int i = 0; i < buf_len(soundSourcesPaths); i++)
 	{
-		return 0;
+		buf_free(soundSourcesPaths[i]);
 	}
+	buf_free(soundSourcesPaths);
 
-    if (!sound->decoder)
+	for (unsigned int i = 0; i < buf_len(soundSources); i++)
 	{
-        return 0;
-    }
-
-    mal_uint32 nbFramesRead = (mal_uint32)mal_decoder_read(sound->decoder, frameCount, samples);
-
-	if (nbFramesRead == 0)
-	{
-		reset_sound(sound);
+		Wav_destroy(soundSources[i]);
 	}
+	buf_free(soundSources);
 
-	if (isWindowActive)
+	Soloud_deinit(soloud);
+	Soloud_destroy(soloud);
+}
+
+int create_sound(char *fileName)
+{
+	for (unsigned int i = 0; i < buf_len(soundSourcesPaths); i++)
 	{
-		for (unsigned int frame = 0; frame < nbFramesRead; frame++)
+		if (strmatch(soundSourcesPaths[i], fileName))
 		{
-			for (unsigned int channel = 0; channel < sound->decoder.outputChannels; channel++)
-			{
-				if (sound->soundType == SOUND_SOUND)
-				{
-					((float *)samples)[sound->decoder.outputChannels * frame + channel] *= sound->volume * soundVolume;
-				} else if (sound->soundType == SOUND_MUSIC) {
-					((float *)samples)[sound->decoder.outputChannels * frame + channel] *= sound->volume * musicVolume;
-				} else {
-					error("unknown sound type %d.", sound->soundType);
-				}
-			}
-		}
-	} else {
-		for (unsigned int frame = 0; frame < nbFramesRead; frame++)
-		{
-			for (unsigned int channel = 0; channel < sound->decoder.outputChannels; channel++)
-			{
-				((float *)samples)[sound->decoder.outputChannels * frame + channel] = 0;
-			}
+			return Soloud_playEx(soloud, soundSources[i], 1.0f, 0.0f, true, 0);
 		}
 	}
+	void *soundSource = Wav_create();
+	Wav_load(soundSource, fileName);
+	buf_add(soundSources, soundSource);
+	char *soundSourcePath = NULL;
+	soundSourcePath = strcopy(soundSourcePath, fileName);
+	buf_add(soundSourcesPaths, soundSourcePath);
 
-	return nbFramesRead;
+	return Soloud_playEx(soloud, soundSource, 1.0f, 0.0f, true, 0);
 }
 
-Sound create_sound(SoundType soundType, char *fileName)
+void set_sound_play_state(int soundHandle, bool playState)
 {
-	Sound *sound = xmalloc(sizeof (*sound));
-	sound->soundType = soundType;
-	sound->playing = false;
-	sound->stopping = false;
-	sound->volume = 1.0f;
-
-	sound->decoder = xmalloc(sizeof (*sound->decoder));
-    mal_result result = mal_decoder_init_file(fileName, NULL, sound->decoder);
-    if (result != MAL_SUCCESS)
-	{
-        error("could not decode %s.", fileName);
-    }
-
-    mal_device_config config = mal_device_config_init_playback(sound->decoder.outputFormat, sound->decoder.outputChannels, sound->decoder.outputSampleRate, update_sound);
-
-	sound->device = xmalloc(sizeof (*sound->device));
-    if (mal_device_init(NULL, mal_device_type_playback, NULL, &config, sound, sound->device) != MAL_SUCCESS)
-	{
-		mal_decoder_uninit(sound->decoder);
-        error("Failed to open playback device.");
-    }
-
-    if (mal_device_start(sound->device) != MAL_SUCCESS)
-	{
-        mal_device_uninit(sound->device);
-        mal_decoder_uninit(sound->decoder);
-        error("Failed to start playback device.");
-    }
-
-	return sound;
+	Soloud_setPause(soloud, soundHandle, !playState);
 }
 
-void reset_sound(Sound *sound)
+float get_sound_volume(int soundHandle)
 {
-	sound->playing = false;
-	mal_decoder_seek_to_frame(sound->decoder, 0);
+	return Soloud_getVolume(soloud, soundHandle);
 }
 
-void stop_sound(Sound *sound)
+void set_sound_volume(int soundHandle, float volume)
 {
-    sound->stopping = true;
+	Soloud_setVolume(soloud, soundHandle, volume);
+}
+
+void reset_sound(int soundHandle)
+{
+	Soloud_setPause(soloud, soundHandle, true);
+	Soloud_seek(soloud, soundHandle, 0.0f);
+}
+
+void stop_sound(int soundHandle)
+{
+	Soloud_stop(soloud, soundHandle);
 }

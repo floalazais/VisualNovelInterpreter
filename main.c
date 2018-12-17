@@ -6,8 +6,8 @@
 #include "audio.h"
 #include "window.h"
 #include "maths.h"
+#include "globals.h"
 #include "user_input.h"
-#include "error.h"
 #include "stretchy_buffer.h"
 #include "xalloc.h"
 #include "stroperation.h"
@@ -17,7 +17,7 @@
 #include "graphics.h"
 #include "variable.h"
 #include "dialog.h"
-#include "globals.h"
+#include "globals_dialog.h"
 
 char *nextDialogName = NULL;
 Dialog *interpretingDialog = NULL;
@@ -39,8 +39,10 @@ int main(int argc, char** argv)
 
 	init_graphics();
 
+	init_audio();
+
 	fpsDisplayText = create_text();
-	set_font_to_text(fpsDisplayText, "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_SMALL);
+	set_text_font(fpsDisplayText, "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_SMALL);
 	vec3 green = {0.0f, 1.0f, 0.0f};
 	fpsDisplayText->color = green;
 	fpsDisplayString = xmalloc(sizeof(char) * 8);
@@ -80,7 +82,7 @@ int main(int argc, char** argv)
 				fpsNumber = 999;
 			}
 			sprintf(fpsDisplayString, "%d FPS", fpsNumber);
-			set_string_to_text(fpsDisplayText, fpsDisplayString);
+			set_text_string(fpsDisplayText, fpsDisplayString);
 			fpsDisplayBox->width = fpsDisplayText->width + 2;
 			fpsNumber = 0;
 		}
@@ -140,6 +142,8 @@ int main(int argc, char** argv)
 	buf_free(interpretingDialogName);
 	buf_free(nextDialogName);
 	free_graphics();
+
+	free_audio();
 
 	print_leaks();
 

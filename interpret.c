@@ -18,6 +18,7 @@
 #include "variable.h"
 #include "dialog.h"
 #include "interpret.h"
+#include "globals_dialog.h"
 #include "globals.h"
 
 static char *charactersNames[7];
@@ -48,10 +49,10 @@ static bool sentenceFirstUpdate;
 static float timeDuringCurrentChar;
 static float waitTimer;
 static char *nextDialogStartKnotName;
-static Sound *music;
-static Sound *oldMusic;
-static Sound *sound;
-static Sound *oldSound;
+static int music;
+static int oldMusic;
+static int sound;
+static int oldSound;
 static bool fadingMusic;
 static bool fadingSound;
 
@@ -63,14 +64,14 @@ void init_dialog_ui()
 	vec3 white = {.x = 1.0f, .y = 1.0f, .z = 1.0f};
 
 	currentSentence = create_text();
-	set_font_to_text(currentSentence, "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_NORMAL);
-	set_width_limit_to_text(currentSentence, (int)(0.97f * windowDimensions.x));
+	set_text_font(currentSentence, "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_NORMAL);
+	set_text_width_limit(currentSentence, (int)(0.97f * windowDimensions.x));
 	currentSentence->position.x = (int)(0.015f * windowDimensions.x);
 	currentSentence->position.y = (int)(0.8f * windowDimensions.y + 2);
 	currentSentence->color = white;
 
 	currentSpeaker = create_text();
-	set_font_to_text(currentSpeaker, "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_BIG);
+	set_text_font(currentSpeaker, "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_BIG);
 	currentSpeaker->color = white;
 
 	sentenceBox = create_sprite(SPRITE_COLOR);
@@ -330,7 +331,7 @@ static bool update_command(Command *command)
 			{
 				if (strmatch(command->arguments[0]->string, interpretingDialog->musicsNames[i]))
 				{
-					if (music)
+					if (music != -1)
 					{
 						oldMusic = music;
 					}
@@ -344,39 +345,30 @@ static bool update_command(Command *command)
 				error("music %s does not exist.", command->arguments[1]->string);
 			}
 			fadingMusic = true;
-			music->volume = 0.0f;
-			music->playing = true;
-			if (oldMusic)
-			{
-				oldMusic->volume = 1.0f;
-				oldMusic->playing = true;
-			}
+			set_sound_volume(music, 0.0f);
+			set_sound_play_state(music, true);
 			return false;
 		} else {
-			if (music->volume >= 1.0f)
+			if (get_sound_volume(music) >= 1.0f)
 			{
-				music->volume = 1.0f;
-				if (oldMusic)
+				set_sound_volume(music, 1.0f);
+				if (oldMusic != -1)
 				{
-					oldMusic->volume = 1.0f;
+					set_sound_volume(oldMusic, 1.0f);
 					reset_sound(oldMusic);
 				}
 				fadingMusic = false;
 			} else {
-				if (oldMusic)
+				if (oldMusic != -1)
 				{
-					oldMusic->volume -= deltaTime * 1.0f;
+					set_sound_volume(oldMusic, get_sound_volume(oldMusic) - deltaTime * 1.0f);
 				}
-				music->volume += deltaTime * 1.0f;
+				set_sound_volume(music, get_sound_volume(music) + deltaTime * 1.0f);
 				return false;
 			}
 		}
 	} else if (command->type == COMMAND_STOP_MUSIC) {
-		if (music)
-		{
-			stop_sound(music);
-			music = NULL;
-		}
+		music = -1;
 	} else if (command->type == COMMAND_SET_MUSIC_VOLUME) {
 		musicVolume = command->arguments[0]->numeric;
 	} else if (command->type == COMMAND_PLAY_SOUND) {
@@ -387,7 +379,7 @@ static bool update_command(Command *command)
 			{
 				if (strmatch(command->arguments[0]->string, interpretingDialog->soundsNames[i]))
 				{
-					if (sound)
+					if (sound != -1)
 					{
 						oldSound = sound;
 					}
@@ -401,39 +393,30 @@ static bool update_command(Command *command)
 				error("sound %s does not exist.", command->arguments[1]->string);
 			}
 			fadingSound = true;
-			sound->volume = 0.0f;
-			sound->playing = true;
-			if (oldSound)
-			{
-				oldSound->volume = 1.0f;
-				oldSound->playing = true;
-			}
+			set_sound_volume(sound, 0.0f);
+			set_sound_play_state(sound, true);
 			return false;
 		} else {
-			if (sound->volume >= 1.0f)
+			if (get_sound_volume(sound) >= 1.0f)
 			{
-				sound->volume = 1.0f;
-				if (oldSound)
+				set_sound_volume(sound, 1.0f);
+				if (oldSound != -1)
 				{
-					oldSound->volume = 1.0f;
+					set_sound_volume(oldSound, 1.0f);
 					reset_sound(oldSound);
 				}
 				fadingSound = false;
 			} else {
-				if (oldSound)
+				if (oldSound != -1)
 				{
-					oldSound->volume -= deltaTime * 1.0f;
+					set_sound_volume(oldSound, get_sound_volume(oldSound) - deltaTime * 1.0f);
 				}
-				sound->volume += deltaTime * 1.0f;
+				set_sound_volume(sound, get_sound_volume(sound) + deltaTime * 1.0f);
 				return false;
 			}
 		}
 	} else if (command->type == COMMAND_STOP_SOUND) {
-		if (sound)
-		{
-			stop_sound(sound);
-			sound = NULL;
-		}
+		sound = -1;
 	} else if (command->type == COMMAND_SET_SOUND_VOLUME) {
 		soundVolume = command->arguments[0]->numeric;
 	} else if (command->type == COMMAND_END) {
@@ -522,10 +505,9 @@ static bool update_sentence(Sentence *sentence)
 {
 	if (sentenceFirstUpdate)
 	{
-
 		sentenceFirstUpdate = false;
 		timeDuringCurrentChar = 0.0f;
-		set_string_to_text(currentSentence, sentence->string);
+		set_text_string(currentSentence, sentence->string);
 		currentSentence->nbCharToDisplay = 0;
 		if (currentSpeakerSpriteIndex != -1)
 		{
@@ -549,6 +531,8 @@ static bool update_sentence(Sentence *sentence)
 					currentSentence->nbCharToDisplay = currentSentence->nbMaxCharToDisplay;
 				}
 				timeDuringCurrentChar -= nbCharToSkip * 0.02f;
+				int lol = create_sound("Sounds/blip normal.wav");
+				set_sound_play_state(lol, true);
 			}
 		}
 
@@ -561,7 +545,7 @@ static bool update_sentence(Sentence *sentence)
 		}
 	} else if (is_input_key_pressed(INPUT_KEY_ENTER) || sentence->autoSkip) {
 		sentenceFirstUpdate = true;
-		set_string_to_text(currentSentence, NULL);
+		set_text_string(currentSentence, NULL);
 		if (currentSpeakerSpriteIndex != -1)
 		{
 			Animation *currentSpeakerSpriteAnimation = charactersSprites[currentSpeakerSpriteIndex]->animations[charactersSprites[currentSpeakerSpriteIndex]->currentAnimation];
@@ -670,7 +654,7 @@ static void display_choice(CueExpression *cueExpression)
 		if ((unsigned int)nbChoices == buf_len(currentChoices))
 		{
 			buf_add(currentChoices, create_text());
-			set_font_to_text(currentChoices[nbChoices], "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_NORMAL);
+			set_text_font(currentChoices[nbChoices], "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_NORMAL);
 			currentChoices[nbChoices]->position.x = (int)(0.015f * windowDimensions.x);
 			if (nbChoices == 0)
 			{
@@ -684,7 +668,7 @@ static void display_choice(CueExpression *cueExpression)
 		{
 			currentChoices[nbChoices]->position.y = currentChoices[nbChoices - 1]->position.y + currentChoices[nbChoices - 1]->height + 4;
 		}
-		set_string_to_text(currentChoices[nbChoices], cueExpression->choice->sentence->string);
+		set_text_string(currentChoices[nbChoices], cueExpression->choice->sentence->string);
 		buf_add(goToCommands, cueExpression->choice->goToCommand);
 		nbChoices++;
 	} else if (cueExpression->type == CUE_EXPRESSION_CUE_CONDITION) {
@@ -756,7 +740,7 @@ static bool update_cue(Cue *cue)
 						}
 					}
 				}
-				set_string_to_text(currentSpeaker, cue->characterName);
+				set_text_string(currentSpeaker, cue->characterName);
 				vec3 nameColor = {.x = -1.0f};
 				for (unsigned int i = 0; i < buf_len(interpretingDialog->coloredNames); i++)
 				{
@@ -777,7 +761,7 @@ static bool update_cue(Cue *cue)
 					currentSpeakerPosition.x = (int)(windowDimensions.x * 0.985f - currentSpeaker->width);
 				}
 				currentSpeakerPosition.y = (int)(windowDimensions.y * 0.8f - currentSpeaker->height - 2);
-				set_position_to_text(currentSpeaker, currentSpeakerPosition);
+				set_text_position(currentSpeaker, currentSpeakerPosition);
 				characterNameBox->position.x = currentSpeaker->position.x - 2;
 				characterNameBox->position.y = currentSpeaker->position.y - currentSpeaker->font->descent - 2;
 				characterNameBox->width = currentSpeaker->width + 4;
@@ -801,7 +785,7 @@ static bool update_cue(Cue *cue)
 		{
 			cue->currentExpression = 0;
 			displayedSpeakerName = false;
-			set_string_to_text(currentSpeaker, NULL);
+			set_text_string(currentSpeaker, NULL);
 			currentSpeaker->color.x = 1.0f;
 			currentSpeaker->color.y = 1.0f;
 			currentSpeaker->color.z = 1.0f;
@@ -815,7 +799,7 @@ static bool update_cue(Cue *cue)
 			{
 				cue->currentExpression = 0;
 				displayedSpeakerName = false;
-				set_string_to_text(currentSpeaker, NULL);
+				set_text_string(currentSpeaker, NULL);
 				currentSpeaker->color.x = 1.0f;
 				currentSpeaker->color.y = 1.0f;
 				currentSpeaker->color.z = 1.0f;
@@ -854,7 +838,7 @@ static bool update_cue(Cue *cue)
 			buf_free(goToCommands);
 			for (unsigned int i = 0; i < buf_len(currentChoices); i++)
 			{
-				set_string_to_text(currentChoices[i], NULL);
+				set_text_string(currentChoices[i], NULL);
 			}
 			goToCommands = NULL;
 			cue->currentExpression = 0;
@@ -862,7 +846,7 @@ static bool update_cue(Cue *cue)
 			choicesDisplayed = false;
 			currentChoice = 0;
 			displayedSpeakerName = false;
-			set_string_to_text(currentSpeaker, NULL);
+			set_text_string(currentSpeaker, NULL);
 			currentSpeaker->color.x = 1.0f;
 			currentSpeaker->color.y = 1.0f;
 			currentSpeaker->color.z = 1.0f;
@@ -991,10 +975,10 @@ bool interpret_current_dialog()
 			charactersSprites[i]->animations = NULL;
 		}
 		currentSpeakerSpriteIndex = -1;
-		sound = NULL;
-		oldSound = NULL;
-		music = NULL;
-		oldMusic = NULL;
+		sound = -1;
+		oldSound = -1;
+		music = -1;
+		oldMusic = -1;
 		choosing = false;
 		nbChoices = 0;
 		currentChoice = 0;

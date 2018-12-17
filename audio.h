@@ -1,25 +1,14 @@
 #ifndef AUDIO_H
 #define AUDIO_H
 
-typedef enum SoundType
-{
-	SOUND_SOUND,
-	SOUND_MUSIC
-} SoundType;
-
-typedef struct Sound
-{
-	SoundType soundType;
-	void *decoder;
-	void *device;
-	float volume;
-	bool playing;
-	bool stopping;
-} Sound;
-
-Sound create_sound(SoundType soundType, char *fileName);
-void reset_sound(Sound *sound);
-void stop_sound(Sound *sound);
+void init_audio();
+void free_audio();
+int create_sound(char *fileName);
+void set_sound_play_state(int soundHandle, bool playState);
+float get_sound_volume(int soundHandle);
+void set_sound_volume(int soundHandle, float volume);
+void reset_sound(int soundHandle);
+void stop_sound(int soundHandle);
 
 extern float soundVolume;
 extern float musicVolume;

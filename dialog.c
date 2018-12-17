@@ -15,7 +15,7 @@
 #include "graphics.h"
 #include "variable.h"
 #include "dialog.h"
-#include "globals.h"
+#include "globals_dialog.h"
 
 static char *filePath;
 static Token **tokens;
@@ -679,10 +679,11 @@ static void add_to_sound_list(char *soundName)
 		newSoundName = strcopy(newSoundName, soundName);
 		buf_add(currentDialog->soundsNames, newSoundName);
 		char *soundFilePath = NULL;
-		soundFilePath = strcopy(soundFilePath, "Sound files/");
+		//soundFilePath = strcopy(soundFilePath, "Sound files/");
+		soundFilePath = strcopy(soundFilePath, "Sounds/");
 		soundFilePath = strappend(soundFilePath, soundName);
-		soundFilePath = strappend(soundFilePath, ".snd");
-		buf_add(currentDialog->sounds, create_sound(SOUND_SOUND, soundFilePath));
+		//soundFilePath = strappend(soundFilePath, ".snd");
+		buf_add(currentDialog->sounds, create_sound(soundFilePath));
 		buf_free(soundFilePath);
 	}
 }
@@ -708,7 +709,7 @@ static void add_to_music_list(char *musicName)
 		musicFilePath = strcopy(musicFilePath, "Musics/");
 		musicFilePath = strappend(musicFilePath, musicName);
 		//musicFilePath = strappend(musicFilePath, ".snd");
-		buf_add(currentDialog->musics, create_sound(SOUND_MUSIC, musicFilePath));
+		buf_add(currentDialog->musics, create_sound(musicFilePath));
 		buf_free(musicFilePath);
 	}
 }

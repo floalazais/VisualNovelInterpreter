@@ -95,10 +95,10 @@ Animation **get_animations_from_file(char *animationFilePath, char *spriteName);
 void free_animation(Animation *animation);
 void free_sprite(Sprite *sprite);
 Text *create_text();
-void set_position_to_text(Text *text, ivec2 position);
-void set_font_to_text(Text *text, char *fontPath, int textHeight);
-void set_string_to_text(Text *text, char *string);
-void set_width_limit_to_text(Text *text, int limit);
+void set_text_position(Text *text, ivec2 position);
+void set_text_font(Text *text, char *fontPath, int textHeight);
+void set_text_string(Text *text, char *string);
+void set_text_width_limit(Text *text, int limit);
 void free_text(Text *text);
 
 typedef enum DrawLayer

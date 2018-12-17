@@ -4,10 +4,10 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "audio.h"
 #include "stb_truetype.h"
 #include "stb_image.h"
 #include "maths.h"
+#include "globals.h"
 #include "gl.h"
 #include "token.h"
 #include "error.h"
@@ -17,9 +17,6 @@
 #include "file_to_string.h"
 #include "stroperation.h"
 #include "graphics.h"
-#include "variable.h"
-#include "dialog.h"
-#include "globals.h"
 
 static char *filePath;
 static Token **tokens;
@@ -55,7 +52,7 @@ static int colorShaderProgramId;
 static int textureShaderProgramId;
 static int glyphShaderProgramId;
 
-static unsigned int compile_shader(char *path, GLenum shaderType)
+static unsigned int compile_shader(char *path, int shaderType)
 {
 	char *code = file_to_string(path);
 
@@ -115,12 +112,12 @@ void init_graphics()
     glBindVertexArray(vao);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof (GLfloat) * 24, quad, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof (float) * 24, quad, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof (GLfloat), (GLvoid*)0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof (float), (void*)0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof (GLfloat), (GLvoid*)(2 * sizeof (GLfloat)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof (float), (void*)(2 * sizeof (float)));
 
 	unsigned int vertexShaderId = compile_shader("Shaders/vertex_shader.glsl", GL_VERTEX_SHADER);
 	unsigned int colorFragmentShaderId = compile_shader("Shaders/color_fragment_shader.glsl", GL_FRAGMENT_SHADER);
@@ -213,7 +210,6 @@ unsigned int get_texture_id_from_path(char *texturePath, int *_width, int *_heig
     if (data)
     {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
         stbi_image_free(data);
 		if (_width)
 		{
@@ -510,7 +506,6 @@ static void load_glyph(Font *font, int code)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, font->glyphs[code]->width, font->glyphs[code]->height, 0, GL_RED, GL_UNSIGNED_BYTE, bitmap);
-	glGenerateMipmap(GL_TEXTURE_2D);
 
 	xfree(bitmap);
 
@@ -669,7 +664,7 @@ static void update_text(Text *text)
 	text->nbMaxCharToDisplay = count;
 }
 
-void set_width_limit_to_text(Text *text, int limit)
+void set_text_width_limit(Text *text, int limit)
 {
 	text->widthLimit = limit;
 	if (text->codes)
@@ -678,7 +673,7 @@ void set_width_limit_to_text(Text *text, int limit)
 	}
 }
 
-void set_position_to_text(Text *text, ivec2 position)
+void set_text_position(Text *text, ivec2 position)
 {
 	text->position = position;
 	if (text->codes)
@@ -687,7 +682,7 @@ void set_position_to_text(Text *text, ivec2 position)
 	}
 }
 
-void set_font_to_text(Text *text, char *fontPath, int textHeight)
+void set_text_font(Text *text, char *fontPath, int textHeight)
 {
 	text->font = NULL;
 	for (unsigned int i = 0; i < buf_len(fonts); i++)
@@ -726,7 +721,7 @@ void set_font_to_text(Text *text, char *fontPath, int textHeight)
 	}
 }
 
-void set_string_to_text(Text *text, char *string)
+void set_text_string(Text *text, char *string)
 {
 	buf_free(text->codes);
 	text->codes = NULL;

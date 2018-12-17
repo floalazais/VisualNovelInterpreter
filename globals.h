@@ -3,14 +3,8 @@
 
 extern bool isWindowActive;
 extern ivec2 windowDimensions;
-extern mat4 projection;
-extern float deltaTime;
 extern ivec2 mousePosition;
-extern char **variablesNames;
-extern Variable **variablesValues;
-extern Dialog *interpretingDialog;
-extern char *interpretingDialogName;
-extern char *nextDialogName;
-extern bool dialogChanged;
+extern float deltaTime;
+extern mat4 projection;
 
 #endif /* end of include guard: GLOBALS_H */

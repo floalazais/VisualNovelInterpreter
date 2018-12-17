@@ -1,4 +1,3 @@
-#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 
 #include <Windows.h>
@@ -9,19 +8,16 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include "audio.h"
+#include "maths.h"
+#include "globals.h"
 #include "stroperation.h"
 #include "xalloc.h"
 #include "stretchy_buffer.h"
 #include "error.h"
-#include "maths.h"
 #include "user_input.h"
 #include "gl.h"
 #include "token.h"
 #include "graphics.h"
-#include "variable.h"
-#include "dialog.h"
-#include "globals.h"
 
 float deltaTime = 0.0f;
 static LARGE_INTEGER globalPerformanceFrequency;
@@ -337,31 +333,31 @@ void init_window()
 			name = (void*)wglGetProcAddress(#name); \
 			if (!name) \
 			{ \
-				error("can't load W OpenGL %s function.", #name); \
+				error("could not load WGL function \"%s\".", #name); \
 			}
 		WGL_LIST
 		#undef WGL_FUNCTION
 
-		HMODULE dll = LoadLibraryA("opengl32.dll");
-		if (!dll)
+		HMODULE OpenGLLibrary = LoadLibraryA("opengl32.dll");
+		if (!OpenGLLibrary)
 		{
-			error("can't open OpenGL DLL."); \
+			error("could not load OpenGL library."); \
 		}
 
 		#define GL_FUNCTION(ret, name, ...) \
 			name = (void*)wglGetProcAddress(#name); \
 			if (!name) \
 			{ \
-				name = (void*)GetProcAddress(dll, #name); \
+				name = (void*)GetProcAddress(OpenGLLibrary, #name); \
 				if (!name) \
 				{ \
-					error("can't load OpenGL %s function", #name); \
+					error("could not load OpenGL function \"%s\".", #name); \
 				} \
 			}
 		GL_LIST
 		#undef GL_FUNCTION
 
-		FreeLibrary(dll);
+		FreeLibrary(OpenGLLibrary);
 	}
 
 	int pixelFormatAttribute[] =
@@ -491,5 +487,3 @@ unsigned int shutdown_window()
 {
 	return msg.wParam;
 }
-
-#endif
