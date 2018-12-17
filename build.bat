@@ -1,0 +1,1 @@
+gcc -Wall -Werror -mwindows -g -o VisualNovelInterpreter.exe *.c -std=c99 -L./ -lsoloud_x86 -lgdi32 -lopengl32
