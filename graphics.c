@@ -500,10 +500,10 @@ static void load_glyph(Font *font, int code)
 	glBindTexture(GL_TEXTURE_2D, font->glyphs[code]->textureId);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, font->glyphs[code]->width, font->glyphs[code]->height, 0, GL_RED, GL_UNSIGNED_BYTE, bitmap);
 
@@ -512,7 +512,7 @@ static void load_glyph(Font *font, int code)
 	font->glyphs[code]->yOffset = y0 + font->ascent - font->descent;
 
 	stbtt_GetCodepointHMetrics(font->fontInfo, code, &advance, &leftSideBearing);
-	font->glyphs[code]->xOffset = (int)((advance - leftSideBearing) * font->scale);
+	font->glyphs[code]->xOffset = ceil((advance - leftSideBearing) * font->scale);
 
 	font->loaded[code] = true;
 }
@@ -553,8 +553,8 @@ static void load_font(char *fontPath, int textHeight)
 	font->fontPath = strcopy(font->fontPath, fontPath);
 	font->height = textHeight;
 	font->scale = stbtt_ScaleForPixelHeight(font->fontInfo, (float)textHeight);
-    font->ascent = (int)(ascent * font->scale);
-	font->descent = (int)(descent * font->scale);
+    font->ascent = ceil(ascent * font->scale);
+	font->descent = ceil(descent * font->scale);
     for (int code = 0; code < 128; code++)
     {
 		load_glyph(font, code);
@@ -612,9 +612,9 @@ static void update_text(Text *text)
 
 		if (i == buf_len(text->codes) - 1)
 		{
-			currentLineWidth += text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], 0) * text->font->scale);
+			currentLineWidth += text->font->glyphs[text->codes[i]]->xOffset + ceil(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], 0) * text->font->scale);
 		} else {
-			currentLineWidth += text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
+			currentLineWidth += text->font->glyphs[text->codes[i]]->xOffset + ceil(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
 		}
 
 		count++;
@@ -637,16 +637,16 @@ static void update_text(Text *text)
 				count--;
 				if (i == buf_len(text->codes) - 1)
 				{
-					currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], 0) * text->font->scale);
+					currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + ceil(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], 0) * text->font->scale);
 				} else {
-					currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
+					currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + ceil(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
 				}
 			}
 			if (foundSpace)
 			{
 				i--;
 				count--;
-				currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + (int)(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
+				currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + ceil(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
 			}
 			if (currentLineWidth > text->width)
 			{

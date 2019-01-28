@@ -35,6 +35,8 @@
 
 #define GL_COLOR_BUFFER_BIT               0x4000
 
+#define GL_CLAMP_TO_EDGE                  0x812F
+
 #define GL_TEXTURE0                       0x84C0
 
 #define GL_ARRAY_BUFFER                   0x8892
