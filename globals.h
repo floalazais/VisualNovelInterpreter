@@ -4,6 +4,7 @@
 extern bool isWindowActive;
 extern ivec2 windowDimensions;
 extern ivec2 mousePosition;
+extern ivec2 mouseOffset;
 extern float deltaTime;
 extern mat4 projection;
 

@@ -12,10 +12,10 @@
 	We've finally completed this puzzle.
 
 #SET_NAME_COLOR "Junpei" 1 1 1
-	
+
 >"Seven" RIGHT "thinking" CENTER
 	I still don't understand the purpose of this killing game.
-	
+
 	#SET_WINDOW_NAME "999 Fan-made game"
 
 #CLEAR_CHARACTER_POSITION CENTER
@@ -124,7 +124,7 @@
 
 >"Junpei" LEFT
 	Yeah, why not.
-	
+
 >
 	Seven seemed pleased about Junpei's answer.
 	He turned back and entered the living room.
@@ -185,6 +185,7 @@
 
 >
 	Seven headed back to the entrance hallway.
+	#PLAY_MUSIC "23 Digital Root.mp3"
 	Junpei felt anxious when he remembered that's where still lied the ninth man corpse.
 	He joined Seven anyway.
 
@@ -214,7 +215,7 @@
 >"Junpei" LEFT
 	I'll ask you in case.
 	Thank you Seven.
-	
+
 >"Seven" RIGHT
 	Let's get back into the living room, I don't want Snake to find us here.
 
@@ -287,7 +288,7 @@
 
 >"Seven" RIGHT "idle" RIGHT
 	Well then don't waste time anymore, let's go.
-	
+
 #CLEAR_CHARACTER_POSITIONS
 
 ->let's go
@@ -308,7 +309,7 @@
 
 #CLEAR_CHARACTER_POSITIONS
 #SET_BACKGROUND "First class cabin"::"escape door"
-	
+
 ->let's go
 
 @let's go
@@ -320,3 +321,5 @@
 	#IF knows_about_ninth_bracelet
 		Junpei asked himself if it was a good idea to not to tell Snake about the ninth bracelet.
 		He decided he'll think about it when Seven won't be around them.
+
+->start

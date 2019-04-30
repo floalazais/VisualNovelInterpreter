@@ -47,12 +47,14 @@ static bool displayDialogUI;
 static bool displaySpeakerName;
 static bool sentenceFirstUpdate;
 static float timeDuringCurrentChar;
+static float timeDuringCurrentBlip;
 static float waitTimer;
 static char *nextDialogStartKnotName;
-static int music;
-static int oldMusic;
-static int sound;
-static int oldSound;
+static AudioSource *music;
+static AudioSource *oldMusic;
+static AudioSource *sound;
+static AudioSource *oldSound;
+static AudioSource *blipSound;
 static bool fadingMusic;
 static bool fadingSound;
 
@@ -117,6 +119,8 @@ void init_dialog_ui()
 	goToCommands = NULL;
 
 	waitTimer = 0.0f;
+
+	blipSound = create_audio_source("Sounds/blip normal.wav");
 }
 
 void free_dialog_ui()
@@ -142,6 +146,9 @@ void free_dialog_ui()
 		charactersSprites[i]->animations = NULL;
 		free_sprite(charactersSprites[i]);
 	}
+
+	stop_audio_source(blipSound);
+	xfree(blipSound);
 }
 
 static bool update_command(Command *command)
@@ -331,7 +338,7 @@ static bool update_command(Command *command)
 			{
 				if (strmatch(command->arguments[0]->string, interpretingDialog->musicsNames[i]))
 				{
-					if (music != -1)
+					if (music)
 					{
 						oldMusic = music;
 					}
@@ -345,32 +352,32 @@ static bool update_command(Command *command)
 				error("music %s does not exist.", command->arguments[1]->string);
 			}
 			fadingMusic = true;
-			set_sound_volume(music, 0.0f);
-			set_sound_play_state(music, true);
+			music->volume = 0.0f;
+			music->playing = true;
 			return false;
 		} else {
-			if (get_sound_volume(music) >= 1.0f)
+			if (music->volume >= 1.0f)
 			{
-				set_sound_volume(music, 1.0f);
-				if (oldMusic != -1)
+				music->volume = 1.0f;
+				if (oldMusic)
 				{
-					set_sound_volume(oldMusic, 1.0f);
-					reset_sound(oldMusic);
+					oldMusic->volume = 1.0f;
+					reset_audio_source(oldMusic);
 				}
 				fadingMusic = false;
 			} else {
-				if (oldMusic != -1)
+				if (oldMusic)
 				{
-					set_sound_volume(oldMusic, get_sound_volume(oldMusic) - deltaTime * 1.0f);
+					oldMusic->volume -= deltaTime * 1.0f;
 				}
-				set_sound_volume(music, get_sound_volume(music) + deltaTime * 1.0f);
+				music->volume += deltaTime * 1.0f;
 				return false;
 			}
 		}
 	} else if (command->type == COMMAND_STOP_MUSIC) {
-		music = -1;
+		music = NULL;
 	} else if (command->type == COMMAND_SET_MUSIC_VOLUME) {
-		musicVolume = command->arguments[0]->numeric;
+		music->volume = command->arguments[0]->numeric;
 	} else if (command->type == COMMAND_PLAY_SOUND) {
 		if (!fadingSound)
 		{
@@ -379,7 +386,7 @@ static bool update_command(Command *command)
 			{
 				if (strmatch(command->arguments[0]->string, interpretingDialog->soundsNames[i]))
 				{
-					if (sound != -1)
+					if (sound)
 					{
 						oldSound = sound;
 					}
@@ -393,32 +400,32 @@ static bool update_command(Command *command)
 				error("sound %s does not exist.", command->arguments[1]->string);
 			}
 			fadingSound = true;
-			set_sound_volume(sound, 0.0f);
-			set_sound_play_state(sound, true);
+			sound->volume = 0.0f;
+			sound->playing = true;
 			return false;
 		} else {
-			if (get_sound_volume(sound) >= 1.0f)
+			if (sound->volume >= 1.0f)
 			{
-				set_sound_volume(sound, 1.0f);
-				if (oldSound != -1)
+				sound->volume = 1.0f;
+				if (oldSound)
 				{
-					set_sound_volume(oldSound, 1.0f);
-					reset_sound(oldSound);
+					oldSound->volume = 0.0f;
+					reset_audio_source(oldSound);
 				}
 				fadingSound = false;
 			} else {
-				if (oldSound != -1)
+				if (oldSound)
 				{
-					set_sound_volume(oldSound, get_sound_volume(oldSound) - deltaTime * 1.0f);
+					oldSound->volume -= deltaTime * 1.0f;
 				}
-				set_sound_volume(sound, get_sound_volume(sound) + deltaTime * 1.0f);
+				sound->volume += deltaTime * 1.0f;
 				return false;
 			}
 		}
 	} else if (command->type == COMMAND_STOP_SOUND) {
-		sound = -1;
+		sound = NULL;
 	} else if (command->type == COMMAND_SET_SOUND_VOLUME) {
-		soundVolume = command->arguments[0]->numeric;
+		sound->volume = command->arguments[0]->numeric;
 	} else if (command->type == COMMAND_END) {
 		end = true;
 		moving = true;
@@ -507,6 +514,7 @@ static bool update_sentence(Sentence *sentence)
 	{
 		sentenceFirstUpdate = false;
 		timeDuringCurrentChar = 0.0f;
+		timeDuringCurrentBlip = 0.0f;
 		set_text_string(currentSentence, sentence->string);
 		currentSentence->nbCharToDisplay = 0;
 		if (currentSpeakerSpriteIndex != -1)
@@ -531,8 +539,13 @@ static bool update_sentence(Sentence *sentence)
 					currentSentence->nbCharToDisplay = currentSentence->nbMaxCharToDisplay;
 				}
 				timeDuringCurrentChar -= nbCharToSkip * 0.02f;
-				int lol = create_sound("Sounds/blip normal.wav");
-				set_sound_play_state(lol, true);
+			}
+			timeDuringCurrentBlip += deltaTime;
+			if (timeDuringCurrentBlip >= 0.075f)
+			{
+				timeDuringCurrentBlip = 0.0f;
+				reset_audio_source(blipSound);
+				blipSound->playing = true;
 			}
 		}
 
@@ -975,10 +988,10 @@ bool interpret_current_dialog()
 			charactersSprites[i]->animations = NULL;
 		}
 		currentSpeakerSpriteIndex = -1;
-		sound = -1;
-		oldSound = -1;
-		music = -1;
-		oldMusic = -1;
+		sound = NULL;
+		oldSound = NULL;
+		music = NULL;
+		oldMusic = NULL;
 		choosing = false;
 		nbChoices = 0;
 		currentChoice = 0;

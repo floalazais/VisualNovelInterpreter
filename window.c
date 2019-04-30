@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include "window.h"
 #include "maths.h"
 #include "globals.h"
 #include "stroperation.h"
@@ -18,24 +19,6 @@
 #include "gl.h"
 #include "token.h"
 #include "graphics.h"
-
-float deltaTime = 0.0f;
-static LARGE_INTEGER globalPerformanceFrequency;
-static LARGE_INTEGER currentClock;
-
-static LARGE_INTEGER get_clock()
-{
-	LARGE_INTEGER clock;
-	QueryPerformanceCounter(&clock);
-	return clock;
-}
-
-static void update_delta_time()
-{
-	LARGE_INTEGER newClock = get_clock();
-	deltaTime = (float)(newClock.QuadPart - currentClock.QuadPart) / (float)globalPerformanceFrequency.QuadPart;
-	currentClock = newClock;
-}
 
 static HWND window;
 
@@ -61,6 +44,24 @@ void warning(char *format, ...)
 	strcat(buffer, "\n");
 	MessageBoxA(window, buffer, "Visual Novel Interpreter Warning MessageBox", MB_ICONWARNING);
 	exit(EXIT_FAILURE);
+}
+
+float deltaTime = 0.0f;
+static LARGE_INTEGER globalPerformanceFrequency;
+static LARGE_INTEGER currentClock;
+
+static LARGE_INTEGER get_clock()
+{
+	LARGE_INTEGER clock;
+	QueryPerformanceCounter(&clock);
+	return clock;
+}
+
+static void update_delta_time()
+{
+	LARGE_INTEGER newClock = get_clock();
+	deltaTime = (float)(newClock.QuadPart - currentClock.QuadPart) / (float)globalPerformanceFrequency.QuadPart;
+	currentClock = newClock;
 }
 
 static void is_input_key_supported(InputKey inputKey)
@@ -107,82 +108,157 @@ void update_input_keys()
 #define GET_XBUTTON_WPARAM(w) (HIWORD(w))
 #endif
 
-ivec2 mousePosition = {.x = 0, .y = 0};
+ivec2 mousePosition = {0};
+ivec2 mouseOffset = {0};
+
+bool isWindowActive;
+
+static DEVMODE originalScreenSettings = {0};
+
+static DEVMODE newScreenSettings = {0};
+
+static WindowMode currentWindowMode;
+
+static void update_input_key(bool isInputKeyDown, WPARAM wParam, LPARAM lParam)
+{
+	if (wParam >= VK_NUMPAD0 && wParam <= VK_NUMPAD9)
+	{
+		inputKeysNow[INPUT_KEY_NUMPAD_0 + wParam - VK_NUMPAD0] = isInputKeyDown;
+	} else if (wParam >= 0x30 && wParam <= 0x39) {
+		inputKeysNow[INPUT_KEY_0 + wParam - 0x30] = isInputKeyDown;
+	} else if (wParam == VK_BACK) {
+		inputKeysNow[INPUT_KEY_BACKSPACE] = isInputKeyDown;
+	} else if (wParam == VK_TAB) {
+		inputKeysNow[INPUT_KEY_TAB] = isInputKeyDown;
+	} else if (wParam == VK_RETURN) {
+		inputKeysNow[INPUT_KEY_ENTER] = isInputKeyDown;
+	} else if (wParam == VK_SHIFT) {
+		inputKeysNow[INPUT_KEY_SHIFT] = isInputKeyDown;
+	} else if (wParam == VK_CONTROL) {
+		int extended  = (lParam & 0x01000000) != 0;
+		if (!extended)
+		{
+			inputKeysNow[INPUT_KEY_CONTROL_LEFT] = isInputKeyDown;
+		} else {
+			inputKeysNow[INPUT_KEY_CONTROL_RIGHT] = isInputKeyDown;
+		}
+	} else if (wParam == VK_MENU) {
+		inputKeysNow[INPUT_KEY_ALT] = isInputKeyDown;
+	} else if (wParam == VK_CAPITAL) {
+		inputKeysNow[INPUT_KEY_CAPS_LOCK] = isInputKeyDown;
+	} else if (wParam == VK_ESCAPE) {
+		inputKeysNow[INPUT_KEY_ESCAPE] = isInputKeyDown;
+	} else if (wParam == VK_SPACE) {
+		inputKeysNow[INPUT_KEY_SPACE] = isInputKeyDown;
+	} else if (wParam == VK_PRIOR) {
+		inputKeysNow[INPUT_KEY_PAGE_UP] = isInputKeyDown;
+	} else if (wParam == VK_NEXT) {
+		inputKeysNow[INPUT_KEY_PAGE_DOWN] = isInputKeyDown;
+	} else if (wParam == VK_INSERT) {
+		inputKeysNow[INPUT_KEY_INSER] = isInputKeyDown;
+	} else if (wParam == VK_DELETE) {
+		inputKeysNow[INPUT_KEY_DELETE] = isInputKeyDown;
+	} else if (wParam == VK_HOME) {
+		inputKeysNow[INPUT_KEY_BEGIN] = isInputKeyDown;
+	} else if (wParam == VK_END) {
+		inputKeysNow[INPUT_KEY_END] = isInputKeyDown;
+	} else if (wParam == VK_UP) {
+		inputKeysNow[INPUT_KEY_UP_ARROW] = isInputKeyDown;
+	} else if (wParam == VK_DOWN) {
+		inputKeysNow[INPUT_KEY_DOWN_ARROW] = isInputKeyDown;
+	} else if (wParam == VK_LEFT) {
+		inputKeysNow[INPUT_KEY_LEFT_ARROW] = isInputKeyDown;
+	} else if (wParam == VK_RIGHT) {
+		inputKeysNow[INPUT_KEY_RIGHT_ARROW] = isInputKeyDown;
+	} else if (wParam == VK_F1) {
+		inputKeysNow[INPUT_KEY_F1] = isInputKeyDown;
+	} else if (wParam == VK_F2) {
+		inputKeysNow[INPUT_KEY_F2] = isInputKeyDown;
+	} else if (wParam == VK_F3) {
+		inputKeysNow[INPUT_KEY_F3] = isInputKeyDown;
+	} else if (wParam == VK_F4) {
+		inputKeysNow[INPUT_KEY_F4] = isInputKeyDown;
+	} else if (wParam == VK_F5) {
+		inputKeysNow[INPUT_KEY_F5] = isInputKeyDown;
+	} else if (wParam == VK_F6) {
+		inputKeysNow[INPUT_KEY_F6] = isInputKeyDown;
+	} else if (wParam == VK_F7) {
+		inputKeysNow[INPUT_KEY_F7] = isInputKeyDown;
+	} else if (wParam == VK_F8) {
+		inputKeysNow[INPUT_KEY_F8] = isInputKeyDown;
+	} else if (wParam == VK_F9) {
+		inputKeysNow[INPUT_KEY_F9] = isInputKeyDown;
+	} else if (wParam == VK_F10) {
+		inputKeysNow[INPUT_KEY_F10] = isInputKeyDown;
+	} else if (wParam == VK_F11) {
+		inputKeysNow[INPUT_KEY_F11] = isInputKeyDown;
+	} else if (wParam == VK_F12) {
+		inputKeysNow[INPUT_KEY_F12] = isInputKeyDown;
+	} else if (wParam >= 'A' && wParam <= 'Z') {
+		inputKeysNow[INPUT_KEY_A + wParam - 'A'] = isInputKeyDown;
+	} else if (wParam == VK_ADD) {
+		inputKeysNow[INPUT_KEY_ADD] = isInputKeyDown;
+	} else if (wParam == VK_SUBTRACT) {
+		inputKeysNow[INPUT_KEY_SUBTRACT] = isInputKeyDown;
+	} else if (wParam == VK_MULTIPLY) {
+		inputKeysNow[INPUT_KEY_MULTIPLY] = isInputKeyDown;
+	} else if (wParam == VK_DIVIDE) {
+		inputKeysNow[INPUT_KEY_DIVIDE] = isInputKeyDown;
+	} else if (wParam == VK_DECIMAL) {
+		inputKeysNow[INPUT_KEY_DOT] = isInputKeyDown;
+	}
+}
 
 static LRESULT WINAPI WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	if (message == WM_CLOSE)
 	{
 		DestroyWindow(hwnd);
-		return 0;
 	} else if (message == WM_DESTROY) {
 		PostQuitMessage(0);
+	} else if (message == WM_SETFOCUS) {
+		isWindowActive = true;
+		if (currentWindowMode == WINDOW_MODE_FULLSCREEN)
+		{
+			ChangeDisplaySettings(&newScreenSettings, CDS_FULLSCREEN);
+			glViewport(0, 0, windowDimensions.x, windowDimensions.y);
+			MoveWindow(window, 0, 0, windowDimensions.x, windowDimensions.y, true);
+		}
+	} else if (message == WM_KILLFOCUS) {
+		isWindowActive = false;
+		if (currentWindowMode == WINDOW_MODE_FULLSCREEN)
+		{
+			ChangeDisplaySettings(&originalScreenSettings, CDS_RESET);
+		}
+		memset(inputKeysNow, 0, sizeof (inputKeysNow));
+	} else if (message == WM_SYSCHAR) {
+		printf("SYSCHAR : 0x%02X\n", wParam);
+		fflush(stdout);
+	} else if (message == WM_SYSKEYUP || message == WM_SYSKEYDOWN) {
+		if (wParam == VK_F4)
+		{
+			ask_window_to_close();
+			return 0;
+		}
+		bool isInputKeyDown = (message == WM_SYSKEYDOWN);
+		if (isInputKeyDown)
+		{
+			printf("SYSKEYDOWN : 0x%02X\n", wParam);
+		} else {
+			printf("SYSKEYUP : 0x%02X\n", wParam);
+		}
+		fflush(stdout);
+		update_input_key(isInputKeyDown, wParam, lParam);
 	} else if (message == WM_KEYUP || message == WM_KEYDOWN) {
 		bool isInputKeyDown = (message == WM_KEYDOWN);
-		if (wParam >= VK_NUMPAD0 && wParam <= VK_NUMPAD9)
+		if (isInputKeyDown)
 		{
-			inputKeysNow[INPUT_KEY_NUMPAD_0 + wParam - VK_NUMPAD0] = isInputKeyDown;
-		} else if (wParam >= 0x30 && wParam <= 0x39) {
-			inputKeysNow[INPUT_KEY_0 + wParam - 0x30] = isInputKeyDown;
-		} else if (wParam == VK_BACK) {
-			inputKeysNow[INPUT_KEY_BACKSPACE] = isInputKeyDown;
-		} else if (wParam == VK_TAB) {
-			inputKeysNow[INPUT_KEY_TAB] = isInputKeyDown;
-		} else if (wParam == VK_RETURN) {
-			inputKeysNow[INPUT_KEY_ENTER] = isInputKeyDown;
-		} else if (wParam == VK_SHIFT) {
-			inputKeysNow[INPUT_KEY_SHIFT] = isInputKeyDown;
-		} else if (wParam == VK_CONTROL) {
-			inputKeysNow[INPUT_KEY_CTRL] = isInputKeyDown;
-		} else if (wParam == VK_MENU) {
-			inputKeysNow[INPUT_KEY_ALT] = isInputKeyDown;
-		} else if (wParam == VK_CAPITAL) {
-			inputKeysNow[INPUT_KEY_CAPS_LOCK] = isInputKeyDown;
-		} else if (wParam == VK_ESCAPE) {
-			inputKeysNow[INPUT_KEY_ESCAPE] = isInputKeyDown;
-		} else if (wParam == VK_SPACE) {
-			inputKeysNow[INPUT_KEY_SPACE] = isInputKeyDown;
-		} else if (wParam == VK_PRIOR) {
-			inputKeysNow[INPUT_KEY_PAGE_UP] = isInputKeyDown;
-		} else if (wParam == VK_NEXT) {
-			inputKeysNow[INPUT_KEY_PAGE_DOWN] = isInputKeyDown;
-		} else if (wParam == VK_DELETE) {
-			inputKeysNow[INPUT_KEY_DELETE] = isInputKeyDown;
-		} else if (wParam == VK_UP) {
-			inputKeysNow[INPUT_KEY_UP_ARROW] = isInputKeyDown;
-		} else if (wParam == VK_DOWN) {
-			inputKeysNow[INPUT_KEY_DOWN_ARROW] = isInputKeyDown;
-		} else if (wParam == VK_LEFT) {
-			inputKeysNow[INPUT_KEY_LEFT_ARROW] = isInputKeyDown;
-		} else if (wParam == VK_RIGHT) {
-			inputKeysNow[INPUT_KEY_RIGHT_ARROW] = isInputKeyDown;
-		} else if (wParam == VK_F1) {
-			inputKeysNow[INPUT_KEY_F1] = isInputKeyDown;
-		} else if (wParam == VK_F2) {
-			inputKeysNow[INPUT_KEY_F2] = isInputKeyDown;
-		} else if (wParam == VK_F3) {
-			inputKeysNow[INPUT_KEY_F3] = isInputKeyDown;
-		} else if (wParam == VK_F4) {
-			inputKeysNow[INPUT_KEY_F4] = isInputKeyDown;
-		} else if (wParam == VK_F5) {
-			inputKeysNow[INPUT_KEY_F5] = isInputKeyDown;
-		} else if (wParam == VK_F6) {
-			inputKeysNow[INPUT_KEY_F6] = isInputKeyDown;
-		} else if (wParam == VK_F7) {
-			inputKeysNow[INPUT_KEY_F7] = isInputKeyDown;
-		} else if (wParam == VK_F8) {
-			inputKeysNow[INPUT_KEY_F8] = isInputKeyDown;
-		} else if (wParam == VK_F9) {
-			inputKeysNow[INPUT_KEY_F9] = isInputKeyDown;
-		} else if (wParam == VK_F10) {
-			inputKeysNow[INPUT_KEY_F10] = isInputKeyDown;
-		} else if (wParam == VK_F11) {
-			inputKeysNow[INPUT_KEY_F11] = isInputKeyDown;
-		} else if (wParam == VK_F12) {
-			inputKeysNow[INPUT_KEY_F12] = isInputKeyDown;
-		} else if (wParam >= 'A' && wParam <= 'Z') {
-			inputKeysNow[INPUT_KEY_A + wParam - 'A'] = isInputKeyDown;
+			printf("KEYDOWN : 0x%02X\n", wParam);
+		} else {
+			printf("KEYUP : 0x%02X\n", wParam);
 		}
+		fflush(stdout);
+		update_input_key(isInputKeyDown, wParam, lParam);
 	} else if (message == WM_LBUTTONDOWN) {
 		inputKeysNow[INPUT_KEY_LEFT_MOUSE_BUTTON] = true;
 	} else if (message == WM_RBUTTONDOWN) {
@@ -206,7 +282,7 @@ static LRESULT WINAPI WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 	} else if (message == WM_MBUTTONUP) {
 	   inputKeysNow[INPUT_KEY_MIDDLE_MOUSE_BUTTON] = false;
 	} else if (message == WM_XBUTTONUP) {
-		UINT button = GET_XBUTTON_WPARAM(wParam);
+		unsigned int button = GET_XBUTTON_WPARAM(wParam);
 		if (button == XBUTTON1)
 		{
 		    inputKeysNow[INPUT_KEY_SIDE_MOUSE_BUTTON_1] = false;
@@ -216,8 +292,12 @@ static LRESULT WINAPI WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 		    inputKeysNow[INPUT_KEY_SIDE_MOUSE_BUTTON_2] = false;
 		}
 	} else if (message == WM_MOUSEMOVE) {
-		mousePosition.x = GET_X_LPARAM(lParam);
-		mousePosition.y = GET_Y_LPARAM(lParam);
+		int x = GET_X_LPARAM(lParam);
+		int y = GET_Y_LPARAM(lParam);
+		mouseOffset.x = x - mousePosition.x;
+		mouseOffset.y = y - mousePosition.y;
+		mousePosition.x = x;
+		mousePosition.y = y;
 	} else {
 		return DefWindowProc(hwnd, message, wParam, lParam);
 	}
@@ -250,7 +330,9 @@ static LRESULT WINAPI WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 	WGL_LIST
 #undef WGL_FUNCTION
 
-ivec2 windowDimensions = {.x = 800, .y = 600};
+ivec2 windowDimensions;
+static ivec2 realWindowDimensions;
+static ivec2 windowBorderDimensions;
 
 mat4 projection;
 
@@ -258,7 +340,7 @@ static HCURSOR hCursor;
 
 static HDC deviceContext;
 
-void init_window()
+void init_window(WindowMode windowMode, int width, int height)
 {
 	HINSTANCE hInstance = GetModuleHandle(NULL);
 
@@ -267,14 +349,50 @@ void init_window()
 		.lpfnWndProc = WindowProc,
 		.hInstance = hInstance,
 		.lpszClassName = "Visual Novel Interpreter Window Class",
-		.style = CS_OWNDC
+		.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW
 	};
 	if (!RegisterClassA(&windowClass))
 	{
 		error("could not register window class.");
 	}
 
-	window = CreateWindowEx(0, windowClass.lpszClassName, NULL, ((WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME) & ~WS_MAXIMIZEBOX) | WS_VISIBLE | WS_POPUP, 0, 0, windowDimensions.x, windowDimensions.y, NULL, NULL, hInstance, NULL);
+	currentWindowMode = windowMode;
+	originalScreenSettings.dmSize = sizeof (DEVMODE);
+	EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &originalScreenSettings);
+	newScreenSettings.dmSize = sizeof (DEVMODE);
+
+	windowDimensions.x = width;
+	windowDimensions.y = height;
+
+	RECT rect = {0, 0, width, height};
+	AdjustWindowRect(&rect, (WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME ^ WS_MAXIMIZEBOX) | WS_VISIBLE | WS_POPUP, true);
+	printf("%d - %d - %d - %d\n", rect.left, rect.top, rect.right, rect.bottom);
+	windowBorderDimensions.x = (rect.right - rect.left) - width;
+	windowBorderDimensions.y = (rect.bottom - rect.top) - height - 20;
+	printf("%d - %d\n", windowBorderDimensions.x, windowBorderDimensions.y);
+
+	if (windowMode == WINDOW_MODE_WINDOWED)
+	{
+		realWindowDimensions.x = width + windowBorderDimensions.x;
+		realWindowDimensions.y = height + windowBorderDimensions.y;
+		window = CreateWindow(windowClass.lpszClassName, NULL, (WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME ^ WS_MAXIMIZEBOX) | WS_VISIBLE | WS_POPUP, (originalScreenSettings.dmPelsWidth - realWindowDimensions.x) / 2, (originalScreenSettings.dmPelsHeight - realWindowDimensions.y) / 2, realWindowDimensions.x, realWindowDimensions.y, NULL, NULL, hInstance, NULL);
+	} else if (windowMode == WINDOW_MODE_BORDERLESS) {
+		realWindowDimensions.x = width;
+		realWindowDimensions.y = height;
+		window = CreateWindow(windowClass.lpszClassName, NULL, WS_VISIBLE | WS_POPUP, (originalScreenSettings.dmPelsWidth - realWindowDimensions.x) / 2, (originalScreenSettings.dmPelsHeight - realWindowDimensions.y) / 2, realWindowDimensions.x, realWindowDimensions.y, NULL, NULL, hInstance, NULL);
+	} else if (windowMode == WINDOW_MODE_FULLSCREEN) {
+		realWindowDimensions.x = width;
+		realWindowDimensions.y = height;
+		window = CreateWindow(windowClass.lpszClassName, NULL, WS_VISIBLE | WS_POPUP, 0, 0, realWindowDimensions.x, realWindowDimensions.y, NULL, NULL, hInstance, NULL);
+		DEVMODE screenSettings = {0};
+		screenSettings.dmSize = sizeof (screenSettings);
+		screenSettings.dmPelsWidth = realWindowDimensions.x;
+		screenSettings.dmPelsHeight = realWindowDimensions.y;
+		screenSettings.dmBitsPerPel = 32;
+		screenSettings.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
+		ChangeDisplaySettings(&screenSettings, CDS_FULLSCREEN);
+	}
+
 	if (!window)
 	{
 		error("could not create window.");
@@ -290,7 +408,8 @@ void init_window()
 	SetForegroundWindow(window);
 	SetFocus(window);
 	SetActiveWindow(window);
-	EnableWindow(window, TRUE);
+	EnableWindow(window, true);
+	isWindowActive = true;
 
 	hCursor = LoadCursor(NULL, IDC_ARROW);
 	if (!hCursor)
@@ -396,29 +515,18 @@ void init_window()
 		error("could not set OpenGL 3.3 context.");
 	}
 
-	wglSwapIntervalEXT(1);
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	projection = mat4_ortho((float)(0), (float)(windowDimensions.x), (float)(windowDimensions.y), (float)(0));
-}
-
-void init_window_clock()
-{
 	QueryPerformanceFrequency(&globalPerformanceFrequency);
 	currentClock = get_clock();
+
+	projection = mat4_ortho(0.0f, (float)(windowDimensions.x), (float)(windowDimensions.y), 0.0f);
 }
 
 static MSG msg;
-bool isWindowActive;
 
 bool update_window()
 {
 	update_delta_time();
 	update_input_keys();
-
-	SetCursor(hCursor);
 
 	while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 	{
@@ -427,25 +535,25 @@ bool update_window()
 			return false;
 		}
 		TranslateMessage(&msg);
-		DispatchMessage(&msg);
+        DispatchMessage(&msg);
 	}
 
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	isWindowActive = (GetActiveWindow() == window);
-
 	return true;
-}
-
-bool is_window_active()
-{
-	return GetActiveWindow() == window;
 }
 
 void swap_window_buffers()
 {
 	wglSwapLayerBuffers(deviceContext, WGL_SWAP_MAIN_PLANE);
+}
+
+void ask_window_to_close()
+{
+	PostMessageA(window, WM_CLOSE, 0, 0);
+}
+
+unsigned int get_window_shutdown_return_code()
+{
+	return msg.wParam;
 }
 
 void set_window_name(char *windowName)
@@ -456,7 +564,7 @@ void set_window_name(char *windowName)
 	{
 		int code;
 		while (*windowName != '\0')
-	    {
+		{
 			code = utf8_decode(windowName);
 			if (code == -1)
 			{
@@ -478,12 +586,85 @@ void set_window_name(char *windowName)
 	buf_free(windowNameUtf16);
 }
 
-void ask_window_to_close()
+void set_window_vsync(bool sync)
 {
-	PostMessageA(window, WM_CLOSE, 0, 0);
+	if (sync)
+	{
+		wglSwapIntervalEXT(-1);
+	} else {
+		wglSwapIntervalEXT(0);
+	}
 }
 
-unsigned int shutdown_window()
+void set_window_clear_color(float r, float g, float b, float a)
 {
-	return msg.wParam;
+	glClearColor(r, g, b, a);
+}
+
+void resize_window(int width, int height)
+{
+	windowDimensions.x = width;
+	windowDimensions.y = height;
+	realWindowDimensions.x = width;
+	realWindowDimensions.y = height;
+	if (currentWindowMode == WINDOW_MODE_WINDOWED)
+	{
+		windowDimensions.x -= windowBorderDimensions.x;
+		windowDimensions.y -= windowBorderDimensions.y;
+	}
+
+	if (currentWindowMode == WINDOW_MODE_FULLSCREEN)
+	{
+		MoveWindow(window, 0, 0, realWindowDimensions.x, realWindowDimensions.y, true);
+	} else {
+		MoveWindow(window, (originalScreenSettings.dmPelsWidth - realWindowDimensions.x) / 2, (originalScreenSettings.dmPelsHeight - realWindowDimensions.y) / 2, realWindowDimensions.x, realWindowDimensions.y, true);
+	}
+
+	glViewport(0, 0, windowDimensions.x, windowDimensions.y);
+	projection = mat4_ortho(0.0f, (float)(windowDimensions.x), (float)(windowDimensions.y), 0.0f);
+}
+
+void set_window_mode(WindowMode windowMode)
+{
+	int viewport[4];
+	glGetIntegerv(GL_VIEWPORT, viewport);
+	printf("%d - %d - %d - %d\n", viewport[0], viewport[1], viewport[2], viewport[3]);
+	printf("%d - %d\n", realWindowDimensions.x, realWindowDimensions.y);
+	printf("%d - %d\n", windowDimensions.x, windowDimensions.y);
+
+	if (windowMode == currentWindowMode)
+	{
+		return;
+	}
+
+	if (windowMode == WINDOW_MODE_WINDOWED)
+	{
+		realWindowDimensions.x += windowBorderDimensions.x;
+		realWindowDimensions.y += windowBorderDimensions.y;
+		SetWindowLongPtr(window, GWL_STYLE, (WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME ^ WS_MAXIMIZEBOX) | WS_VISIBLE | WS_POPUP);
+		ChangeDisplaySettings(&originalScreenSettings, CDS_RESET);
+	} else if (windowMode == WINDOW_MODE_BORDERLESS) {
+		if (currentWindowMode == WINDOW_MODE_WINDOWED)
+		{
+			realWindowDimensions.x -= windowBorderDimensions.x;
+			realWindowDimensions.y -= windowBorderDimensions.y;
+		}
+		SetWindowLongPtr(window, GWL_STYLE, WS_VISIBLE | WS_POPUP);
+		ChangeDisplaySettings(&originalScreenSettings, CDS_RESET);
+	} else if (windowMode == WINDOW_MODE_FULLSCREEN) {
+		if (currentWindowMode == WINDOW_MODE_WINDOWED)
+		{
+			realWindowDimensions.x -= windowBorderDimensions.x;
+			realWindowDimensions.y -= windowBorderDimensions.y;
+		}
+		SetWindowLongPtr(window, GWL_STYLE, WS_VISIBLE | WS_POPUP);
+		newScreenSettings.dmPelsWidth = realWindowDimensions.x;
+		newScreenSettings.dmPelsHeight = realWindowDimensions.y;
+		newScreenSettings.dmBitsPerPel = 32;
+		newScreenSettings.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
+		ChangeDisplaySettings(&newScreenSettings, CDS_FULLSCREEN);
+	}
+
+	currentWindowMode = windowMode;
+	resize_window(realWindowDimensions.x, realWindowDimensions.y);
 }

@@ -1,16 +1,16 @@
 #ifndef AUDIO_H
 #define AUDIO_H
 
-void init_audio();
-void free_audio();
-int create_sound(char *fileName);
-void set_sound_play_state(int soundHandle, bool playState);
-float get_sound_volume(int soundHandle);
-void set_sound_volume(int soundHandle, float volume);
-void reset_sound(int soundHandle);
-void stop_sound(int soundHandle);
+typedef struct AudioSource
+{
+	int id;
+	float volume;
+	bool playing;
+} AudioSource;
 
-extern float soundVolume;
-extern float musicVolume;
+AudioSource *create_audio_source(char *fileName);
+void reset_audio_source(AudioSource *audioSource);
+void stop_audio_source(AudioSource *audioSource);
+void free_audio();
 
 #endif /* end of include guard: AUDIO_H */

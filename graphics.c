@@ -106,6 +106,9 @@ void init_graphics()
 	ttfBuffers = NULL;
 	ttfFilesPaths = NULL;
 
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
 

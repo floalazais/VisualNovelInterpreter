@@ -34,15 +34,13 @@ static int fpsNumber = 0;
 
 int main(int argc, char** argv)
 {
-	init_window();
+	init_window(WINDOW_MODE_WINDOWED, 800, 600);
 	set_window_name("Visual Novel Interpreter Window");
 
 	init_graphics();
 
-	init_audio();
-
 	fpsDisplayText = create_text();
-	set_text_font(fpsDisplayText, "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_SMALL);
+	set_text_font(fpsDisplayText, "Fonts/arial.ttf", TEXT_SIZE_SMALL);
 	vec3 green = {0.0f, 1.0f, 0.0f};
 	fpsDisplayText->color = green;
 	fpsDisplayString = xmalloc(sizeof(char) * 8);
@@ -62,8 +60,6 @@ int main(int argc, char** argv)
 	}*/
 
 	interpretingDialog = create_dialog(interpretingDialogName, tokens);
-
-	init_window_clock();
 
 	while (true)
 	{
@@ -147,5 +143,5 @@ int main(int argc, char** argv)
 
 	print_leaks();
 
-	return shutdown_window();
+	return get_window_shutdown_return_code();
 }
