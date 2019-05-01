@@ -608,7 +608,7 @@ static int position_identifier_to_int(char *identifier, int line)
 	} else if (strmatch(identifier, "FULL_RIGHT")) {
 		return 6;
 	} else {
-		error("in %s at line %d, \"%s\" identifier is not a position identifier.", filePath, line, identifier);
+		error("in %s at line %d, %s identifier is not a position identifier.", filePath, line, identifier);
 	}
 }
 
@@ -1323,11 +1323,18 @@ static Knot *parse_knot()
 			{
 				error("in %s at line %d, knot declarations must have an indentation level of 0, indentation level is %d.", filePath, tokens[currentToken]->line, tokens[currentToken]->indentationLevel);
 			}
-			for (unsigned int i = 0; i < buf_len(currentDialog->knots) - 1; i++)
+
+			if (strmatch(tokens[currentToken]->string, "start"))
 			{
-				if (strmatch(currentDialog->knots[i]->name, tokens[currentToken]->string))
+				error("in %s at line %d, knot name \"start\" is reserved.", filePath, tokens[currentToken]->line);
+			}
+			else {
+				for (unsigned int i = 0; i < buf_len(currentDialog->knots) - 1; i++)
 				{
-					error("in %s at line %d, knot name %s was already used.", filePath, tokens[currentToken]->line, tokens[currentToken]->string);
+					if (strmatch(currentDialog->knots[i]->name, tokens[currentToken]->string))
+					{
+						error("in %s at line %d, knot name %s was already used.", filePath, tokens[currentToken]->line, tokens[currentToken]->string);
+					}
 				}
 			}
 			knot->name = strcopy(knot->name, tokens[currentToken]->string);

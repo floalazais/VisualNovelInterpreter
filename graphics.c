@@ -108,7 +108,7 @@ void init_graphics()
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	
+
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
 
@@ -121,6 +121,8 @@ void init_graphics()
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof (float), (void*)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof (float), (void*)(2 * sizeof (float)));
+
+	glBindVertexArray(0);
 
 	unsigned int vertexShaderId = compile_shader("Shaders/vertex_shader.glsl", GL_VERTEX_SHADER);
 	unsigned int colorFragmentShaderId = compile_shader("Shaders/color_fragment_shader.glsl", GL_FRAGMENT_SHADER);
@@ -888,10 +890,14 @@ static void draw(Sprite *sprite)
 	glBindVertexArray(vao);
 
 	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	glBindVertexArray(0);
 }
 
 void draw_all()
 {
+	glClear(GL_COLOR_BUFFER_BIT);
+
 	for (unsigned int i = 0; i < buf_len(backgroundSprites); i++)
 	{
 		draw(backgroundSprites[i]);

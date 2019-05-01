@@ -158,57 +158,59 @@ static bool update_command(Command *command)
 		displayDialogUI = false;
 		if (!appearingBackground)
 		{
+			char *backgroundName = command->arguments[0]->string;
+			char *animationName = command->arguments[1]->string;
 			bool foundPack = false;
 			for (unsigned int i = 0; i < buf_len(interpretingDialog->backgroundPacksNames); i++)
 			{
-				if (strmatch(command->arguments[0]->string, interpretingDialog->backgroundPacksNames[i]))
+				if (strmatch(backgroundName, interpretingDialog->backgroundPacksNames[i]))
 				{
 					if (backgroundSprite->animations)
 					{
 						oldBackgroundSprite->animations = backgroundSprite->animations;
 						oldBackgroundSprite->currentAnimation = backgroundSprite->currentAnimation;
-						oldBackgroundSprite->animations[oldBackgroundSprite->currentAnimation]->currentAnimationPhase = 0;
 					}
 					backgroundSprite->animations = interpretingDialog->backgroundPacks[i];
+					foundPack = true;
 					bool foundAnimation = false;
 					for (unsigned int j = 0; j < buf_len(backgroundSprite->animations); j++)
 					{
-						if (strmatch(command->arguments[1]->string, backgroundSprite->animations[j]->name))
+						if (strmatch(animationName, backgroundSprite->animations[j]->name))
 						{
 							backgroundSprite->currentAnimation = j;
 							backgroundSprite->animations[j]->currentAnimationPhase = 0;
+							if (backgroundSprite->animations == oldBackgroundSprite->animations && oldBackgroundSprite->currentAnimation == j && oldBackgroundSprite->animations[j]->currentAnimationPhase == 0)
+							{
+								oldBackgroundSprite->animations = NULL;
+								return true;
+							}
 							foundAnimation = true;
 							break;
 						}
 					}
 					if (!foundAnimation)
 					{
-						error("background %s of background pack %s does not exist.", command->arguments[1]->string, command->arguments[0]->string);
+						error("background %s of background pack %s does not exist.", animationName, backgroundName);
 					}
-					foundPack = true;
 					break;
 				}
 			}
 			if (!foundPack)
 			{
-				error("background pack %s does not exist.", command->arguments[0]->string);
+				error("background pack %s does not exist.", backgroundName);
 			}
-			appearingBackground = true;
 			backgroundSprite->opacity = 0.0f;
-			if (oldBackgroundSprite->animations)
-			{
-				oldBackgroundSprite->opacity = 1.0f;
-			}
+			appearingBackground = true;
 			return false;
 		} else {
 			if (backgroundSprite->opacity >= 1.0f)
 			{
-				backgroundSprite->opacity = 1.0f;
 				if (oldBackgroundSprite->animations)
 				{
 					oldBackgroundSprite->opacity = 1.0f;
+					oldBackgroundSprite->animations = NULL;
 				}
-				oldBackgroundSprite->animations = NULL;
+				backgroundSprite->opacity = 1.0f;
 				appearingBackground = false;
 			} else {
 				if (oldBackgroundSprite->animations)
@@ -230,39 +232,48 @@ static bool update_command(Command *command)
 		}
 	} else if (command->type == COMMAND_SET_CHARACTER) {
 		int position = (int)command->arguments[0]->numeric;
+		Sprite *characterSprite = charactersSprites[position];
+		Sprite *oldCharacterSprite = oldCharactersSprites[position];
 		if (!appearingCharacter)
 		{
+			char *characterName = command->arguments[1]->string;
+			char *animationName = command->arguments[2]->string;
 			bool foundCharacter = false;
 			for (unsigned int i = 0; i < buf_len(interpretingDialog->charactersNames); i++)
 			{
-				if (strmatch(command->arguments[1]->string, interpretingDialog->charactersNames[i]))
+				if (strmatch(characterName, interpretingDialog->charactersNames[i]))
 				{
 					charactersNames[position] = interpretingDialog->charactersNames[i];
-					if (charactersSprites[position]->animations)
+					if (characterSprite->animations)
 					{
-						oldCharactersSprites[position]->animations = charactersSprites[position]->animations;
-						oldCharactersSprites[position]->position.x = charactersSprites[position]->position.x;
-						oldCharactersSprites[position]->position.y = charactersSprites[position]->position.y;
-						oldCharactersSprites[position]->currentAnimation = charactersSprites[position]->currentAnimation;
-						oldCharactersSprites[position]->animations[oldCharactersSprites[position]->currentAnimation]->currentAnimationPhase = 0;
+						oldCharacterSprite->animations = characterSprite->animations;
+						oldCharacterSprite->position.x = characterSprite->position.x;
+						oldCharacterSprite->position.y = characterSprite->position.y;
+						oldCharacterSprite->currentAnimation = characterSprite->currentAnimation;
+						oldCharacterSprite->animations[oldCharacterSprite->currentAnimation]->currentAnimationPhase = 0;
 					}
-					charactersSprites[position]->animations = interpretingDialog->charactersAnimations[i];
+					characterSprite->animations = interpretingDialog->charactersAnimations[i];
 					bool foundAnimation = false;
-					for (unsigned int j = 0; j < buf_len(charactersSprites[position]->animations); j++)
+					for (unsigned int j = 0; j < buf_len(characterSprite->animations); j++)
 					{
-						if (strmatch(command->arguments[2]->string, charactersSprites[position]->animations[j]->name))
+						if (strmatch(animationName, characterSprite->animations[j]->name))
 						{
-							charactersSprites[position]->position.x = (int)((windowDimensions.x * position / 6.0f) - (charactersSprites[position]->animations[j]->animationPhases[0]->width / 2));
-							charactersSprites[position]->position.y = (int)(windowDimensions.y - charactersSprites[position]->animations[j]->animationPhases[0]->height);
-							charactersSprites[position]->currentAnimation = j;
-							charactersSprites[position]->animations[charactersSprites[position]->currentAnimation]->currentAnimationPhase = 0;
+							characterSprite->position.x = (int)((windowDimensions.x * position / 6.0f) - (characterSprite->animations[j]->animationPhases[0]->width / 2));
+							characterSprite->position.y = (int)(windowDimensions.y - characterSprite->animations[j]->animationPhases[0]->height);
+							characterSprite->currentAnimation = j;
+							characterSprite->animations[characterSprite->currentAnimation]->currentAnimationPhase = 0;
+							if (characterSprite->animations == oldCharacterSprite->animations && oldCharacterSprite->currentAnimation == j && oldCharacterSprite->animations[j]->currentAnimationPhase == 0)
+							{
+								oldCharacterSprite->animations = NULL;
+								return true;
+							}
 							foundAnimation = true;
 							break;
 						}
 					}
 					if (!foundAnimation)
 					{
-						error("animation %s of character %s does not exist.", command->arguments[2]->string, command->arguments[1]->string);
+						error("animation %s of character %s does not exist.", animationName, characterName);
 					}
 					foundCharacter = true;
 					break;
@@ -270,43 +281,40 @@ static bool update_command(Command *command)
 			}
 			if (!foundCharacter)
 			{
-				error("character %s does not exist.", command->arguments[1]->string);
+				error("character %s does not exist.", characterName);
 			}
+			characterSprite->opacity = 0.0f;
 			appearingCharacter = true;
-			charactersSprites[position]->opacity = 0.0f;
-			if (oldCharactersSprites[position]->animations)
-			{
-				oldCharactersSprites[position]->opacity = 1.0f;
-			}
 			return false;
 		} else {
-			if (charactersSprites[position]->opacity >= 1.0f)
+			if (characterSprite->opacity >= 1.0f)
 			{
-				charactersSprites[position]->opacity = 1.0f;
-				if (oldCharactersSprites[position]->animations)
+				if (oldCharacterSprite->animations)
 				{
-					oldCharactersSprites[position]->opacity = 1.0f;
+					oldCharacterSprite->opacity = 1.0f;
+					oldCharacterSprite->animations = NULL;
 				}
-				oldCharactersSprites[position]->animations = NULL;
+				characterSprite->opacity = 1.0f;
 				appearingCharacter = false;
 			} else {
-				if (oldCharactersSprites[position]->animations)
+				if (oldCharacterSprite->animations)
 				{
-					oldCharactersSprites[position]->opacity -= deltaTime * 2;
+					oldCharacterSprite->opacity -= deltaTime * 2;
 				}
-				charactersSprites[position]->opacity += deltaTime * 2;
+				characterSprite->opacity += deltaTime * 2;
 				return false;
 			}
 		}
 	} else if (command->type == COMMAND_CLEAR_CHARACTER_POSITION) {
 		int position = (int)command->arguments[0]->numeric;
-		if (charactersSprites[position]->opacity > 0.0f)
+		Sprite *characterSprite = charactersSprites[position];
+		if (characterSprite->opacity > 0.0f)
 		{
-			charactersSprites[position]->opacity -= deltaTime * 2;
+			characterSprite->opacity -= deltaTime * 2;
 			return false;
 		} else {
-			charactersSprites[position]->opacity = 1.0f;
-			charactersSprites[position]->animations = NULL;
+			characterSprite->opacity = 1.0f;
+			characterSprite->animations = NULL;
 			charactersNames[position] = NULL;
 		}
 	} else if (command->type == COMMAND_CLEAR_CHARACTER_POSITIONS) {
@@ -334,22 +342,27 @@ static bool update_command(Command *command)
 		if (!fadingMusic)
 		{
 			bool foundMusic = false;
+			char *musicName = command->arguments[0]->string;
 			for (unsigned int i = 0; i < buf_len(interpretingDialog->musicsNames); i++)
 			{
-				if (strmatch(command->arguments[0]->string, interpretingDialog->musicsNames[i]))
+				if (strmatch(musicName, interpretingDialog->musicsNames[i]))
 				{
 					if (music)
 					{
 						oldMusic = music;
 					}
 					music = interpretingDialog->musics[i];
+					if (music == oldMusic)
+					{
+						oldMusic = NULL;
+					}
 					foundMusic = true;
 					break;
 				}
 			}
 			if (!foundMusic)
 			{
-				error("music %s does not exist.", command->arguments[1]->string);
+				error("music %s does not exist.", musicName);
 			}
 			fadingMusic = true;
 			music->volume = 0.0f;
@@ -358,12 +371,12 @@ static bool update_command(Command *command)
 		} else {
 			if (music->volume >= 1.0f)
 			{
-				music->volume = 1.0f;
 				if (oldMusic)
 				{
 					oldMusic->volume = 1.0f;
 					reset_audio_source(oldMusic);
 				}
+				music->volume = 1.0f;
 				fadingMusic = false;
 			} else {
 				if (oldMusic)
@@ -382,22 +395,27 @@ static bool update_command(Command *command)
 		if (!fadingSound)
 		{
 			bool foundSound = false;
+			char *soundName = command->arguments[0]->string;
 			for (unsigned int i = 0; i < buf_len(interpretingDialog->soundsNames); i++)
 			{
-				if (strmatch(command->arguments[0]->string, interpretingDialog->soundsNames[i]))
+				if (strmatch(soundName, interpretingDialog->soundsNames[i]))
 				{
 					if (sound)
 					{
 						oldSound = sound;
 					}
 					sound = interpretingDialog->sounds[i];
+					if (sound == oldSound)
+					{
+						oldSound = NULL;
+					}
 					foundSound = true;
 					break;
 				}
 			}
 			if (!foundSound)
 			{
-				error("sound %s does not exist.", command->arguments[1]->string);
+				error("sound %s does not exist.", soundName);
 			}
 			fadingSound = true;
 			sound->volume = 0.0f;
@@ -406,12 +424,12 @@ static bool update_command(Command *command)
 		} else {
 			if (sound->volume >= 1.0f)
 			{
-				sound->volume = 1.0f;
 				if (oldSound)
 				{
 					oldSound->volume = 0.0f;
 					reset_audio_source(oldSound);
 				}
+				sound->volume = 1.0f;
 				fadingSound = false;
 			} else {
 				if (oldSound)
@@ -433,28 +451,30 @@ static bool update_command(Command *command)
 		{
 			nextDialogName = strcopy(nextDialogName, "Dialogs/");
 			nextDialogName = strappend(nextDialogName, command->arguments[0]->string);
-			if (command->arguments[0]->string)
+			if (command->arguments[1]->string)
 			{
 				nextDialogStartKnotName = strcopy(nextDialogStartKnotName, command->arguments[1]->string);
 			}
 		}
 	} else if (command->type == COMMAND_ASSIGN) {
 		bool foundVariable = false;
+		char *variableName = command->arguments[0]->string;
+		LogicExpression *assignedValue = command->arguments[1]->logicExpression;
 		for (unsigned int i = 0; i < buf_len(variablesNames); i++)
 		{
-			if (strmatch(command->arguments[0]->string, variablesNames[i]))
+			if (strmatch(variableName, variablesNames[i]))
 			{
 				free_variable(variablesValues[i]);
-				variablesValues[i] = resolve_logic_expression(command->arguments[1]->logicExpression);
+				variablesValues[i] = resolve_logic_expression(assignedValue);
 				foundVariable = true;
 			}
 		}
 		if (!foundVariable)
 		{
-			char *variableName = NULL;
-			variableName = strcopy(variableName, command->arguments[0]->string);
-			buf_add(variablesNames, variableName);
-			buf_add(variablesValues, resolve_logic_expression(command->arguments[1]->logicExpression));
+			char *newVariableName = NULL;
+			newVariableName = strcopy(newVariableName, variableName);
+			buf_add(variablesNames, newVariableName);
+			buf_add(variablesValues, resolve_logic_expression(assignedValue));
 		}
 	} else if (command->type == COMMAND_GO_TO) {
 		for (int i = 0; buf_len(interpretingDialog->knots); i++)
@@ -485,21 +505,22 @@ static bool update_command(Command *command)
 		return true;
 	} else if (command->type == COMMAND_SET_NAME_COLOR) {
 		bool foundColoredName = false;
+		char *nameToColor = command->arguments[0]->string;
+		vec3 newNameColor = {.x = command->arguments[1]->numeric, .y = command->arguments[2]->numeric, .z = command->arguments[3]->numeric};
 		for (unsigned int i = 0; i < buf_len(interpretingDialog->coloredNames); i++)
 		{
-			if (strmatch(command->arguments[0]->string, interpretingDialog->coloredNames[i]))
+			if (strmatch(nameToColor, interpretingDialog->coloredNames[i]))
 			{
-				interpretingDialog->namesColors[i].x = command->arguments[1]->numeric;
-				interpretingDialog->namesColors[i].y = command->arguments[2]->numeric;
-				interpretingDialog->namesColors[i].z = command->arguments[3]->numeric;
+				interpretingDialog->namesColors[i] = newNameColor;
 				foundColoredName = true;
 				break;
 			}
 		}
 		if (!foundColoredName)
 		{
-			buf_add(interpretingDialog->coloredNames, command->arguments[0]->string);
-			vec3 newNameColor = {.x = command->arguments[1]->numeric, .y = command->arguments[2]->numeric, .z = command->arguments[3]->numeric};
+			char *newColoredName = NULL;
+			newColoredName = strcopy(newColoredName, nameToColor);
+			buf_add(interpretingDialog->coloredNames, newColoredName);
 			buf_add(interpretingDialog->namesColors, newNameColor);
 		}
 	} else {
@@ -510,6 +531,17 @@ static bool update_command(Command *command)
 
 static bool update_sentence(Sentence *sentence)
 {
+	Sprite *currentSpeakerSprite = NULL;
+	Animation *currentAnimation = NULL;
+	AnimationPhase *currentAnimationPhase = NULL;
+
+	if (currentSpeakerSpriteIndex != -1)
+	{
+		currentSpeakerSprite = charactersSprites[currentSpeakerSpriteIndex];
+		currentAnimation = currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation];
+		currentAnimationPhase = currentAnimation->animationPhases[currentAnimation->currentAnimationPhase];
+	}
+
 	if (sentenceFirstUpdate)
 	{
 		sentenceFirstUpdate = false;
@@ -519,7 +551,7 @@ static bool update_sentence(Sentence *sentence)
 		currentSentence->nbCharToDisplay = 0;
 		if (currentSpeakerSpriteIndex != -1)
 		{
-			charactersSprites[currentSpeakerSpriteIndex]->animations[charactersSprites[currentSpeakerSpriteIndex]->currentAnimation]->updating = true;
+			currentAnimation->updating = true;
 		}
 	}
 
@@ -553,7 +585,7 @@ static bool update_sentence(Sentence *sentence)
 		{
 			if (currentSpeakerSpriteIndex != -1)
 			{
-				charactersSprites[currentSpeakerSpriteIndex]->animations[charactersSprites[currentSpeakerSpriteIndex]->currentAnimation]->stopping = true;
+				currentAnimation->stopping = true;
 			}
 		}
 	} else if (is_input_key_pressed(INPUT_KEY_ENTER) || sentence->autoSkip) {
@@ -561,21 +593,18 @@ static bool update_sentence(Sentence *sentence)
 		set_text_string(currentSentence, NULL);
 		if (currentSpeakerSpriteIndex != -1)
 		{
-			Animation *currentSpeakerSpriteAnimation = charactersSprites[currentSpeakerSpriteIndex]->animations[charactersSprites[currentSpeakerSpriteIndex]->currentAnimation];
-			currentSpeakerSpriteAnimation->stopping = false;
-			currentSpeakerSpriteAnimation->updating = false;
-			currentSpeakerSpriteAnimation->currentAnimationPhase = 0;
-			currentSpeakerSpriteAnimation->timeDuringCurrentAnimationPhase = 0.0f;
+			currentAnimation->stopping = false;
+			currentAnimation->updating = false;
+			currentAnimation->currentAnimationPhase = 0;
+			currentAnimation->timeDuringCurrentAnimationPhase = 0.0f;
 		}
 		return true;
 	}
 
 	if (currentSpeakerSpriteIndex != -1)
 	{
-		Sprite *currentSpeakerSprite = charactersSprites[currentSpeakerSpriteIndex];
-		AnimationPhase *currentSpeakerSpriteAnimationPhase = currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->animationPhases[currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->currentAnimationPhase];
-		currentSpeakerSprite->position.x = (int)((windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentSpeakerSpriteAnimationPhase->width / 2));
-		currentSpeakerSprite->position.y = (int)(windowDimensions.y - currentSpeakerSpriteAnimationPhase->height);
+		currentSpeakerSprite->position.x = (int)((windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentAnimationPhase->width / 2));
+		currentSpeakerSprite->position.y = (int)(windowDimensions.y - currentAnimationPhase->height);
 	}
 	return false;
 }
@@ -620,6 +649,7 @@ static bool update_cue_condition(CueCondition *cueCondition)
 			if (moving)
 			{
 				cueCondition->currentExpression = 0;
+				return true;
 			} else {
 				cueCondition->currentExpression++;
 			}
@@ -635,6 +665,7 @@ static bool update_cue_condition(CueCondition *cueCondition)
 			if (moving)
 			{
 				cueCondition->currentExpression = 0;
+				return true;
 			} else {
 				cueCondition->currentExpression++;
 			}
@@ -828,9 +859,7 @@ static bool update_cue(Cue *cue)
 				display_choice(cue->cueExpressions[i]);
 			}
 			choicesDisplayed = true;
-			choiceMarker->position.y = currentChoices[0]->position.y + ((currentChoices[0]->height - choiceMarker->height) / 2) - currentChoices[0]->font->descent;
 		}
-
 		if (is_input_key_pressed(INPUT_KEY_DOWN_ARROW))
 		{
 			currentChoice++;
@@ -838,14 +867,12 @@ static bool update_cue(Cue *cue)
 			{
 				currentChoice = 0;
 			}
-			choiceMarker->position.y = currentChoices[currentChoice]->position.y + ((currentChoices[currentChoice]->height - choiceMarker->height) / 2) - currentChoices[currentChoice]->font->descent;
 		} else if (is_input_key_pressed(INPUT_KEY_UP_ARROW)) {
 			currentChoice--;
 			if (currentChoice == -1)
 			{
 				currentChoice = buf_len(currentChoices) - 1;
 			}
-			choiceMarker->position.y = currentChoices[currentChoice]->position.y + ((currentChoices[currentChoice]->height - choiceMarker->height) / 2) - currentChoices[currentChoice]->font->descent;
 		} else if (is_input_key_pressed(INPUT_KEY_ENTER)) {
 			update_command(goToCommands[currentChoice]);
 			buf_free(goToCommands);
@@ -865,6 +892,7 @@ static bool update_cue(Cue *cue)
 			currentSpeaker->color.z = 1.0f;
 			return true;
 		}
+		choiceMarker->position.y = currentChoices[currentChoice]->position.y + ((currentChoices[currentChoice]->height - choiceMarker->height) / 2) - currentChoices[currentChoice]->font->descent;
 	}
 	return false;
 }
@@ -909,6 +937,7 @@ static bool update_knot_condition(KnotCondition *knotCondition)
 			if (moving)
 			{
 				knotCondition->currentExpression = 0;
+				return true;
 			} else {
 				knotCondition->currentExpression++;
 			}
@@ -924,6 +953,7 @@ static bool update_knot_condition(KnotCondition *knotCondition)
 			if (moving)
 			{
 				knotCondition->currentExpression = 0;
+				return true;
 			} else {
 				knotCondition->currentExpression++;
 			}
@@ -936,15 +966,9 @@ static bool update_knot_expression(KnotExpression *knotExpression)
 {
 	if (knotExpression->type == KNOT_EXPRESSION_CUE)
 	{
-		if (update_cue(knotExpression->cue))
-		{
-			return true;
-		}
+		return update_cue(knotExpression->cue);
 	} else if (knotExpression->type == KNOT_EXPRESSION_KNOT_CONDITION) {
-		if (update_knot_condition(knotExpression->knotCondition))
-		{
-			return true;
-		}
+		return update_knot_condition(knotExpression->knotCondition);
 	} else if (knotExpression->type == KNOT_EXPRESSION_COMMAND) {
 		return update_command(knotExpression->command);
 	} else {
