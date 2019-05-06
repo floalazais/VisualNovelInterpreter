@@ -664,54 +664,44 @@ static void add_to_character_list(char *characterName)
 
 static void add_to_sound_list(char *soundName)
 {
-	bool foundSound = false;
 	for (unsigned int index = 0; index < buf_len(currentDialog->soundsNames); index++)
 	{
 		if (strmatch(soundName, currentDialog->soundsNames[index]))
 		{
-			foundSound = true;
-			break;
+			return;
 		}
 	}
-	if (!foundSound)
-	{
-		char *newSoundName = NULL;
-		newSoundName = strcopy(newSoundName, soundName);
-		buf_add(currentDialog->soundsNames, newSoundName);
-		char *soundFilePath = NULL;
-		//soundFilePath = strcopy(soundFilePath, "Sound files/");
-		soundFilePath = strcopy(soundFilePath, "Sounds/");
-		soundFilePath = strappend(soundFilePath, soundName);
-		//soundFilePath = strappend(soundFilePath, ".snd");
-		buf_add(currentDialog->sounds, create_audio_source(soundFilePath));
-		buf_free(soundFilePath);
-	}
+	char *newSoundName = NULL;
+	newSoundName = strcopy(newSoundName, soundName);
+	buf_add(currentDialog->soundsNames, newSoundName);
+	char *soundFilePath = NULL;
+	//soundFilePath = strcopy(soundFilePath, "Sound files/");
+	soundFilePath = strcopy(soundFilePath, "Sounds/");
+	soundFilePath = strappend(soundFilePath, soundName);
+	//soundFilePath = strappend(soundFilePath, ".snd");
+	buf_add(currentDialog->sounds, create_audio_source(soundFilePath));
+	buf_free(soundFilePath);
 }
 
 static void add_to_music_list(char *musicName)
 {
-	bool foundMusic = false;
 	for (unsigned int index = 0; index < buf_len(currentDialog->musicsNames); index++)
 	{
 		if (strmatch(musicName, currentDialog->musicsNames[index]))
 		{
-			foundMusic = true;
-			break;
+			return;
 		}
 	}
-	if (!foundMusic)
-	{
-		char *newSoundName = NULL;
-		newSoundName = strcopy(newSoundName, musicName);
-		buf_add(currentDialog->musicsNames, newSoundName);
-		char *musicFilePath = NULL;
-		//musicFilePath = strcopy(musicFilePath, "Sound files/");
-		musicFilePath = strcopy(musicFilePath, "Musics/");
-		musicFilePath = strappend(musicFilePath, musicName);
-		//musicFilePath = strappend(musicFilePath, ".snd");
-		buf_add(currentDialog->musics, create_audio_source(musicFilePath));
-		buf_free(musicFilePath);
-	}
+	char *newSoundName = NULL;
+	newSoundName = strcopy(newSoundName, musicName);
+	buf_add(currentDialog->musicsNames, newSoundName);
+	char *musicFilePath = NULL;
+	//musicFilePath = strcopy(musicFilePath, "Sound files/");
+	musicFilePath = strcopy(musicFilePath, "Musics/");
+	musicFilePath = strappend(musicFilePath, musicName);
+	//musicFilePath = strappend(musicFilePath, ".snd");
+	buf_add(currentDialog->musics, create_audio_source(musicFilePath));
+	buf_free(musicFilePath);
 }
 
 static int nbArguments[] =

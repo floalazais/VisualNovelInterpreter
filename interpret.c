@@ -69,7 +69,7 @@ void init_dialog_ui()
 	set_text_font(currentSentence, "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_NORMAL);
 	set_text_width_limit(currentSentence, (int)(0.97f * windowDimensions.x));
 	currentSentence->position.x = (int)(0.015f * windowDimensions.x);
-	currentSentence->position.y = (int)(0.8f * windowDimensions.y + 2);
+	currentSentence->position.y = (int)(0.8f * windowDimensions.y - 4);
 	currentSentence->color = white;
 
 	currentSpeaker = create_text();
@@ -804,10 +804,10 @@ static bool update_cue(Cue *cue)
 				} else {
 					currentSpeakerPosition.x = (int)(windowDimensions.x * 0.985f - currentSpeaker->width);
 				}
-				currentSpeakerPosition.y = (int)(windowDimensions.y * 0.8f - currentSpeaker->height - 2);
+				currentSpeakerPosition.y = (int)(windowDimensions.y * 0.8f - currentSpeaker->height - 8);
 				set_text_position(currentSpeaker, currentSpeakerPosition);
 				characterNameBox->position.x = currentSpeaker->position.x - 2;
-				characterNameBox->position.y = currentSpeaker->position.y - currentSpeaker->font->descent - 2;
+				characterNameBox->position.y = currentSpeaker->position.y - currentSpeaker->font->descent + 6;
 				characterNameBox->width = currentSpeaker->width + 4;
 				characterNameBox->height = currentSpeaker->height + currentSpeaker->font->descent + 4;
 			} else {

@@ -40,7 +40,8 @@ int main(int argc, char** argv)
 	init_graphics();
 
 	fpsDisplayText = create_text();
-	set_text_font(fpsDisplayText, "Fonts/arial.ttf", TEXT_SIZE_SMALL);
+	fpsDisplayText->position.y -= 2;
+	set_text_font(fpsDisplayText, "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_SMALL);
 	vec3 green = {0.0f, 1.0f, 0.0f};
 	fpsDisplayText->color = green;
 	fpsDisplayString = xmalloc(sizeof(char) * 8);
@@ -48,7 +49,7 @@ int main(int argc, char** argv)
 	fpsDisplayBox = create_sprite(SPRITE_COLOR);
 	vec3 black = {0.0f, 0.0f, 0.0f};
 	fpsDisplayBox->color = black;
-	fpsDisplayBox->height = fpsDisplayText->height + 2;
+	fpsDisplayBox->height = fpsDisplayText->height;
 
 	init_dialog_ui();
 	interpretingDialogName = strcopy(interpretingDialogName, "Dialogs/start.dlg");
@@ -79,7 +80,7 @@ int main(int argc, char** argv)
 			}
 			sprintf(fpsDisplayString, "%d FPS", fpsNumber);
 			set_text_string(fpsDisplayText, fpsDisplayString);
-			fpsDisplayBox->width = fpsDisplayText->width + 2;
+			fpsDisplayBox->width = fpsDisplayText->width + 1;
 			fpsNumber = 0;
 		}
 

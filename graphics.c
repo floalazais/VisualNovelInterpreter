@@ -576,7 +576,7 @@ Text *create_text()
 	text->sprites = NULL;
 	text->widthLimit = -1;
 	text->position.x = 0;
-	text->position.y = 0;
+	text->position.y = -2;
 	return text;
 }
 
@@ -665,7 +665,7 @@ static void update_text(Text *text)
 	{
 		text->width = currentLineWidth;
 	}
-	text->height = nbLine * (text->font->ascent - text->font->descent);
+	text->height = nbLine * (text->font->ascent - text->font->descent) - 2;
 	text->nbMaxCharToDisplay = count;
 }
 
@@ -681,6 +681,7 @@ void set_text_width_limit(Text *text, int limit)
 void set_text_position(Text *text, ivec2 position)
 {
 	text->position = position;
+	text->position.y -= 2;
 	if (text->codes)
 	{
 		update_text(text);
@@ -718,7 +719,7 @@ void set_text_font(Text *text, char *fontPath, int textHeight)
 		text->font = fonts[buf_len(fonts) - 1];
 	}
 
-	text->height = text->font->ascent - text->font->descent;
+	text->height = text->font->ascent - text->font->descent - 2;
 
 	if (text->codes)
 	{
