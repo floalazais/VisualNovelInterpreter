@@ -138,7 +138,6 @@ void stop_audio_source(AudioSource *audioSource)
 	ma_device_stop(internalAudioSources[audioSource->id]->device);
 	free_internal_audio_source(internalAudioSources[audioSource->id]);
 	internalAudioSources[audioSource->id] = NULL;
-	fflush(stdout);
 }
 
 void free_audio()

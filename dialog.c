@@ -679,7 +679,6 @@ static void add_to_sound_list(char *soundName)
 	soundFilePath = strcopy(soundFilePath, "Sounds/");
 	soundFilePath = strappend(soundFilePath, soundName);
 	//soundFilePath = strappend(soundFilePath, ".snd");
-	buf_add(currentDialog->sounds, create_audio_source(soundFilePath));
 	buf_free(soundFilePath);
 }
 
@@ -700,7 +699,6 @@ static void add_to_music_list(char *musicName)
 	musicFilePath = strcopy(musicFilePath, "Musics/");
 	musicFilePath = strappend(musicFilePath, musicName);
 	//musicFilePath = strappend(musicFilePath, ".snd");
-	buf_add(currentDialog->musics, create_audio_source(musicFilePath));
 	buf_free(musicFilePath);
 }
 
@@ -1365,10 +1363,8 @@ Dialog *create_dialog(char *_filePath, Token **_tokens)
 	dialog->coloredNames = NULL;
 
 	dialog->soundsNames = NULL;
-	dialog->sounds = NULL;
 
 	dialog->musicsNames = NULL;
-	dialog->musics = NULL;
 
 	dialog->knots = NULL;
     while (tokens[currentToken]->type != TOKEN_END_OF_FILE)
@@ -1576,23 +1572,11 @@ void free_dialog(Dialog *dialog)
 		buf_free(dialog->coloredNames[index]);
 	}
 	buf_free(dialog->coloredNames);
-	for (unsigned int index = 0; index < buf_len(dialog->sounds); index++)
-    {
-		stop_audio_source(dialog->sounds[index]);
-		xfree(dialog->sounds[index]);
-	}
-	buf_free(dialog->sounds);
 	for (unsigned int index = 0; index < buf_len(dialog->soundsNames); index++)
     {
 		buf_free(dialog->soundsNames[index]);
 	}
 	buf_free(dialog->soundsNames);
-	for (unsigned int index = 0; index < buf_len(dialog->musics); index++)
-    {
-		stop_audio_source(dialog->musics[index]);
-		xfree(dialog->musics[index]);
-	}
-	buf_free(dialog->musics);
 	for (unsigned int index = 0; index < buf_len(dialog->musicsNames); index++)
     {
 		buf_free(dialog->musicsNames[index]);

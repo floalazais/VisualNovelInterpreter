@@ -222,9 +222,7 @@ typedef struct Dialog
 	char **coloredNames;
 	vec3 *namesColors;
 	char **soundsNames;
-	AudioSource **sounds;
 	char **musicsNames;
-	AudioSource **musics;
     Knot **knots;
     int currentKnot;
 	bool end;

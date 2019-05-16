@@ -120,6 +120,11 @@ void init_dialog_ui()
 
 	waitTimer = 0.0f;
 
+	music = NULL;
+	oldMusic = NULL;
+	sound = NULL;
+	oldSound = NULL;
+
 	blipSound = create_audio_source("Sounds/blip normal.wav");
 }
 
@@ -351,11 +356,7 @@ static bool update_command(Command *command)
 					{
 						oldMusic = music;
 					}
-					music = interpretingDialog->musics[i];
-					if (music == oldMusic)
-					{
-						oldMusic = NULL;
-					}
+					music = create_audio_source(musicName);
 					foundMusic = true;
 					break;
 				}
@@ -373,8 +374,8 @@ static bool update_command(Command *command)
 			{
 				if (oldMusic)
 				{
-					oldMusic->volume = 1.0f;
-					reset_audio_source(oldMusic);
+					stop_audio_source(oldMusic);
+					oldMusic = NULL;
 				}
 				music->volume = 1.0f;
 				fadingMusic = false;
@@ -388,6 +389,7 @@ static bool update_command(Command *command)
 			}
 		}
 	} else if (command->type == COMMAND_STOP_MUSIC) {
+		stop_audio_source(music);
 		music = NULL;
 	} else if (command->type == COMMAND_SET_MUSIC_VOLUME) {
 		music->volume = command->arguments[0]->numeric;
@@ -404,11 +406,7 @@ static bool update_command(Command *command)
 					{
 						oldSound = sound;
 					}
-					sound = interpretingDialog->sounds[i];
-					if (sound == oldSound)
-					{
-						oldSound = NULL;
-					}
+					sound = create_audio_source(soundName);
 					foundSound = true;
 					break;
 				}
@@ -426,8 +424,8 @@ static bool update_command(Command *command)
 			{
 				if (oldSound)
 				{
-					oldSound->volume = 0.0f;
-					reset_audio_source(oldSound);
+					stop_audio_source(oldSound);
+					oldSound = NULL;
 				}
 				sound->volume = 1.0f;
 				fadingSound = false;
@@ -441,6 +439,7 @@ static bool update_command(Command *command)
 			}
 		}
 	} else if (command->type == COMMAND_STOP_SOUND) {
+		stop_audio_source(sound);
 		sound = NULL;
 	} else if (command->type == COMMAND_SET_SOUND_VOLUME) {
 		sound->volume = command->arguments[0]->numeric;
@@ -1014,7 +1013,15 @@ bool interpret_current_dialog()
 		currentSpeakerSpriteIndex = -1;
 		sound = NULL;
 		oldSound = NULL;
+		if (music)
+		{
+			stop_audio_source(music);
+		}
 		music = NULL;
+		if (oldMusic)
+		{
+			stop_audio_source(oldMusic);
+		}
 		oldMusic = NULL;
 		choosing = false;
 		nbChoices = 0;
