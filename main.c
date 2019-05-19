@@ -35,7 +35,6 @@ static int fpsNumber = 0;
 int main(int argc, char** argv)
 {
 	init_window(WINDOW_MODE_WINDOWED, 800, 600);
-	set_window_name("Visual Novel Interpreter Window");
 
 	init_graphics();
 

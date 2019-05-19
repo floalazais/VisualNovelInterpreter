@@ -43,11 +43,6 @@ static void audio_source_play_callback(ma_device *device, void *output, const vo
 		return;
 	}
 
-    if (!internalAudioSource->decoder)
-	{
-        return;
-    }
-
     ma_uint32 nbFramesRead = ma_decoder_read_pcm_frames(internalAudioSource->decoder, output, frameCount);
 
 	if (nbFramesRead == 0)

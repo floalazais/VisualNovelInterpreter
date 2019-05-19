@@ -152,6 +152,30 @@ void free_dialog_ui()
 		free_sprite(charactersSprites[i]);
 	}
 
+	if (music)
+	{
+		stop_audio_source(music);
+		xfree(music);
+	}
+
+	if (oldMusic)
+	{
+		stop_audio_source(oldMusic);
+		xfree(oldMusic);
+	}
+
+	if (sound)
+	{
+		stop_audio_source(sound);
+		xfree(sound);
+	}
+
+	if (oldSound)
+	{
+		stop_audio_source(oldSound);
+		xfree(oldSound);
+	}
+
 	stop_audio_source(blipSound);
 	xfree(blipSound);
 }
@@ -356,7 +380,11 @@ static bool update_command(Command *command)
 					{
 						oldMusic = music;
 					}
-					music = create_audio_source(musicName);
+					char *newMusicName = NULL;
+					newMusicName = strcopy(newMusicName, "Musics/");
+					newMusicName = strappend(newMusicName, musicName);
+					music = create_audio_source(newMusicName);
+					buf_free(newMusicName);
 					foundMusic = true;
 					break;
 				}
@@ -375,6 +403,7 @@ static bool update_command(Command *command)
 				if (oldMusic)
 				{
 					stop_audio_source(oldMusic);
+					xfree(oldMusic);
 					oldMusic = NULL;
 				}
 				music->volume = 1.0f;
@@ -390,6 +419,7 @@ static bool update_command(Command *command)
 		}
 	} else if (command->type == COMMAND_STOP_MUSIC) {
 		stop_audio_source(music);
+		xfree(music);
 		music = NULL;
 	} else if (command->type == COMMAND_SET_MUSIC_VOLUME) {
 		music->volume = command->arguments[0]->numeric;
@@ -406,7 +436,11 @@ static bool update_command(Command *command)
 					{
 						oldSound = sound;
 					}
-					sound = create_audio_source(soundName);
+					char *newSoundName = NULL;
+					newSoundName = strcopy(newSoundName, "Sounds/");
+					newSoundName = strappend(newSoundName, soundName);
+					sound = create_audio_source(newSoundName);
+					buf_free(newSoundName);
 					foundSound = true;
 					break;
 				}
@@ -425,6 +459,7 @@ static bool update_command(Command *command)
 				if (oldSound)
 				{
 					stop_audio_source(oldSound);
+					xfree(oldSound);
 					oldSound = NULL;
 				}
 				sound->volume = 1.0f;
@@ -440,6 +475,7 @@ static bool update_command(Command *command)
 		}
 	} else if (command->type == COMMAND_STOP_SOUND) {
 		stop_audio_source(sound);
+		xfree(sound);
 		sound = NULL;
 	} else if (command->type == COMMAND_SET_SOUND_VOLUME) {
 		sound->volume = command->arguments[0]->numeric;
@@ -1011,16 +1047,28 @@ bool interpret_current_dialog()
 			charactersSprites[i]->animations = NULL;
 		}
 		currentSpeakerSpriteIndex = -1;
+		if (sound)
+		{
+			stop_audio_source(sound);
+			xfree(sound);
+		}
 		sound = NULL;
+		if (oldSound)
+		{
+			stop_audio_source(oldSound);
+			xfree(oldSound);
+		}
 		oldSound = NULL;
 		if (music)
 		{
 			stop_audio_source(music);
+			xfree(music);
 		}
 		music = NULL;
 		if (oldMusic)
 		{
 			stop_audio_source(oldMusic);
+			xfree(oldMusic);
 		}
 		oldMusic = NULL;
 		choosing = false;
