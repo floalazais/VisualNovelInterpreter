@@ -11,39 +11,46 @@
 #include "window.h"
 #include "maths.h"
 #include "globals.h"
-#include "stroperation.h"
 #include "xalloc.h"
 #include "stretchy_buffer.h"
+#include "str.h"
 #include "error.h"
 #include "user_input.h"
 #include "gl.h"
-#include "token.h"
-#include "graphics.h"
 
 static HWND window;
 
-NO_RETURN void error(char *format, ...)
+NO_RETURN void error(const char *format, ...)
 {
 	char buffer[1024] = "ERROR : ";
-	va_list arguments;
-	va_start(arguments, format);
-    vsprintf(buffer + 8, format, arguments);
-	va_end(arguments);
-	strcat(buffer, "\n");
+	if (format)
+	{
+		va_list arguments;
+		va_start(arguments, format);
+		vsnprintf(buffer + 8, 1016, format, arguments);
+		va_end(arguments);
+		strncat(buffer, "\n", 2);
+	} else {
+		strncat(buffer, "no error message.\n", 19);
+	}
 	MessageBoxA(window, buffer, "Visual Novel Interpreter Error MessageBox", MB_ICONERROR);
 	exit(EXIT_FAILURE);
 }
 
-void warning(char *format, ...)
+void warning(const char *format, ...)
 {
 	char buffer[1024] = "WARNING : ";
-	va_list arguments;
-	va_start(arguments, format);
-    vsprintf(buffer + 8, format, arguments);
-	va_end(arguments);
-	strcat(buffer, "\n");
+	if (format)
+	{
+		va_list arguments;
+		va_start(arguments, format);
+		vsnprintf(buffer + 8, 1016, format, arguments);
+		va_end(arguments);
+		strncat(buffer, "\n", 2);
+	} else {
+		strncat(buffer, "no error message.\n", 19);
+	}
 	MessageBoxA(window, buffer, "Visual Novel Interpreter Warning MessageBox", MB_ICONWARNING);
-	exit(EXIT_FAILURE);
 }
 
 float deltaTime = 0.0f;
@@ -108,8 +115,8 @@ void update_input_keys()
 #define GET_XBUTTON_WPARAM(w) (HIWORD(w))
 #endif
 
-ivec2 mousePosition = {0};
-ivec2 mouseOffset = {0};
+ivec2 mousePosition = {0, 0};
+ivec2 mouseOffset = {0, 0};
 
 bool isWindowActive;
 
@@ -135,7 +142,7 @@ static void update_input_key(bool isInputKeyDown, WPARAM wParam, LPARAM lParam)
 	} else if (wParam == VK_SHIFT) {
 		inputKeysNow[INPUT_KEY_SHIFT] = isInputKeyDown;
 	} else if (wParam == VK_CONTROL) {
-		int extended  = (lParam & 0x01000000) != 0;
+		int extended = (lParam & 0x01000000) != 0;
 		if (!extended)
 		{
 			inputKeysNow[INPUT_KEY_CONTROL_LEFT] = isInputKeyDown;
@@ -232,8 +239,8 @@ static LRESULT WINAPI WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 		}
 		memset(inputKeysNow, 0, sizeof (inputKeysNow));
 	} else if (message == WM_SYSCHAR) {
-		printf("SYSCHAR : 0x%02X\n", wParam);
-		fflush(stdout);
+		/*printf("SYSCHAR : 0x%02X\n", wParam);
+		fflush(stdout);*/
 	} else if (message == WM_SYSKEYUP || message == WM_SYSKEYDOWN) {
 		if (wParam == VK_F4)
 		{
@@ -241,55 +248,55 @@ static LRESULT WINAPI WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 			return 0;
 		}
 		bool isInputKeyDown = (message == WM_SYSKEYDOWN);
-		if (isInputKeyDown)
+		/*if (isInputKeyDown)
 		{
 			printf("SYSKEYDOWN : 0x%02X\n", wParam);
 		} else {
 			printf("SYSKEYUP : 0x%02X\n", wParam);
 		}
-		fflush(stdout);
+		fflush(stdout);*/
 		update_input_key(isInputKeyDown, wParam, lParam);
 	} else if (message == WM_KEYUP || message == WM_KEYDOWN) {
 		bool isInputKeyDown = (message == WM_KEYDOWN);
-		if (isInputKeyDown)
+		/*if (isInputKeyDown)
 		{
 			printf("KEYDOWN : 0x%02X\n", wParam);
 		} else {
 			printf("KEYUP : 0x%02X\n", wParam);
 		}
-		fflush(stdout);
+		fflush(stdout);*/
 		update_input_key(isInputKeyDown, wParam, lParam);
 	} else if (message == WM_LBUTTONDOWN) {
 		inputKeysNow[INPUT_KEY_LEFT_MOUSE_BUTTON] = true;
 	} else if (message == WM_RBUTTONDOWN) {
-	   inputKeysNow[INPUT_KEY_RIGHT_MOUSE_BUTTON] = true;
+		inputKeysNow[INPUT_KEY_RIGHT_MOUSE_BUTTON] = true;
 	} else if (message == WM_MBUTTONDOWN) {
-	   inputKeysNow[INPUT_KEY_MIDDLE_MOUSE_BUTTON] = true;
+		inputKeysNow[INPUT_KEY_MIDDLE_MOUSE_BUTTON] = true;
 	} else if (message == WM_XBUTTONDOWN) {
 		UINT button = GET_XBUTTON_WPARAM(wParam);
 		if (button == XBUTTON1)
 		{
-		    inputKeysNow[INPUT_KEY_SIDE_MOUSE_BUTTON_1] = true;
+			inputKeysNow[INPUT_KEY_SIDE_MOUSE_BUTTON_1] = true;
 		}
 		else if (button == XBUTTON2)
 		{
-		    inputKeysNow[INPUT_KEY_SIDE_MOUSE_BUTTON_2] = true;
+			inputKeysNow[INPUT_KEY_SIDE_MOUSE_BUTTON_2] = true;
 		}
 	} else if (message == WM_LBUTTONUP) {
 		inputKeysNow[INPUT_KEY_LEFT_MOUSE_BUTTON] = false;
 	} else if (message == WM_RBUTTONUP) {
-	   inputKeysNow[INPUT_KEY_RIGHT_MOUSE_BUTTON] = false;
+		inputKeysNow[INPUT_KEY_RIGHT_MOUSE_BUTTON] = false;
 	} else if (message == WM_MBUTTONUP) {
-	   inputKeysNow[INPUT_KEY_MIDDLE_MOUSE_BUTTON] = false;
+		inputKeysNow[INPUT_KEY_MIDDLE_MOUSE_BUTTON] = false;
 	} else if (message == WM_XBUTTONUP) {
 		unsigned int button = GET_XBUTTON_WPARAM(wParam);
 		if (button == XBUTTON1)
 		{
-		    inputKeysNow[INPUT_KEY_SIDE_MOUSE_BUTTON_1] = false;
+			inputKeysNow[INPUT_KEY_SIDE_MOUSE_BUTTON_1] = false;
 		}
 		else if (button == XBUTTON2)
 		{
-		    inputKeysNow[INPUT_KEY_SIDE_MOUSE_BUTTON_2] = false;
+			inputKeysNow[INPUT_KEY_SIDE_MOUSE_BUTTON_2] = false;
 		}
 	} else if (message == WM_MOUSEMOVE) {
 		int x = GET_X_LPARAM(lParam);
@@ -308,18 +315,18 @@ static LRESULT WINAPI WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 	GL_LIST
 #undef GL_FUNCTION
 
-#define WGL_DRAW_TO_WINDOW_ARB            0x2001
-#define WGL_SUPPORT_OPENGL_ARB            0x2010
-#define WGL_DOUBLE_BUFFER_ARB             0x2011
-#define WGL_PIXEL_TYPE_ARB                0x2013
-#define WGL_TYPE_RGBA_ARB                 0x202B
-#define WGL_COLOR_BITS_ARB                0x2014
-#define WGL_DEPTH_BITS_ARB                0x2022
-#define WGL_STENCIL_BITS_ARB              0x2023
-#define WGL_CONTEXT_MAJOR_VERSION_ARB     0x2091
-#define WGL_CONTEXT_MINOR_VERSION_ARB     0x2092
-#define WGL_CONTEXT_PROFILE_MASK_ARB      0x9126
-#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB  0x00000001
+#define WGL_DRAW_TO_WINDOW_ARB				0x2001
+#define WGL_SUPPORT_OPENGL_ARB				0x2010
+#define WGL_DOUBLE_BUFFER_ARB				0x2011
+#define WGL_PIXEL_TYPE_ARB					0x2013
+#define WGL_TYPE_RGBA_ARB					0x202B
+#define WGL_COLOR_BITS_ARB					0x2014
+#define WGL_DEPTH_BITS_ARB					0x2022
+#define WGL_STENCIL_BITS_ARB				0x2023
+#define WGL_CONTEXT_MAJOR_VERSION_ARB		0x2091
+#define WGL_CONTEXT_MINOR_VERSION_ARB		0x2092
+#define WGL_CONTEXT_PROFILE_MASK_ARB		0x9126
+#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB	0x00000001
 
 #define WGL_LIST \
 	WGL_FUNCTION(BOOL, wglChoosePixelFormatARB, HDC hdc, const int* piAttribIList, const FLOAT* pfAttribFList, UINT nMaxFormats, int* piFormats, UINT* nNumFormats) \
@@ -366,10 +373,10 @@ void init_window(WindowMode windowMode, int width, int height)
 
 	RECT rect = {0, 0, width, height};
 	AdjustWindowRect(&rect, (WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME ^ WS_MAXIMIZEBOX) | WS_VISIBLE | WS_POPUP, true);
-	printf("%d - %d - %d - %d\n", rect.left, rect.top, rect.right, rect.bottom);
+	//printf("%d - %d - %d - %d\n", rect.left, rect.top, rect.right, rect.bottom);
 	windowBorderDimensions.x = (rect.right - rect.left) - width;
 	windowBorderDimensions.y = (rect.bottom - rect.top) - height - 20;
-	printf("%d - %d\n", windowBorderDimensions.x, windowBorderDimensions.y);
+	//printf("%d - %d\n", windowBorderDimensions.x, windowBorderDimensions.y);
 
 	if (windowMode == WINDOW_MODE_WINDOWED)
 	{
@@ -416,7 +423,7 @@ void init_window(WindowMode windowMode, int width, int height)
 	{
 		error("could not load system arrow cursor.");
 	}
-    SetCursor(hCursor);
+	SetCursor(hCursor);
 
 	PIXELFORMATDESCRIPTOR dummyPixelFormatDescriptor =
 	{
@@ -535,7 +542,7 @@ bool update_window()
 			return false;
 		}
 		TranslateMessage(&msg);
-        DispatchMessage(&msg);
+		DispatchMessage(&msg);
 	}
 
 	return true;
@@ -556,26 +563,19 @@ unsigned int get_window_shutdown_return_code()
 	return msg.wParam;
 }
 
-void set_window_name(char *windowName)
+void set_window_name(const char *windowName)
 {
-	wchar_t *windowNameUtf16 = NULL;
+	buf(wchar_t) windowNameUtf16 = NULL;
 
 	if (windowName)
 	{
-		int code;
-		while (*windowName != '\0')
+		buf(int) codes = utf8_decode(windowName);
+		for (int i = 0; i < buf_len(codes); i++)
 		{
-			code = utf8_decode(windowName);
-			if (code == -1)
-			{
-				error("found incorrect utf-8 sequence in %s.", windowName);
-			} else if (code > 0xFFFF) {
-				error("unsupported character code %d.", code);
-			}
-			windowName += utf8Offset;
-			buf_add(windowNameUtf16, code);
+			buf_add(windowNameUtf16, codes[i]);
 		}
 		buf_add(windowNameUtf16, L'\0');
+		buf_free(codes);
 	}
 
 	if (!SetWindowTextW(window, windowNameUtf16))
@@ -628,9 +628,9 @@ void set_window_mode(WindowMode windowMode)
 {
 	int viewport[4];
 	glGetIntegerv(GL_VIEWPORT, viewport);
-	printf("%d - %d - %d - %d\n", viewport[0], viewport[1], viewport[2], viewport[3]);
+	/*printf("%d - %d - %d - %d\n", viewport[0], viewport[1], viewport[2], viewport[3]);
 	printf("%d - %d\n", realWindowDimensions.x, realWindowDimensions.y);
-	printf("%d - %d\n", windowDimensions.x, windowDimensions.y);
+	printf("%d - %d\n", windowDimensions.x, windowDimensions.y);*/
 
 	if (windowMode == currentWindowMode)
 	{

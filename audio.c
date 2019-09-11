@@ -21,7 +21,7 @@ typedef struct InternalAudioSource
 	ma_device *device;
 } InternalAudioSource;
 
-InternalAudioSource **internalAudioSources = NULL;
+buf(InternalAudioSource *) internalAudioSources = NULL;
 
 static void free_internal_audio_source(InternalAudioSource *internalAudioSource)
 {
@@ -43,7 +43,7 @@ static void audio_source_play_callback(ma_device *device, void *output, const vo
 		return;
 	}
 
-    ma_uint32 nbFramesRead = ma_decoder_read_pcm_frames(internalAudioSource->decoder, output, frameCount);
+	ma_uint32 nbFramesRead = ma_decoder_read_pcm_frames(internalAudioSource->decoder, output, frameCount);
 
 	if (nbFramesRead == 0)
 	{
@@ -71,7 +71,7 @@ static void audio_source_play_callback(ma_device *device, void *output, const vo
 	}
 }
 
-AudioSource *create_audio_source(char *fileName)
+AudioSource *create_audio_source(const char *fileName)
 {
 	AudioSource *audioSource = xmalloc(sizeof (*audioSource));
 	InternalAudioSource *internalAudioSource = xmalloc(sizeof (*internalAudioSource));
@@ -94,31 +94,31 @@ AudioSource *create_audio_source(char *fileName)
 	audioSource->playing = false;
 
 	internalAudioSource->decoder = xmalloc(sizeof (*internalAudioSource->decoder));
-    if (ma_decoder_init_file(fileName, NULL, internalAudioSource->decoder) != MA_SUCCESS)
+	if (ma_decoder_init_file(fileName, NULL, internalAudioSource->decoder) != MA_SUCCESS)
 	{
-        error("could not decode %s.", fileName);
-    }
+		error("could not decode %s.", fileName);
+	}
 
 	ma_device_config config = ma_device_config_init(ma_device_type_playback);
-    config.playback.format = internalAudioSource->decoder->outputFormat;
-    config.playback.channels = internalAudioSource->decoder->outputChannels;
-    config.sampleRate = internalAudioSource->decoder->outputSampleRate;
-    config.dataCallback = audio_source_play_callback;
-    config.pUserData = audioSource;
+	config.playback.format = internalAudioSource->decoder->outputFormat;
+	config.playback.channels = internalAudioSource->decoder->outputChannels;
+	config.sampleRate = internalAudioSource->decoder->outputSampleRate;
+	config.dataCallback = audio_source_play_callback;
+	config.pUserData = audioSource;
 
 	internalAudioSource->device = xmalloc(sizeof (*internalAudioSource->device));
-    if (ma_device_init(NULL, &config, internalAudioSource->device) != MA_SUCCESS)
+	if (ma_device_init(NULL, &config, internalAudioSource->device) != MA_SUCCESS)
 	{
 		ma_decoder_uninit(internalAudioSource->decoder);
-        error("Failed to open playback device.");
-    }
+		error("Failed to open playback device.");
+	}
 
-    if (ma_device_start(internalAudioSource->device) != MA_SUCCESS)
+	if (ma_device_start(internalAudioSource->device) != MA_SUCCESS)
 	{
-        ma_device_uninit(internalAudioSource->device);
-        ma_decoder_uninit(internalAudioSource->decoder);
-        error("Failed to start playback device.");
-    }
+		ma_device_uninit(internalAudioSource->device);
+		ma_decoder_uninit(internalAudioSource->decoder);
+		error("Failed to start playback device.");
+	}
 
 	return audioSource;
 }

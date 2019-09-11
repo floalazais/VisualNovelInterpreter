@@ -8,7 +8,7 @@ typedef struct AudioSource
 	bool playing;
 } AudioSource;
 
-AudioSource *create_audio_source(char *fileName);
+AudioSource *create_audio_source(const char *fileName);
 void reset_audio_source(AudioSource *audioSource);
 void stop_audio_source(AudioSource *audioSource);
 void free_audio();

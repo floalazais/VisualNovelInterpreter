@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -10,21 +9,20 @@
 #include "user_input.h"
 #include "stretchy_buffer.h"
 #include "xalloc.h"
-#include "stroperation.h"
-#include "token.h"
-#include "lex.h"
+#include "str.h"
 #include "interpret.h"
+#include "animation.h"
 #include "graphics.h"
 #include "variable.h"
 #include "dialog.h"
 #include "globals_dialog.h"
 
-char *nextDialogName = NULL;
 Dialog *interpretingDialog = NULL;
-char *interpretingDialogName = NULL;
+buf(char) interpretingDialogName = NULL;
+buf(char) nextDialogName = NULL;
 bool dialogChanged = true;
-char **variablesNames = NULL;
-Variable **variablesValues = NULL;
+buf(buf(char)) variablesNames = NULL;
+buf(Variable *) variablesValues = NULL;
 
 static float timeDuringCurrentSecond = 0.0f;
 static Text *fpsDisplayText;
@@ -36,30 +34,24 @@ int main(int argc, char** argv)
 {
 	init_window(WINDOW_MODE_WINDOWED, 800, 600);
 
+	set_window_vsync(true);
+
 	init_graphics();
 
 	fpsDisplayText = create_text();
-	fpsDisplayText->position.y -= 2;
+	fpsDisplayText->position.y = -4;
 	set_text_font(fpsDisplayText, "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_SMALL);
-	vec3 green = {0.0f, 1.0f, 0.0f};
-	fpsDisplayText->color = green;
-	fpsDisplayString = xmalloc(sizeof(char) * 8);
+	fpsDisplayText->color = COLOR_GREEN;
+	fpsDisplayString = xmalloc(sizeof (*fpsDisplayString) * 8);
 
 	fpsDisplayBox = create_sprite(SPRITE_COLOR);
-	vec3 black = {0.0f, 0.0f, 0.0f};
-	fpsDisplayBox->color = black;
+	fpsDisplayBox->color = COLOR_BLACK;
 	fpsDisplayBox->height = fpsDisplayText->height;
 
 	init_dialog_ui();
-	interpretingDialogName = strcopy(interpretingDialogName, "Dialogs/start.dlg");
+	interpretingDialogName = strclone("Dialogs/start.dlg");
 
-	Token **tokens = lex(interpretingDialogName);
-	/*for (unsigned int i = 0; i < buf_len(tokens); i++)
-	{
-		print_token(tokens[i]);
-	}*/
-
-	interpretingDialog = create_dialog(interpretingDialogName, tokens);
+	interpretingDialog = get_dialog_from_file(interpretingDialogName);
 
 	while (true)
 	{
@@ -77,7 +69,7 @@ int main(int argc, char** argv)
 			{
 				fpsNumber = 999;
 			}
-			sprintf(fpsDisplayString, "%d FPS", fpsNumber);
+			snprintf(fpsDisplayString, 8, "%d FPS", fpsNumber);
 			set_text_string(fpsDisplayText, fpsDisplayString);
 			fpsDisplayBox->width = fpsDisplayText->width + 1;
 			fpsNumber = 0;
@@ -92,13 +84,10 @@ int main(int argc, char** argv)
 		if (nextDialogName)
 		{
 			free_dialog(interpretingDialog);
-			tokens = lex(nextDialogName);
-			interpretingDialog = create_dialog(nextDialogName, tokens);
+			interpretingDialog = get_dialog_from_file(nextDialogName);
 			if (interpretingDialogName != nextDialogName)
 			{
-				buf_free(interpretingDialogName);
-				interpretingDialogName = NULL;
-				interpretingDialogName = strcopy(interpretingDialogName, nextDialogName);
+				strcopy(&interpretingDialogName, nextDialogName);
 				buf_free(nextDialogName);
 			}
 			nextDialogName = NULL;

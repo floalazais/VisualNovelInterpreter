@@ -53,7 +53,7 @@
 #define GL_LINK_STATUS			0x8B82
 
 #define GL_LIST \
-	GL_FUNCTION(unsigned int,	glCreateShader,		int shaderType) \
+	GL_FUNCTION(unsigned int,	glCreateShader,				int shaderType) \
 	GL_FUNCTION(void,			glShaderSource,				unsigned int shader, int count, const char **string, const int *length) \
 	GL_FUNCTION(void,			glCompileShader,			unsigned int shader) \
 	GL_FUNCTION(void,			glGetShaderiv,				unsigned int shader, int pname, int *params) \
@@ -65,7 +65,7 @@
 	GL_FUNCTION(void,			glGetProgramInfoLog,		unsigned int program, int maxLength, int *length, char *infoLog) \
 	GL_FUNCTION(void,			glActiveTexture,			int texture)	\
 	GL_FUNCTION(void,			glBindBuffer,				int target, unsigned int buffer) \
-	GL_FUNCTION(void,			glBindVertexArray,  		unsigned int array) \
+	GL_FUNCTION(void,			glBindVertexArray,			unsigned int array) \
 	GL_FUNCTION(void,			glBufferData,				int target, ptrdiff_t size, const void *data, int usage) \
 	GL_FUNCTION(void,			glEnableVertexAttribArray,	unsigned int index) \
 	GL_FUNCTION(void,			glGenBuffers,				int n, unsigned int *buffers) \
@@ -78,15 +78,15 @@
 	GL_FUNCTION(void,			glUseProgram,				unsigned int program) \
 	GL_FUNCTION(void,			glVertexAttribPointer,		unsigned int index, int size, int type, unsigned char normalized, int stride, const void *pointer) \
 	GL_FUNCTION(void,			glBindTexture,				int target, unsigned int texture) \
-	GL_FUNCTION(void,			glBlendFunc, 				int sfactor,	int dfactor) \
+	GL_FUNCTION(void,			glBlendFunc,				int sfactor,	int dfactor) \
 	GL_FUNCTION(void,			glClear,					int mask) \
-	GL_FUNCTION(void,			glClearColor, 				float red, float green, float blue, float alpha) \
-	GL_FUNCTION(void,			glDrawArrays, 				int mode, int first, int count) \
+	GL_FUNCTION(void,			glClearColor,				float red, float green, float blue, float alpha) \
+	GL_FUNCTION(void,			glDrawArrays,				int mode, int first, int count) \
 	GL_FUNCTION(void,			glEnable,					int cap) \
 	GL_FUNCTION(void,			glGenTextures,				int n, unsigned int *textures) \
 	GL_FUNCTION(void,			glPixelStorei,				int pname, int param) \
-	GL_FUNCTION(void,			glTexImage2D, 				int target, int level,	int internalFormat, int width, int height, int border, int format, int type, const void *data) \
-	GL_FUNCTION(void,			glTexParameteri, 			int target, int pname, int param) \
+	GL_FUNCTION(void,			glTexImage2D,				int target, int level,	int internalFormat, int width, int height, int border, int format, int type, const void *data) \
+	GL_FUNCTION(void,			glTexParameteri,			int target, int pname, int param) \
 	GL_FUNCTION(void,			glViewport,					int x, int y, int width, int height) \
 	GL_FUNCTION(int,			glGetError) \
 	GL_FUNCTION(void,			glGetIntegerv,				int pname, int *params) \

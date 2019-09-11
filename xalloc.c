@@ -8,39 +8,39 @@
 
 typedef struct Leak
 {
-    void* ptr;
-    char* file;
-    int line;
+	void *ptr;
+	const char *file;
+	int line;
 	bool stretchy;
 } Leak;
 
 static Leak leaks[1000000];
 static unsigned int nbLeaks = 0;
 
-void *xmalloc_int(size_t size, char* file, int line, bool stretchy)
+void *_xmalloc(size_t size, const char *file, int line, bool stretchy)
 {
-    void *result = malloc(size);
-    if (!result)
-    {
-        error("could not allocate memory.");
-    } else {
-        Leak leak = {result, file, line, stretchy};
-        leaks[nbLeaks++] = leak;
+	void *result = malloc(size);
+	if (!result)
+	{
+		error("could not allocate memory.");
+	} else {
+		Leak leak = {result, file, line, stretchy};
+		leaks[nbLeaks++] = leak;
 		if (nbLeaks == 1000000)
 		{
 			error("too much allocations.");
 		}
-        return result;
-    }
+		return result;
+	}
 }
 
-void *xrealloc(void *ptr, size_t size, char* file, int line)
+void *xrealloc(void *ptr, size_t size, const char *file, int line)
 {
-    void *result = realloc(ptr, size);
-    if (!result)
-    {
-        error("could not allocate memory.");
-    } else {
+	void *result = realloc(ptr, size);
+	if (!result)
+	{
+		error("could not allocate memory.");
+	} else {
 		if (result != ptr)
 		{
 			for (size_t i = 0; i < nbLeaks; i++)
@@ -52,14 +52,14 @@ void *xrealloc(void *ptr, size_t size, char* file, int line)
 				}
 			}
 		}
-        return result;
-    }
+		return result;
+	}
 }
 
-void xfree(void* ptr)
+void xfree(void *ptr)
 {
-    if (ptr)
-    {
+	if (ptr)
+	{
 		for (size_t i = 0; i < nbLeaks; i++)
 		{
 			if (leaks[i].ptr == ptr)
@@ -69,27 +69,27 @@ void xfree(void* ptr)
 				break;
 			}
 		}
-    }
-    free(ptr);
+	}
+	free(ptr);
 }
 
 void print_leaks()
 {
 	int leaksCount = 0;
 	printf("--- Memory leaks ---\n");
-    for (size_t i = 0; i < nbLeaks; i++)
-    {
-        if (leaks[i].ptr)
-        {
-            printf("    -%s:%d &%d", leaks[i].file, leaks[i].line, (int)leaks[i].ptr);
+	for (size_t i = 0; i < nbLeaks; i++)
+	{
+		if (leaks[i].ptr)
+		{
+			printf("	-%s:%d &%d", leaks[i].file, leaks[i].line, (int)leaks[i].ptr);
 			if (leaks[i].stretchy)
 			{
 				printf(" BUF");
 			}
 			printf("\n");
-            fflush(stdout);
+			fflush(stdout);
 			leaksCount++;
-        }
-    }
+		}
+	}
 	printf("%d memory leaks.\n", leaksCount);
 }

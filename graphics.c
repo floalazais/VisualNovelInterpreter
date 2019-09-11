@@ -4,90 +4,87 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "stb_truetype.h"
 #include "stb_image.h"
+#include "stb_truetype.h"
 #include "maths.h"
 #include "globals.h"
 #include "gl.h"
-#include "token.h"
 #include "error.h"
-#include "stretchy_buffer.h"
 #include "xalloc.h"
+#include "stretchy_buffer.h"
+#include "token.h"
 #include "lex.h"
-#include "file_to_string.h"
-#include "stroperation.h"
+#include "file.h"
+#include "str.h"
+#include "animation.h"
 #include "graphics.h"
 
-static char *filePath;
-static Token **tokens;
-static int currentToken;
+static buf(Sprite *) backgroundSprites;
+static buf(Sprite *) middlegroundSprites;
+static buf(Sprite *) foregroundSprites;
+static buf(Sprite *) UISprites;
 
-static Sprite **backgroundSprites;
-static Sprite **middlegroundSprites;
-static Sprite **foregroundSprites;
-static Sprite **UISprites;
+static buf(buf(char)) texturesPaths;
+static buf(unsigned int) texturesIds;
+static buf(int) texturesWidths;
+static buf(int) texturesHeigts;
 
-static char **texturesPaths;
-static unsigned int *texturesIds;
-static int *texturesWidths;
-static int *texturesHeigts;
-
-static Font **fonts;
-static unsigned char **ttfBuffers;
-static char **ttfFilesPaths;
+static buf(Font *) fonts;
+static buf(unsigned char *) ttfBuffers;
+static buf(buf(char)) ttfFilesPaths;
 
 static unsigned int vao;
 static unsigned int vbo;
 static const float quad[24] =
 {
-    0.0f, 1.0f, 0.0f, 1.0f,
-    1.0f, 0.0f, 1.0f, 0.0f,
-    0.0f, 0.0f, 0.0f, 0.0f,
-    0.0f, 1.0f, 0.0f, 1.0f,
-    1.0f, 1.0f, 1.0f, 1.0f,
-    1.0f, 0.0f, 1.0f, 0.0f
+	0.0f, 1.0f, 0.0f, 1.0f,
+	1.0f, 0.0f, 1.0f, 0.0f,
+	0.0f, 0.0f, 0.0f, 0.0f,
+	0.0f, 1.0f, 0.0f, 1.0f,
+	1.0f, 1.0f, 1.0f, 1.0f,
+	1.0f, 0.0f, 1.0f, 0.0f
 };
 
 static int colorShaderProgramId;
 static int textureShaderProgramId;
 static int glyphShaderProgramId;
 
-static unsigned int compile_shader(char *path, int shaderType)
+static unsigned int compile_shader(const char *path, int shaderType)
 {
 	char *code = file_to_string(path);
 
-    unsigned int shader = glCreateShader(shaderType);
-    glShaderSource(shader, 1, (const char **)&code, NULL);
-    glCompileShader(shader);
+	unsigned int shader = glCreateShader(shaderType);
+	glShaderSource(shader, 1, (const char **)&code, NULL);
+	glCompileShader(shader);
 	xfree(code);
 
-    int success;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-    char infoLog[512];
-    if(!success)
-    {
-        glGetShaderInfoLog(shader, 512, NULL, infoLog);
-        error("compilation of shader file \"%s\" failed :\n%s", path, infoLog);
-    }
+	int success;
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+	char infoLog[512];
+	if(!success)
+	{
+		glGetShaderInfoLog(shader, 512, NULL, infoLog);
+		error("compilation of shader file \"%s\" failed :\n%s", path, infoLog);
+	}
 	return shader;
 }
 
 static unsigned int link_shaders(unsigned int vertexShaderId, unsigned int fragmentShaderId)
 {
 	unsigned int shaderProgramId = glCreateProgram();
-    glAttachShader(shaderProgramId, vertexShaderId);
-    glAttachShader(shaderProgramId, fragmentShaderId);
-    glLinkProgram(shaderProgramId);
+	glAttachShader(shaderProgramId, vertexShaderId);
+	glAttachShader(shaderProgramId, fragmentShaderId);
+	glLinkProgram(shaderProgramId);
 
-    int success;
-    char infoLog[512];
-    glGetProgramiv(shaderProgramId, GL_LINK_STATUS, &success);
-    if(!success)
-    {
-        glGetProgramInfoLog(shaderProgramId, 512, NULL, infoLog);
-        error("linking of shader program failed :\n%s", infoLog);
-    }
-    return shaderProgramId;
+	int success;
+	char infoLog[512];
+	glGetProgramiv(shaderProgramId, GL_LINK_STATUS, &success);
+	if(!success)
+	{
+		glGetProgramInfoLog(shaderProgramId, 512, NULL, infoLog);
+		error("linking of shader program failed :\n%s", infoLog);
+	}
+	return shaderProgramId;
 }
 
 void init_graphics()
@@ -109,18 +106,18 @@ void init_graphics()
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &vbo);
+	glGenVertexArrays(1, &vao);
+	glGenBuffers(1, &vbo);
 
-    glBindVertexArray(vao);
+	glBindVertexArray(vao);
 
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof (float) * 24, quad, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof (float) * 24, quad, GL_STATIC_DRAW);
 
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof (float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof (float), (void*)(2 * sizeof (float)));
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof (float), (void*)0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof (float), (void*)(2 * sizeof (float)));
 
 	glBindVertexArray(0);
 
@@ -181,7 +178,7 @@ void free_graphics()
 	buf_free(fonts);
 }
 
-unsigned int get_texture_id_from_path(char *texturePath, int *_width, int *_height)
+unsigned int get_texture_id_from_path(const char *texturePath, int *_width, int *_height)
 {
 	for (unsigned int i = 0; i < buf_len(texturesPaths); i++)
 	{
@@ -200,22 +197,22 @@ unsigned int get_texture_id_from_path(char *texturePath, int *_width, int *_heig
 	}
 
 	unsigned int textureId;
-    glGenTextures(1, &textureId);
-    glBindTexture(GL_TEXTURE_2D, textureId);
+	glGenTextures(1, &textureId);
+	glBindTexture(GL_TEXTURE_2D, textureId);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 	int width;
 	int height;
 	int nrChannels;
-    unsigned char *data = stbi_load(texturePath, &width, &height, &nrChannels, 4);
-    if (data)
-    {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-        stbi_image_free(data);
+	unsigned char *data = stbi_load(texturePath, &width, &height, &nrChannels, 4);
+	if (data)
+	{
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		stbi_image_free(data);
 		if (_width)
 		{
 			*_width = width;
@@ -225,17 +222,15 @@ unsigned int get_texture_id_from_path(char *texturePath, int *_width, int *_heig
 			*_height = height;
 		}
 
-		char *newTexturePath = NULL;
-		newTexturePath = strcopy(newTexturePath, texturePath);
-		buf_add(texturesPaths, newTexturePath);
+		buf_add(texturesPaths, strclone(texturePath));
 		buf_add(texturesIds, textureId);
 		buf_add(texturesWidths, width);
 		buf_add(texturesHeigts, height);
 
 		return textureId;
-    } else {
+	} else {
 		error("failed to load texture %s.", texturePath);
-    }
+	}
 }
 
 Sprite *create_sprite(SpriteType spriteType)
@@ -269,200 +264,6 @@ Sprite *create_sprite(SpriteType spriteType)
 		error("sprite type %d not supported.", spriteType);
 	}
 	return sprite;
-}
-
-static void step_in_tokens()
-{
-    if (tokens[currentToken++]->type == TOKEN_END_OF_FILE)
-    {
-        error("in %s stepped after end of tokens.", filePath);
-    }
-}
-
-static void steps_in_tokens(unsigned nb)
-{
-    while (nb--)
-    {
-        step_in_tokens();
-    }
-}
-
-static bool token_match(int nb, ...)
-{
-    va_list arg;
-    bool match = true;
-	va_start(arg, nb);
-    for (int i = 0; i < nb; i++)
-    {
-		if ((int)tokens[currentToken + i]->type != va_arg(arg, int))
-        {
-            match = false;
-            break;
-        }
-    }
-	va_end(arg);
-    return match;
-}
-
-static bool token_match_on_line(int line, int nb, ...)
-{
-    va_list arg;
-    bool match = true;
-	va_start(arg, nb);
-    for (int i = 0; i < nb; i++)
-    {
-        if ((int)tokens[currentToken + i]->type != va_arg(arg, int) || tokens[currentToken + i]->line != line)
-        {
-            match = false;
-            break;
-        }
-    }
-	va_end(arg);
-    return match;
-}
-
-static bool isParsingAnimationStatic;
-
-static AnimationPhase *parse_animation_phase(char *spriteName)
-{
-	AnimationPhase *animationPhase = xmalloc(sizeof (*animationPhase));
-
-	if (isParsingAnimationStatic)
-	{
-		if (token_match(1, TOKEN_STRING))
-		{
-			char *textureFilePath = NULL;
-			textureFilePath = strcopy(textureFilePath, "Textures/");
-			textureFilePath = strappend(textureFilePath, spriteName);
-			textureFilePath = strappend(textureFilePath, "/");
-			textureFilePath = strappend(textureFilePath, tokens[currentToken]->string);
-			animationPhase->textureId = get_texture_id_from_path(textureFilePath, &animationPhase->width, &animationPhase->height);
-			animationPhase->length = -1;
-			buf_free(textureFilePath);
-			step_in_tokens();
-		} else {
-			error("in %s at line %d, invalid syntax for static animation phase declaration, expected texture as a string (and an optional size as two numbers), got %s token instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type]);
-		}
-	} else if (token_match_on_line(tokens[currentToken]->line, 2, TOKEN_STRING, TOKEN_NUMERIC)) {
-		char *textureFilePath = NULL;
-		textureFilePath = strcopy(textureFilePath, "Textures/");
-		textureFilePath = strappend(textureFilePath, spriteName);
-		textureFilePath = strappend(textureFilePath, "/");
-		textureFilePath = strappend(textureFilePath, tokens[currentToken]->string);
-		animationPhase->textureId = get_texture_id_from_path(textureFilePath, &animationPhase->width, &animationPhase->height);
-		if (tokens[currentToken + 1]->numeric == 0)
-		{
-			error("in %s at line %d, cannot specify a no-time length animtion phase.", filePath, tokens[currentToken]->line);
-		}
-		animationPhase->length = tokens[currentToken + 1]->numeric;
-		buf_free(textureFilePath);
-		steps_in_tokens(2);
-	} else {
-		error("in %s at line %d, invalid syntax for animation phase declaration, expected texture as a string followed by a length as a number (and an optional size as two numbers), got %s and %s tokens instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type], tokenStrings[tokens[currentToken + 1]->type]);
-	}
-	if (token_match_on_line(tokens[currentToken - 1]->line, 2, TOKEN_NUMERIC, TOKEN_NUMERIC))
-	{
-		animationPhase->width = (int)(tokens[currentToken]->numeric * windowDimensions.x);
-		animationPhase->height = (int)(tokens[currentToken + 1]->numeric * windowDimensions.y);
-		steps_in_tokens(2);
-	}
-	if (tokens[currentToken - 1]->line == tokens[currentToken]->line && tokens[currentToken]->type != TOKEN_END_OF_FILE)
-	{
-		error("in %s at line %d, expected end of line after animation phase declaration.", filePath, tokens[currentToken]->line);
-	}
-	return animationPhase;
-}
-
-static Animation *parse_animation(char *spriteName)
-{
-	isParsingAnimationStatic = false;
-
-	Animation *animation = xmalloc(sizeof (*animation));
-
-	if (tokens[currentToken]->indentationLevel != 0)
-	{
-		error("in %s at line %d, indentation level of animation name must be 0, the indentation level is %d.", filePath, tokens[currentToken]->line, tokens[currentToken]->indentationLevel);
-	}
-	if (token_match_on_line(tokens[currentToken]->line, 2, TOKEN_STRING, TOKEN_IDENTIFIER))
-	{
-		animation->name = NULL;
-		animation->name = strcopy(animation->name, tokens[currentToken]->string);
-		if (strmatch(tokens[currentToken + 1]->string, "loop"))
-		{
-			animation->looping = true;
-			animation->isStatic = false;
-		} else if (strmatch(tokens[currentToken + 1]->string, "static")) {
-			animation->looping = false;
-			animation->isStatic = true;
-			isParsingAnimationStatic = true;
-		} else {
-			error("in %s at line %d, expected optional \"loop\" or \"static\" identifier or nothing after animation name, got %s identifier instead.", filePath, tokens[currentToken]->line, tokens[currentToken + 1]->string);
-		}
-		steps_in_tokens(2);
-	} else if (token_match(1, TOKEN_STRING)) {
-		animation->name = NULL;
-		animation->name = strcopy(animation->name, tokens[currentToken]->string);
-		animation->looping = false;
-		animation->isStatic = false;
-		step_in_tokens();
-	} else {
-		error("in %s at line %d, expected animation name as a string, got a %s token instead.", filePath, tokens[currentToken]->line, tokenStrings[tokens[currentToken]->type]);
-	}
-
-	if (tokens[currentToken - 1]->line == tokens[currentToken]->line)
-	{
-		error("in %s at line %d, expected end of line after animation declaration.", filePath, tokens[currentToken]->line);
-	}
-	if (tokens[currentToken]->indentationLevel != 1)
-	{
-		error("in %s at line %d, expected indentation level of 1 for animation phases declarations after animation declaration, got an indentation level of %d instead.", filePath, tokens[currentToken]->line, tokens[currentToken]->indentationLevel);
-	}
-	animation->animationPhases = NULL;
-	while (tokens[currentToken]->indentationLevel == 1 && tokens[currentToken]->type != TOKEN_END_OF_FILE)
-	{
-		buf_add(animation->animationPhases, parse_animation_phase(spriteName));
-		if (animation->isStatic && buf_len(animation->animationPhases) > 1)
-		{
-			error("in %s at line %d, static animations imply only one animation phase, got a second.", filePath, tokens[currentToken]->line);
-		}
-	}
-	animation->timeDuringCurrentAnimationPhase = 0.0f;
-	animation->currentAnimationPhase = 0;
-	animation->updating = false;
-	animation->stopping = false;
-	return animation;
-}
-
-void free_animation(Animation *animation)
-{
-	buf_free(animation->name);
-	for (unsigned int i = 0; i < buf_len(animation->animationPhases); i++)
-	{
-		xfree(animation->animationPhases[i]);
-	}
-	buf_free(animation->animationPhases);
-	xfree(animation);
-}
-
-Animation **get_animations_from_file(char *animationFilePath, char *spriteName)
-{
-	filePath = animationFilePath;
-	currentToken = 0;
-	tokens = lex(filePath);
-
-	Animation **animations = NULL;
-	while (tokens[currentToken]->type != TOKEN_END_OF_FILE)
-	{
-		buf_add(animations, parse_animation(spriteName));
-	}
-
-	for (unsigned int index = 0; index < buf_len(tokens); index++)
-	{
-		free_token(tokens[index]);
-	}
-	buf_free(tokens);
-
-	return animations;
 }
 
 void free_sprite(Sprite *sprite)
@@ -522,7 +323,7 @@ static void load_glyph(Font *font, int code)
 	font->loaded[code] = true;
 }
 
-static void load_font(char *fontPath, int textHeight)
+static void load_font(const char *fontPath, int textHeight)
 {
 	stbtt_fontinfo *fontInfo = xmalloc(sizeof (*fontInfo));
 	unsigned char *ttfBuffer = NULL;
@@ -537,9 +338,7 @@ static void load_font(char *fontPath, int textHeight)
 	{
 		ttfBuffer = (unsigned char *)file_to_string(fontPath);
 		buf_add(ttfBuffers, ttfBuffer);
-		char *newFontPath = NULL;
-		newFontPath = strcopy(newFontPath, fontPath);
-		buf_add(ttfFilesPaths, newFontPath);
+		buf_add(ttfFilesPaths, strclone(fontPath));
 	}
 	stbtt_InitFont(fontInfo, ttfBuffer, stbtt_GetFontOffsetForIndex(ttfBuffer, 0));
 	int ascent;
@@ -554,14 +353,13 @@ static void load_font(char *fontPath, int textHeight)
 		font->loaded[i] = false;
 	}
 	font->fontInfo = fontInfo;
-	font->fontPath = NULL;
-	font->fontPath = strcopy(font->fontPath, fontPath);
+	font->fontPath = strclone(fontPath);
 	font->height = textHeight;
 	font->scale = stbtt_ScaleForPixelHeight(font->fontInfo, (float)textHeight);
-    font->ascent = ceil(ascent * font->scale);
+	font->ascent = ceil(ascent * font->scale);
 	font->descent = ceil(descent * font->scale);
-    for (int code = 0; code < 128; code++)
-    {
+	for (int code = 0; code < 128; code++)
+	{
 		load_glyph(font, code);
 	}
 
@@ -576,7 +374,7 @@ Text *create_text()
 	text->sprites = NULL;
 	text->widthLimit = -1;
 	text->position.x = 0;
-	text->position.y = -2;
+	text->position.y = 0;
 	return text;
 }
 
@@ -584,89 +382,108 @@ static void update_text(Text *text)
 {
 	text->width = 0;
 	int currentLineWidth = 0;
-	int nbLine = 1;
-	int count = 0;
+	int currentLine = 1;
+	int displayedSpriteCount = 0;
 
-	for (unsigned int i = 0; i < buf_len(text->codes); i++)
+	for (unsigned int currentCodeIndex = 0; currentCodeIndex < buf_len(text->codes); currentCodeIndex++)
 	{
+		int currentCode = text->codes[currentCodeIndex];
+
 		if (currentLineWidth == 0)
 		{
-			while (text->codes[i] == ' ')
+			if (currentCode == ' ' && currentLine != 1)
 			{
-				i++;
+				continue;
 			}
 		}
 
-		if (!text->font->loaded[text->codes[i]])
+		if (!text->font->loaded[currentCode])
 		{
-			load_glyph(text->font, text->codes[i]);
+			load_glyph(text->font, currentCode);
 		}
 
-		if (i == buf_len(text->sprites))
+		if (displayedSpriteCount == buf_len(text->sprites))
 		{
 			buf_add(text->sprites, create_sprite(SPRITE_GLYPH));
 		}
 
-		text->sprites[count]->width = text->font->glyphs[text->codes[i]]->width;
-		text->sprites[count]->height = text->font->glyphs[text->codes[i]]->height;
-		text->sprites[count]->textureId = text->font->glyphs[text->codes[i]]->textureId;
-		text->sprites[count]->color = text->color;
+		Sprite *currentSprite = text->sprites[displayedSpriteCount];
 
-		text->sprites[count]->position.x = text->position.x + currentLineWidth;
-		text->sprites[count]->position.y = text->position.y + (nbLine - 1) * (text->font->ascent - text->font->descent) + text->font->glyphs[text->codes[i]]->yOffset;
+		currentSprite->width = text->font->glyphs[currentCode]->width;
+		currentSprite->height = text->font->glyphs[currentCode]->height;
+		currentSprite->textureId = text->font->glyphs[currentCode]->textureId;
+		currentSprite->color = text->color;
 
-		if (i == buf_len(text->codes) - 1)
+		currentSprite->position.x = text->position.x + currentLineWidth;
+		currentSprite->position.y = text->position.y + (currentLine - 1) * (text->font->ascent - text->font->descent) + text->font->glyphs[currentCode]->yOffset;
+
+		if (currentCodeIndex == buf_len(text->codes) - 1)
 		{
-			currentLineWidth += text->font->glyphs[text->codes[i]]->xOffset + ceil(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], 0) * text->font->scale);
+			currentLineWidth += text->font->glyphs[currentCode]->xOffset + ceil(stbtt_GetCodepointKernAdvance(text->font->fontInfo, currentCode, 0) * text->font->scale);
 		} else {
-			currentLineWidth += text->font->glyphs[text->codes[i]]->xOffset + ceil(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
+			currentLineWidth += text->font->glyphs[currentCode]->xOffset + ceil(stbtt_GetCodepointKernAdvance(text->font->fontInfo, currentCode, text->codes[currentCodeIndex + 1]) * text->font->scale);
 		}
 
-		count++;
+		displayedSpriteCount++;
 
 		if (text->widthLimit != -1 && currentLineWidth > text->widthLimit)
 		{
-			int oldI = i;
-			int oldCount = count;
-			bool foundSpace = true;
-			while (text->codes[i] != ' ')
+			int oldCodeIndex = currentCodeIndex;
+			int oldSpriteCount = displayedSpriteCount;
+			int oldLineWidth = currentLineWidth;
+			bool newLine = false;
+			while (true)
 			{
-				if (i == 0)
+				if (currentCodeIndex == 0)
 				{
-					i = oldI;
-					count = oldCount;
-					foundSpace = false;
+					currentCodeIndex = oldCodeIndex;
+					displayedSpriteCount = oldSpriteCount;
+					currentLineWidth = oldLineWidth;
 					break;
 				}
-				i--;
-				count--;
-				if (i == buf_len(text->codes) - 1)
+
+				if (currentCodeIndex == buf_len(text->codes) - 1)
 				{
-					currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + ceil(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], 0) * text->font->scale);
+					currentLineWidth -= text->font->glyphs[text->codes[currentCodeIndex]]->xOffset + ceil(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[currentCodeIndex], 0) * text->font->scale);
 				} else {
-					currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + ceil(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
+					currentLineWidth -= text->font->glyphs[text->codes[currentCodeIndex]]->xOffset + ceil(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[currentCodeIndex], text->codes[currentCodeIndex + 1]) * text->font->scale);
 				}
+
+				if (text->codes[currentCodeIndex] == ' ')
+				{
+					newLine = true;
+					break;
+				}
+
+				if (currentLineWidth <= 0)
+				{
+					currentCodeIndex = oldCodeIndex;
+					displayedSpriteCount = oldSpriteCount;
+					currentLineWidth = oldLineWidth;
+					break;
+				}
+
+				currentCodeIndex--;
+				displayedSpriteCount--;
 			}
-			if (foundSpace)
+			if (newLine)
 			{
-				i--;
-				count--;
-				currentLineWidth -= text->font->glyphs[text->codes[i]]->xOffset + ceil(stbtt_GetCodepointKernAdvance(text->font->fontInfo, text->codes[i], text->codes[i + 1]) * text->font->scale);
+				displayedSpriteCount--;
+				if (currentLineWidth > text->width)
+				{
+					text->width = currentLineWidth;
+				}
+				currentLineWidth = 0;
+				currentLine++;
 			}
-			if (currentLineWidth > text->width)
-			{
-				text->width = currentLineWidth;
-			}
-			currentLineWidth = 0;
-			nbLine++;
 		}
-    }
+	}
 	if (currentLineWidth > text->width)
 	{
 		text->width = currentLineWidth;
 	}
-	text->height = nbLine * (text->font->ascent - text->font->descent) - 2;
-	text->nbMaxCharToDisplay = count;
+	text->height = currentLine * (text->font->ascent - text->font->descent) - 2;
+	text->nbMaxCharToDisplay = displayedSpriteCount;
 }
 
 void set_text_width_limit(Text *text, int limit)
@@ -688,7 +505,7 @@ void set_text_position(Text *text, ivec2 position)
 	}
 }
 
-void set_text_font(Text *text, char *fontPath, int textHeight)
+void set_text_font(Text *text, const char *fontPath, int textHeight)
 {
 	text->font = NULL;
 	for (unsigned int i = 0; i < buf_len(fonts); i++)
@@ -727,26 +544,14 @@ void set_text_font(Text *text, char *fontPath, int textHeight)
 	}
 }
 
-void set_text_string(Text *text, char *string)
+void set_text_string(Text *text, const char *string)
 {
 	buf_free(text->codes);
 	text->codes = NULL;
 
 	if (string)
 	{
-		int code;
-		while (*string != '\0')
-	    {
-			code = utf8_decode(string);
-			if (code == -1)
-			{
-				error("found incorrect utf-8 sequence in %s.", string);
-			} else if (code > 0xFFFF) {
-				error("unsupported character code %d.", code);
-			}
-			string += utf8Offset;
-			buf_add(text->codes, code);
-		}
+		text->codes = utf8_decode(string);
 	}
 
 	if (text->codes)
@@ -769,47 +574,46 @@ void free_text(Text *text)
 
 static int get_uniform_location(unsigned shaderProgramId, const char *uniformName)
 {
-    int location = glGetUniformLocation(shaderProgramId, uniformName);
-    if (location == -1)
-    {
-        error("uniform %s not found in shader.", uniformName);
-    }
-    return location;
+	int location = glGetUniformLocation(shaderProgramId, uniformName);
+	if (location == -1)
+	{
+		error("uniform %s not found in shader.", uniformName);
+	}
+	return location;
 }
 
-static void set_int_uniform_to_shader(unsigned int shaderProgramId, char *uniformName, int value)
+static void set_int_uniform_to_shader(unsigned int shaderProgramId, const char *uniformName, int value)
 {
 	glUniform1i(get_uniform_location(shaderProgramId, uniformName), value);
 }
 
-static void set_float_uniform_to_shader(unsigned int shaderProgramId, char *uniformName, float value)
+static void set_float_uniform_to_shader(unsigned int shaderProgramId, const char *uniformName, float value)
 {
 	glUniform1f(get_uniform_location(shaderProgramId, uniformName), value);
 }
 
-static void set_color_uniform_to_shader(unsigned int shaderProgramId, char *uniformName, vec3 value)
+static void set_color_uniform_to_shader(unsigned int shaderProgramId, const char *uniformName, vec3 value)
 {
 	glUniform3f(get_uniform_location(shaderProgramId, uniformName), value.x, value.y, value.z);
 }
 
-static void set_mat4_uniform_to_shader(unsigned int shaderProgramId, char *uniformName, mat4 *value)
+static void set_mat4_uniform_to_shader(unsigned int shaderProgramId, const char *uniformName, mat4 *value)
 {
 	glUniformMatrix4fv(get_uniform_location(shaderProgramId, uniformName), 1, GL_FALSE, &(value->e00));
 }
 
 static void draw(Sprite *sprite)
 {
-	Animation *currentAnimation;
 	AnimationPhase *currentAnimationPhase;
 	if (sprite->type == SPRITE_ANIMATED)
 	{
-		currentAnimation = sprite->animations[sprite->currentAnimation];
-		currentAnimationPhase = currentAnimation->animationPhases[currentAnimation->currentAnimationPhase];
+		currentAnimationPhase = sprite->animations[sprite->currentAnimation]->animationPhases[sprite->animations[sprite->currentAnimation]->currentAnimationPhase];
 		if (!sprite->fixedSize)
 		{
 			sprite->width = currentAnimationPhase->width;
 			sprite->height = currentAnimationPhase->height;
 		}
+		update_animation(sprite->animations[sprite->currentAnimation]);
 	}
 
 	mat4 model = mat4_identity();
@@ -844,8 +648,8 @@ static void draw(Sprite *sprite)
 		set_mat4_uniform_to_shader(glyphShaderProgramId, "projection", &projection);
 		set_mat4_uniform_to_shader(glyphShaderProgramId, "model", &model);
 		glActiveTexture(GL_TEXTURE0);
-	    set_int_uniform_to_shader(glyphShaderProgramId, "glyphTextureId", 0);
-	    glBindTexture(GL_TEXTURE_2D, sprite->textureId);
+		set_int_uniform_to_shader(glyphShaderProgramId, "glyphTextureId", 0);
+		glBindTexture(GL_TEXTURE_2D, sprite->textureId);
 		set_color_uniform_to_shader(glyphShaderProgramId, "textColor", sprite->color);
 		set_float_uniform_to_shader(glyphShaderProgramId, "opacity", sprite->opacity);
 	} else if (sprite->type == SPRITE_ANIMATED) {
@@ -857,34 +661,9 @@ static void draw(Sprite *sprite)
 		set_mat4_uniform_to_shader(textureShaderProgramId, "projection", &projection);
 		set_mat4_uniform_to_shader(textureShaderProgramId, "model", &model);
 		glActiveTexture(GL_TEXTURE0);
-	    set_int_uniform_to_shader(textureShaderProgramId, "textureId", 0);
-		currentAnimation = sprite->animations[sprite->currentAnimation];
-		currentAnimationPhase = currentAnimation->animationPhases[currentAnimation->currentAnimationPhase];
-	    glBindTexture(GL_TEXTURE_2D, currentAnimationPhase->textureId);
+		set_int_uniform_to_shader(textureShaderProgramId, "textureId", 0);
+		glBindTexture(GL_TEXTURE_2D, currentAnimationPhase->textureId);
 		set_float_uniform_to_shader(textureShaderProgramId, "opacity", sprite->opacity);
-		if (currentAnimation->updating && !currentAnimation->isStatic)
-		{
-			currentAnimation->timeDuringCurrentAnimationPhase += deltaTime;
-			while (currentAnimation->timeDuringCurrentAnimationPhase >= currentAnimationPhase->length)
-			{
-				if ((unsigned int)currentAnimation->currentAnimationPhase == buf_len(currentAnimation->animationPhases) - 1)
-				{
-					if (currentAnimation->looping)
-					{
-						currentAnimation->currentAnimationPhase = 0;
-					}
-					if (currentAnimation->stopping)
-					{
-						currentAnimation->updating = false;
-						currentAnimation->stopping = false;
-					}
-				} else {
-					currentAnimation->currentAnimationPhase++;
-				}
-				currentAnimation->timeDuringCurrentAnimationPhase -= currentAnimationPhase->length;
-				currentAnimationPhase = currentAnimation->animationPhases[currentAnimation->currentAnimationPhase];
-			}
-		}
 	} else {
 		error("unsupported sprite type %d.", sprite->type);
 	}

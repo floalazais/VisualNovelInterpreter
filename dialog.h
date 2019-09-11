@@ -48,7 +48,7 @@ typedef struct LogicExpression
 		struct
 		{
 			LogicExpressionLiteralType type;
-			union {double numeric; char *string;};
+			union {double numeric; buf(char) string;};
 		} *literal;
 
 		struct
@@ -71,14 +71,43 @@ typedef struct LogicExpression
 	};
 } LogicExpression;
 
+Variable *resolve_logic_expression(LogicExpression *logicExpression);
+
+typedef struct GoTo
+{
+	buf(char) dialogFile;
+	buf(char) knotToGo;
+} GoTo;
+
+typedef struct Assignment
+{
+	buf(char) identifier;
+	LogicExpression *logicExpression;
+} Assignment;
+
+extern const char *argumentTypeDescriptions[];
+
+typedef enum ArgumentType
+{
+	ARGUMENT_STRING,
+	ARGUMENT_IDENTIFIER,
+	ARGUMENT_NUMERIC
+} ArgumentType;
+
+typedef struct Argument
+{
+	ArgumentType type;
+	union {buf(char) string; double numeric;};
+} Argument;
+
 typedef enum CommandType
 {
-    COMMAND_SET_BACKGROUND,
-    COMMAND_CLEAR_BACKGROUND,
+	COMMAND_SET_BACKGROUND,
+	COMMAND_CLEAR_BACKGROUND,
 
-    COMMAND_SET_CHARACTER,
-    COMMAND_CLEAR_CHARACTER_POSITION,
-    COMMAND_CLEAR_CHARACTER_POSITIONS,
+	COMMAND_SET_CHARACTER,
+	COMMAND_CLEAR_CHARACTER_POSITION,
+	COMMAND_CLEAR_CHARACTER_POSITIONS,
 
 	COMMAND_PLAY_MUSIC,
 	COMMAND_STOP_MUSIC,
@@ -88,51 +117,33 @@ typedef enum CommandType
 	COMMAND_STOP_SOUND,
 	COMMAND_SET_SOUND_VOLUME,
 
-    COMMAND_END,
-
-    COMMAND_ASSIGN,
-
-    COMMAND_GO_TO,
-
 	COMMAND_HIDE_UI,
 
 	COMMAND_WAIT,
 
 	COMMAND_SET_WINDOW_NAME,
 
-	COMMAND_SET_NAME_COLOR
+	COMMAND_SET_SPEAKER_NAME_COLOR,
+
+	NB_COMMANDS
 } CommandType;
-
-typedef enum ArgumentType
-{
-    PARAMETER_STRING,
-    PARAMETER_IDENTIFIER,
-    PARAMETER_NUMERIC,
-	PARAMETER_LOGIC_EXPRESSION
-} ArgumentType;
-
-typedef struct Argument
-{
-    ArgumentType type;
-    union {char *string; double numeric; LogicExpression *logicExpression;};
-} Argument;
 
 typedef struct Command
 {
-    CommandType type;
-    Argument **arguments;
+	CommandType type;
+	Argument **arguments;
 } Command;
 
 typedef struct Sentence
 {
-	char *string;
+	buf(char) string;
 	bool autoSkip;
 } Sentence;
 
 typedef struct Choice
 {
-    Sentence *sentence;
-	Command *goToCommand;
+	Sentence *sentence;
+	GoTo *goToCommand;
 } Choice;
 
 typedef struct CueExpression CueExpression;
@@ -142,96 +153,103 @@ typedef struct CueCondition
 	LogicExpression *logicExpression;
 	bool resolved;
 	bool result;
-	CueExpression **cueExpressionsIf;
-	CueExpression **cueExpressionsElse;
+	buf(CueExpression *) cueExpressionsIf;
+	buf(CueExpression *) cueExpressionsElse;
 	int currentExpression;
 } CueCondition;
 
 typedef enum CueExpressionType
 {
-    CUE_EXPRESSION_SENTENCE,
-    CUE_EXPRESSION_CHOICE,
-    CUE_EXPRESSION_COMMAND,
-    CUE_EXPRESSION_CUE_CONDITION
+	CUE_EXPRESSION_SENTENCE,
+	CUE_EXPRESSION_CHOICE,
+	CUE_EXPRESSION_COMMAND,
+	CUE_EXPRESSION_GO_TO,
+	CUE_EXPRESSION_ASSIGNMENT,
+	CUE_EXPRESSION_CUE_CONDITION
 } CueExpressionType;
 
 typedef struct CueExpression
 {
-    CueExpressionType type;
-    union
-    {
-        Sentence *sentence;
-        Choice *choice;
-        Command *command;
-        CueCondition *cueCondition;
-    };
+	CueExpressionType type;
+	union
+	{
+		Sentence *sentence;
+		Choice *choice;
+		Command *command;
+		GoTo *goTo;
+		Assignment *assignment;
+		CueCondition *cueCondition;
+	};
 } CueExpression;
 
 typedef struct Cue
 {
-    char *characterName;
+	buf(char) characterName;
 	int characterNamePosition;
-    CueExpression **cueExpressions;
+	buf(CueExpression *) cueExpressions;
 	int currentExpression;
-	bool setCharacterInDeclaration;
+	bool setCharacterCommandInDeclaration;
 } Cue;
 
 typedef struct KnotExpression KnotExpression;
 
 typedef struct KnotCondition
 {
-    LogicExpression *logicExpression;
+	LogicExpression *logicExpression;
 	bool resolved;
 	bool result;
-    KnotExpression **knotExpressionsIf;
-    KnotExpression **knotExpressionsElse;
+	buf(KnotExpression *) knotExpressionsIf;
+	buf(KnotExpression *) knotExpressionsElse;
 	int currentExpression;
 } KnotCondition;
 
 typedef enum KnotExpressionType
 {
-    KNOT_EXPRESSION_CUE,
-    KNOT_EXPRESSION_COMMAND,
-    KNOT_EXPRESSION_KNOT_CONDITION
+	KNOT_EXPRESSION_CUE,
+	KNOT_EXPRESSION_COMMAND,
+	KNOT_EXPRESSION_GO_TO,
+	KNOT_EXPRESSION_ASSIGNMENT,
+	KNOT_EXPRESSION_KNOT_CONDITION
 } KnotExpressionType;
 
 typedef struct KnotExpression
 {
-    KnotExpressionType type;
-    union
-    {
-        Cue *cue;
-        Command *command;
-        KnotCondition *knotCondition;
-    };
+	KnotExpressionType type;
+	union
+	{
+		Cue *cue;
+		Command *command;
+		GoTo *goTo;
+		Assignment *assignment;
+		KnotCondition *knotCondition;
+	};
 } KnotExpression;
 
 typedef struct Knot
 {
-	char *name;
-    KnotExpression **knotExpressions;
+	buf(char) name;
+	buf(KnotExpression *) knotExpressions;
 	int currentExpression;
 } Knot;
 
 typedef struct Dialog
 {
-    char **backgroundPacksNames;
-    Animation ***backgroundPacks;
-    char **charactersNames;
-    Animation ***charactersAnimations;
-	char **coloredNames;
-	vec3 *namesColors;
-	char **soundsNames;
-	char **musicsNames;
-    Knot **knots;
-    int currentKnot;
+	buf(buf(char)) backgroundPacksNames;
+	buf(buf(Animation *)) backgroundPacks;
+	buf(buf(char)) charactersNames;
+	buf(buf(Animation *)) charactersAnimations;
+	buf(buf(char)) coloredNames;
+	buf(vec3) namesColors;
+	buf(buf(char)) soundsNames;
+	buf(buf(char)) musicsNames;
+	buf(Knot *) knots;
+	int currentKnot;
 	bool end;
 } Dialog;
 
-Variable *get_variable(char *variableName);
-Variable *resolve_logic_expression(LogicExpression *logicExpression);
-Dialog *create_dialog(char *_filePath, Token **_tokens);
+Dialog *get_dialog_from_file(const char *_filePath);
 void free_dialog(Dialog *dialog);
-void free_command(Command *command);
+
+Variable *get_variable(const char *variableName);
 
 #endif /* end of include guard: DIALOG_H */

@@ -13,7 +13,8 @@
 #include "stretchy_buffer.h"
 #include "xalloc.h"
 #include "token.h"
-#include "stroperation.h"
+#include "str.h"
+#include "animation.h"
 #include "graphics.h"
 #include "variable.h"
 #include "dialog.h"
@@ -32,8 +33,8 @@ static Sprite *characterNameBox;
 static Sprite *sentenceBox;
 static Text *currentSpeaker;
 static Text *currentSentence;
-static Text **currentChoices;
-static Command **goToCommands;
+static buf(Text *) currentChoices;
+static buf(GoTo *) goToCommands;
 static bool choosing;
 static int nbChoices;
 static int currentChoice;
@@ -49,7 +50,7 @@ static bool sentenceFirstUpdate;
 static float timeDuringCurrentChar;
 static float timeDuringCurrentBlip;
 static float waitTimer;
-static char *nextDialogStartKnotName;
+static buf(char) nextDialogStartKnotName;
 static AudioSource *music;
 static AudioSource *oldMusic;
 static AudioSource *sound;
@@ -62,47 +63,39 @@ void init_dialog_ui()
 {
 	nextDialogStartKnotName = NULL;
 
-	vec3 black = {.x = 0.0f, .y = 0.0f, .z = 0.0f};
-	vec3 white = {.x = 1.0f, .y = 1.0f, .z = 1.0f};
-
 	currentSentence = create_text();
 	set_text_font(currentSentence, "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_NORMAL);
-	set_text_width_limit(currentSentence, (int)(0.97f * windowDimensions.x));
-	currentSentence->position.x = (int)(0.015f * windowDimensions.x);
-	currentSentence->position.y = (int)(0.8f * windowDimensions.y - 4);
-	currentSentence->color = white;
+	set_text_width_limit(currentSentence, 0.97f * windowDimensions.x);
+	currentSentence->position.x = 0.015f * windowDimensions.x;
+	currentSentence->position.y = 0.8f * windowDimensions.y - 4;
+	currentSentence->color = COLOR_WHITE;
 
 	currentSpeaker = create_text();
 	set_text_font(currentSpeaker, "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_BIG);
-	currentSpeaker->color = white;
+	currentSpeaker->color = COLOR_WHITE;
 
 	sentenceBox = create_sprite(SPRITE_COLOR);
-	sentenceBox->position.x = 0;
-	sentenceBox->position.y = (int)(0.8f * windowDimensions.y);
+	sentenceBox->position.y = 0.8f * windowDimensions.y;
 	sentenceBox->width = windowDimensions.x;
-	sentenceBox->height = (int)(0.2f * windowDimensions.y);
-	sentenceBox->color = black;
+	sentenceBox->height = 0.2f * windowDimensions.y;
+	sentenceBox->color = COLOR_BLACK;
 	sentenceBox->opacity = 0.75f;
 
 	characterNameBox = create_sprite(SPRITE_COLOR);
-	characterNameBox->color = black;
+	characterNameBox->color = COLOR_BLACK;
 	characterNameBox->opacity = 0.75f;
 
 	choiceMarker = create_sprite(SPRITE_COLOR);
-	choiceMarker->position.x = (int)(0.005f * windowDimensions.x);
-	choiceMarker->width = (int)(0.005 * windowDimensions.x);
+	choiceMarker->position.x = 0.005f * windowDimensions.x;
+	choiceMarker->width = 0.005f * windowDimensions.x;
 	choiceMarker->height = choiceMarker->width;
-	choiceMarker->color = white;
+	choiceMarker->color = COLOR_WHITE;
 
 	oldBackgroundSprite = create_sprite(SPRITE_ANIMATED);
-	oldBackgroundSprite->position.x = 0;
-	oldBackgroundSprite->position.y = 0;
 	oldBackgroundSprite->width = windowDimensions.x;
 	oldBackgroundSprite->height = windowDimensions.y;
 	oldBackgroundSprite->fixedSize = true;
 	backgroundSprite = create_sprite(SPRITE_ANIMATED);
-	backgroundSprite->position.x = 0;
-	backgroundSprite->position.y = 0;
 	backgroundSprite->width = windowDimensions.x;
 	backgroundSprite->height = windowDimensions.y;
 	backgroundSprite->fixedSize = true;
@@ -180,6 +173,61 @@ void free_dialog_ui()
 	xfree(blipSound);
 }
 
+static bool update_go_to(GoTo *goTo)
+{
+	if (goTo->dialogFile)
+	{
+		end = true;
+		moving = true;
+		strcopy(&nextDialogName, "Dialogs/");
+		strappend(&nextDialogName, goTo->dialogFile);
+		strcopy(&nextDialogStartKnotName, goTo->knotToGo);
+	} else {
+		if (strmatch(goTo->knotToGo, "end"))
+		{
+			end = true;
+			moving = true;
+		} else {
+			bool foundGoToDestination = false;
+			for (int i = 0; buf_len(interpretingDialog->knots); i++)
+			{
+				if (strmatch(interpretingDialog->knots[i]->name, goTo->knotToGo))
+				{
+					interpretingDialog->currentKnot = i;
+					moving = true;
+					foundGoToDestination = true;
+					break;
+				}
+			}
+			if (!foundGoToDestination)
+			{
+				error("could not find knot labeled %s in %s.", goTo->knotToGo, interpretingDialogName);
+			}
+		}
+	}
+	return true;
+}
+
+static bool update_assign(Assignment *assign)
+{
+	bool foundVariable = false;
+	for (unsigned int i = 0; i < buf_len(variablesNames); i++)
+	{
+		if (strmatch(assign->identifier, variablesNames[i]))
+		{
+			free_variable(variablesValues[i]);
+			variablesValues[i] = resolve_logic_expression(assign->logicExpression);
+			foundVariable = true;
+		}
+	}
+	if (!foundVariable)
+	{
+		buf_add(variablesNames, strclone(assign->identifier));
+		buf_add(variablesValues, resolve_logic_expression(assign->logicExpression));
+	}
+	return true;
+}
+
 static bool update_command(Command *command)
 {
 	if (command->type == COMMAND_SET_BACKGROUND)
@@ -187,8 +235,8 @@ static bool update_command(Command *command)
 		displayDialogUI = false;
 		if (!appearingBackground)
 		{
-			char *backgroundName = command->arguments[0]->string;
-			char *animationName = command->arguments[1]->string;
+			const char *backgroundName = command->arguments[0]->string;
+			const char *animationName = command->arguments[1]->string;
 			bool foundPack = false;
 			for (unsigned int i = 0; i < buf_len(interpretingDialog->backgroundPacksNames); i++)
 			{
@@ -260,13 +308,13 @@ static bool update_command(Command *command)
 			backgroundSprite->animations = NULL;
 		}
 	} else if (command->type == COMMAND_SET_CHARACTER) {
-		int position = (int)command->arguments[0]->numeric;
+		int position = command->arguments[0]->numeric;
 		Sprite *characterSprite = charactersSprites[position];
 		Sprite *oldCharacterSprite = oldCharactersSprites[position];
 		if (!appearingCharacter)
 		{
-			char *characterName = command->arguments[1]->string;
-			char *animationName = command->arguments[2]->string;
+			const char *characterName = command->arguments[1]->string;
+			const char *animationName = command->arguments[2]->string;
 			bool foundCharacter = false;
 			for (unsigned int i = 0; i < buf_len(interpretingDialog->charactersNames); i++)
 			{
@@ -276,8 +324,7 @@ static bool update_command(Command *command)
 					if (characterSprite->animations)
 					{
 						oldCharacterSprite->animations = characterSprite->animations;
-						oldCharacterSprite->position.x = characterSprite->position.x;
-						oldCharacterSprite->position.y = characterSprite->position.y;
+						oldCharacterSprite->position = characterSprite->position;
 						oldCharacterSprite->currentAnimation = characterSprite->currentAnimation;
 						oldCharacterSprite->animations[oldCharacterSprite->currentAnimation]->currentAnimationPhase = 0;
 					}
@@ -285,10 +332,11 @@ static bool update_command(Command *command)
 					bool foundAnimation = false;
 					for (unsigned int j = 0; j < buf_len(characterSprite->animations); j++)
 					{
-						if (strmatch(animationName, characterSprite->animations[j]->name))
+						Animation *currentAnimation = characterSprite->animations[j];
+						if (strmatch(animationName, currentAnimation->name))
 						{
-							characterSprite->position.x = (int)((windowDimensions.x * position / 6.0f) - (characterSprite->animations[j]->animationPhases[0]->width / 2));
-							characterSprite->position.y = (int)(windowDimensions.y - characterSprite->animations[j]->animationPhases[0]->height);
+							characterSprite->position.x = (windowDimensions.x * position / 6.0f) - (currentAnimation->animationPhases[0]->width / 2);
+							characterSprite->position.y = windowDimensions.y - currentAnimation->animationPhases[0]->height;
 							characterSprite->currentAnimation = j;
 							characterSprite->animations[characterSprite->currentAnimation]->currentAnimationPhase = 0;
 							if (characterSprite->animations == oldCharacterSprite->animations && oldCharacterSprite->currentAnimation == j && oldCharacterSprite->animations[j]->currentAnimationPhase == 0)
@@ -335,7 +383,7 @@ static bool update_command(Command *command)
 			}
 		}
 	} else if (command->type == COMMAND_CLEAR_CHARACTER_POSITION) {
-		int position = (int)command->arguments[0]->numeric;
+		int position = command->arguments[0]->numeric;
 		Sprite *characterSprite = charactersSprites[position];
 		if (characterSprite->opacity > 0.0f)
 		{
@@ -371,7 +419,7 @@ static bool update_command(Command *command)
 		if (!fadingMusic)
 		{
 			bool foundMusic = false;
-			char *musicName = command->arguments[0]->string;
+			const char *musicName = command->arguments[0]->string;
 			for (unsigned int i = 0; i < buf_len(interpretingDialog->musicsNames); i++)
 			{
 				if (strmatch(musicName, interpretingDialog->musicsNames[i]))
@@ -380,9 +428,8 @@ static bool update_command(Command *command)
 					{
 						oldMusic = music;
 					}
-					char *newMusicName = NULL;
-					newMusicName = strcopy(newMusicName, "Musics/");
-					newMusicName = strappend(newMusicName, musicName);
+					buf(char) newMusicName = strclone("Musics/");
+					strappend(&newMusicName, musicName);
 					music = create_audio_source(newMusicName);
 					buf_free(newMusicName);
 					foundMusic = true;
@@ -427,7 +474,7 @@ static bool update_command(Command *command)
 		if (!fadingSound)
 		{
 			bool foundSound = false;
-			char *soundName = command->arguments[0]->string;
+			const char *soundName = command->arguments[0]->string;
 			for (unsigned int i = 0; i < buf_len(interpretingDialog->soundsNames); i++)
 			{
 				if (strmatch(soundName, interpretingDialog->soundsNames[i]))
@@ -436,9 +483,8 @@ static bool update_command(Command *command)
 					{
 						oldSound = sound;
 					}
-					char *newSoundName = NULL;
-					newSoundName = strcopy(newSoundName, "Sounds/");
-					newSoundName = strappend(newSoundName, soundName);
+					buf(char) newSoundName = strclone("Sounds/");
+					strappend(&newSoundName, soundName);
 					sound = create_audio_source(newSoundName);
 					buf_free(newSoundName);
 					foundSound = true;
@@ -479,48 +525,6 @@ static bool update_command(Command *command)
 		sound = NULL;
 	} else if (command->type == COMMAND_SET_SOUND_VOLUME) {
 		sound->volume = command->arguments[0]->numeric;
-	} else if (command->type == COMMAND_END) {
-		end = true;
-		moving = true;
-		if (command->arguments[0]->string)
-		{
-			nextDialogName = strcopy(nextDialogName, "Dialogs/");
-			nextDialogName = strappend(nextDialogName, command->arguments[0]->string);
-			if (command->arguments[1]->string)
-			{
-				nextDialogStartKnotName = strcopy(nextDialogStartKnotName, command->arguments[1]->string);
-			}
-		}
-	} else if (command->type == COMMAND_ASSIGN) {
-		bool foundVariable = false;
-		char *variableName = command->arguments[0]->string;
-		LogicExpression *assignedValue = command->arguments[1]->logicExpression;
-		for (unsigned int i = 0; i < buf_len(variablesNames); i++)
-		{
-			if (strmatch(variableName, variablesNames[i]))
-			{
-				free_variable(variablesValues[i]);
-				variablesValues[i] = resolve_logic_expression(assignedValue);
-				foundVariable = true;
-			}
-		}
-		if (!foundVariable)
-		{
-			char *newVariableName = NULL;
-			newVariableName = strcopy(newVariableName, variableName);
-			buf_add(variablesNames, newVariableName);
-			buf_add(variablesValues, resolve_logic_expression(assignedValue));
-		}
-	} else if (command->type == COMMAND_GO_TO) {
-		for (int i = 0; buf_len(interpretingDialog->knots); i++)
-		{
-			if (strmatch(interpretingDialog->knots[i]->name, command->arguments[0]->string))
-			{
-				interpretingDialog->currentKnot = i;
-				moving = true;
-				break;
-			}
-		}
 	} else if (command->type == COMMAND_HIDE_UI) {
 		displayDialogUI = false;
 	} else if (command->type == COMMAND_WAIT) {
@@ -538,10 +542,10 @@ static bool update_command(Command *command)
 	} else if (command->type == COMMAND_SET_WINDOW_NAME) {
 		set_window_name(command->arguments[0]->string);
 		return true;
-	} else if (command->type == COMMAND_SET_NAME_COLOR) {
+	} else if (command->type == COMMAND_SET_SPEAKER_NAME_COLOR) {
 		bool foundColoredName = false;
-		char *nameToColor = command->arguments[0]->string;
-		vec3 newNameColor = {.x = command->arguments[1]->numeric, .y = command->arguments[2]->numeric, .z = command->arguments[3]->numeric};
+		const char *nameToColor = command->arguments[0]->string;
+		vec3 newNameColor = {command->arguments[1]->numeric, command->arguments[2]->numeric, command->arguments[3]->numeric};
 		for (unsigned int i = 0; i < buf_len(interpretingDialog->coloredNames); i++)
 		{
 			if (strmatch(nameToColor, interpretingDialog->coloredNames[i]))
@@ -553,9 +557,7 @@ static bool update_command(Command *command)
 		}
 		if (!foundColoredName)
 		{
-			char *newColoredName = NULL;
-			newColoredName = strcopy(newColoredName, nameToColor);
-			buf_add(interpretingDialog->coloredNames, newColoredName);
+			buf_add(interpretingDialog->coloredNames, strclone(nameToColor));
 			buf_add(interpretingDialog->namesColors, newNameColor);
 		}
 	} else {
@@ -586,7 +588,7 @@ static bool update_sentence(Sentence *sentence)
 		currentSentence->nbCharToDisplay = 0;
 		if (currentSpeakerSpriteIndex != -1)
 		{
-			currentAnimation->updating = true;
+			currentAnimation->animationState = ANIMATION_STATE_PLAY;
 		}
 	}
 
@@ -599,7 +601,7 @@ static bool update_sentence(Sentence *sentence)
 			timeDuringCurrentChar += deltaTime;
 			if (timeDuringCurrentChar >= 0.02f)
 			{
-				int nbCharToSkip = (int)(timeDuringCurrentChar / 0.02f);
+				int nbCharToSkip = timeDuringCurrentChar / 0.02f;
 				currentSentence->nbCharToDisplay += nbCharToSkip;
 				if (currentSentence->nbCharToDisplay >= currentSentence->nbMaxCharToDisplay)
 				{
@@ -620,7 +622,7 @@ static bool update_sentence(Sentence *sentence)
 		{
 			if (currentSpeakerSpriteIndex != -1)
 			{
-				currentAnimation->stopping = true;
+				currentAnimation->animationState = ANIMATION_STATE_STOPPING;
 			}
 		}
 	} else if (is_input_key_pressed(INPUT_KEY_ENTER) || sentence->autoSkip) {
@@ -628,18 +630,15 @@ static bool update_sentence(Sentence *sentence)
 		set_text_string(currentSentence, NULL);
 		if (currentSpeakerSpriteIndex != -1)
 		{
-			currentAnimation->stopping = false;
-			currentAnimation->updating = false;
-			currentAnimation->currentAnimationPhase = 0;
-			currentAnimation->timeDuringCurrentAnimationPhase = 0.0f;
+			reset_animation(currentAnimation);
 		}
 		return true;
 	}
 
 	if (currentSpeakerSpriteIndex != -1)
 	{
-		currentSpeakerSprite->position.x = (int)((windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentAnimationPhase->width / 2));
-		currentSpeakerSprite->position.y = (int)(windowDimensions.y - currentAnimationPhase->height);
+		currentSpeakerSprite->position.x = (windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentAnimationPhase->width / 2);
+		currentSpeakerSprite->position.y = windowDimensions.y - currentAnimationPhase->height;
 	}
 	return false;
 }
@@ -718,6 +717,10 @@ static bool update_cue_expression(CueExpression *cueExpression)
 		choosing = true;
 	} else if (cueExpression->type == CUE_EXPRESSION_CUE_CONDITION) {
 		return update_cue_condition(cueExpression->cueCondition);
+	} else if (cueExpression->type == CUE_EXPRESSION_GO_TO) {
+		return update_go_to(cueExpression->goTo);
+	} else if (cueExpression->type == CUE_EXPRESSION_ASSIGNMENT) {
+		return update_assign(cueExpression->assignment);
 	} else if (cueExpression->type == CUE_EXPRESSION_COMMAND) {
 		return update_command(cueExpression->command);
 	} else {
@@ -734,14 +737,12 @@ static void display_choice(CueExpression *cueExpression)
 		{
 			buf_add(currentChoices, create_text());
 			set_text_font(currentChoices[nbChoices], "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_NORMAL);
-			currentChoices[nbChoices]->position.x = (int)(0.015f * windowDimensions.x);
+			currentChoices[nbChoices]->position.x = 0.015f * windowDimensions.x;
 			if (nbChoices == 0)
 			{
-				currentChoices[nbChoices]->position.y = (int)(0.8f * windowDimensions.y + 2);
+				currentChoices[nbChoices]->position.y = 0.8f * windowDimensions.y + 2;
 			}
-			currentChoices[nbChoices]->color.x = 1.0f;
-			currentChoices[nbChoices]->color.y = 1.0f;
-			currentChoices[nbChoices]->color.z = 1.0f;
+			currentChoices[nbChoices]->color = COLOR_WHITE;
 		}
 		if (nbChoices != 0)
 		{
@@ -804,7 +805,7 @@ static bool update_cue(Cue *cue)
 			if (cue->characterName)
 			{
 				displaySpeakerName = true;
-				if (cue->setCharacterInDeclaration)
+				if (cue->setCharacterCommandInDeclaration)
 				{
 					update_command(cue->cueExpressions[0]->command);
 				}
@@ -820,7 +821,7 @@ static bool update_cue(Cue *cue)
 					}
 				}
 				set_text_string(currentSpeaker, cue->characterName);
-				vec3 nameColor = {.x = -1.0f};
+				vec3 nameColor = {-1.0f};
 				for (unsigned int i = 0; i < buf_len(interpretingDialog->coloredNames); i++)
 				{
 					if (strmatch(cue->characterName, interpretingDialog->coloredNames[i]))
@@ -835,11 +836,11 @@ static bool update_cue(Cue *cue)
 				ivec2 currentSpeakerPosition;
 				if (cue->characterNamePosition == 1)
 				{
-					currentSpeakerPosition.x = (int)(0.015f * windowDimensions.x);
+					currentSpeakerPosition.x = 0.015f * windowDimensions.x;
 				} else {
-					currentSpeakerPosition.x = (int)(windowDimensions.x * 0.985f - currentSpeaker->width);
+					currentSpeakerPosition.x = windowDimensions.x * 0.985f - currentSpeaker->width;
 				}
-				currentSpeakerPosition.y = (int)(windowDimensions.y * 0.8f - currentSpeaker->height - 8);
+				currentSpeakerPosition.y = windowDimensions.y * 0.8f - currentSpeaker->height - 8;
 				set_text_position(currentSpeaker, currentSpeakerPosition);
 				characterNameBox->position.x = currentSpeaker->position.x - 2;
 				characterNameBox->position.y = currentSpeaker->position.y - currentSpeaker->font->descent + 6;
@@ -850,7 +851,7 @@ static bool update_cue(Cue *cue)
 			}
 		}
 
-		if (cue->setCharacterInDeclaration && appearingCharacter && cue->currentExpression == 0)
+		if (cue->setCharacterCommandInDeclaration && appearingCharacter && cue->currentExpression == 0)
 		{
 			if (!update_command(cue->cueExpressions[0]->command))
 			{
@@ -865,9 +866,7 @@ static bool update_cue(Cue *cue)
 			cue->currentExpression = 0;
 			displayedSpeakerName = false;
 			set_text_string(currentSpeaker, NULL);
-			currentSpeaker->color.x = 1.0f;
-			currentSpeaker->color.y = 1.0f;
-			currentSpeaker->color.z = 1.0f;
+			currentSpeaker->color = COLOR_WHITE;
 			return true;
 		}
 
@@ -879,9 +878,7 @@ static bool update_cue(Cue *cue)
 				cue->currentExpression = 0;
 				displayedSpeakerName = false;
 				set_text_string(currentSpeaker, NULL);
-				currentSpeaker->color.x = 1.0f;
-				currentSpeaker->color.y = 1.0f;
-				currentSpeaker->color.z = 1.0f;
+				currentSpeaker->color = COLOR_WHITE;
 				return true;
 			}
 		}
@@ -909,7 +906,7 @@ static bool update_cue(Cue *cue)
 				currentChoice = buf_len(currentChoices) - 1;
 			}
 		} else if (is_input_key_pressed(INPUT_KEY_ENTER)) {
-			update_command(goToCommands[currentChoice]);
+			update_go_to(goToCommands[currentChoice]);
 			buf_free(goToCommands);
 			for (unsigned int i = 0; i < buf_len(currentChoices); i++)
 			{
@@ -922,9 +919,7 @@ static bool update_cue(Cue *cue)
 			currentChoice = 0;
 			displayedSpeakerName = false;
 			set_text_string(currentSpeaker, NULL);
-			currentSpeaker->color.x = 1.0f;
-			currentSpeaker->color.y = 1.0f;
-			currentSpeaker->color.z = 1.0f;
+			currentSpeaker->color = COLOR_WHITE;
 			return true;
 		}
 		choiceMarker->position.y = currentChoices[currentChoice]->position.y + ((currentChoices[currentChoice]->height - choiceMarker->height) / 2) - currentChoices[currentChoice]->font->descent;
@@ -1004,6 +999,10 @@ static bool update_knot_expression(KnotExpression *knotExpression)
 		return update_cue(knotExpression->cue);
 	} else if (knotExpression->type == KNOT_EXPRESSION_KNOT_CONDITION) {
 		return update_knot_condition(knotExpression->knotCondition);
+	} else if (knotExpression->type == KNOT_EXPRESSION_GO_TO) {
+		return update_go_to(knotExpression->goTo);
+	} else if (knotExpression->type == KNOT_EXPRESSION_ASSIGNMENT) {
+		return update_assign(knotExpression->assignment);
 	} else if (knotExpression->type == KNOT_EXPRESSION_COMMAND) {
 		return update_command(knotExpression->command);
 	} else {

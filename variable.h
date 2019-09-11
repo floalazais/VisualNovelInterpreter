@@ -10,7 +10,7 @@ typedef enum VariableType
 typedef struct Variable
 {
 	VariableType type;
-	char *string;
+	buf(char) string;
 	double numeric;
 } Variable;
 
