@@ -532,7 +532,7 @@ static bool update_command(Command *command)
 		{
 			waitTimer = command->arguments[0]->numeric;
 		}
-		waitTimer -= deltaTime * 1000;
+		waitTimer -= deltaTime;
 		if (waitTimer <= 0.0f)
 		{
 			waitTimer = 0.0f;

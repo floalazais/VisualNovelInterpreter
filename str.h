@@ -9,6 +9,7 @@ buf(char) strappend(buf(char) *destination, const char *suffix);
 buf(char) strnappend(buf(char) *destination, int appendListLength, ...);
 buf(char) strmerge(const char *prefix, const char *suffix);
 bool strmatch(const char *a, const char *b);
-buf(int) utf8_decode(const char *o);
+buf(int) utf8_decode(const char *string);
+buf(unsigned short) codepoint_to_utf16(const int *codepoints);
 
 #endif /* end of include guard: STR_H */

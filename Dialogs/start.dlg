@@ -1,4 +1,4 @@
-#set_window_name "999 Fan-made game"
+#set_window_name "999 fan-made game"
 
 #play_music "14 Imaginary.mp3"
 
@@ -6,12 +6,8 @@
 
 #set_background "First class cabin"::"piano"
 
-#set_speaker_name_color "Junpei" 0.5 0.1 0.8
-
 >"Junpei" left
 	We've finally completed this puzzle.
-
-#set_speaker_name_color "Junpei" 1 1 1
 
 >"Seven" right "thinking" center
 	I still don't understand the purpose of this killing game.
@@ -312,6 +308,7 @@
 
 @let's_go
 
+#wait 1
 #clear_background
 
 >

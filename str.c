@@ -163,3 +163,24 @@ buf(int) utf8_decode(const char *string)
 	}
 	return result;
 }
+
+buf(unsigned short) codepoint_to_utf16(const int *codepoints)
+{
+	buf(unsigned short) result = NULL;
+
+	for (int currentCodepointIndex = 0; currentCodepointIndex < buf_len(codepoints); currentCodepointIndex++)
+	{
+		int currentCodepoint = codepoints[currentCodepointIndex];
+		if (currentCodepoint < 0x10000)
+		{
+			buf_add(result, (unsigned short)currentCodepoint);
+		} else {
+			currentCodepoint -= 0x10000;
+			unsigned short firstWord = 0b1101100000000000 + (currentCodepoint >> 10);
+			unsigned short secondWord = 0b1101110000000000 + (currentCodepoint & 0b1111111111);
+			buf_add(result, firstWord);
+			buf_add(result, secondWord);
+		}
+	}
+	return result;
+}

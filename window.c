@@ -570,18 +570,18 @@ void set_window_name(const char *windowName)
 	if (windowName)
 	{
 		buf(int) codes = utf8_decode(windowName);
-		for (int i = 0; i < buf_len(codes); i++)
-		{
-			buf_add(windowNameUtf16, codes[i]);
-		}
-		buf_add(windowNameUtf16, L'\0');
+		windowNameUtf16 = codepoint_to_utf16(codes);
 		buf_free(codes);
+		buf_add(windowNameUtf16, L'\0');
 	}
 
+	LONG_PTR originalWndProc = GetWindowLongPtrW(window, GWLP_WNDPROC);
+	SetWindowLongPtrW(window, GWLP_WNDPROC, (LONG_PTR) DefWindowProcW);
 	if (!SetWindowTextW(window, windowNameUtf16))
 	{
 		error("could not set the game name to the window.");
 	}
+	SetWindowLongPtrW(window, GWLP_WNDPROC, originalWndProc);
 
 	buf_free(windowNameUtf16);
 }
