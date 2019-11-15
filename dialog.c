@@ -901,7 +901,7 @@ static CueCondition *parse_cue_condition()
 	}
 	if (!cueCondition->cueExpressionsIf)
 	{
-		error("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1]->line);
+		warning("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1]->line);
 	}
 	currentIndentationLevel--;
 	cueCondition->cueExpressionsElse = NULL;
@@ -917,7 +917,7 @@ static CueCondition *parse_cue_condition()
 			}
 			if (!cueCondition->cueExpressionsElse)
 			{
-				error("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1]->line);
+				warning("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1]->line);
 			}
 			currentIndentationLevel--;
 		} else {
@@ -1061,7 +1061,7 @@ static KnotCondition *parse_knot_condition()
 	}
 	if (!knotCondition->knotExpressionsIf)
 	{
-		error("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1]->line);
+		warning("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1]->line);
 	}
 	currentIndentationLevel--;
 	knotCondition->knotExpressionsElse = NULL;
@@ -1078,7 +1078,7 @@ static KnotCondition *parse_knot_condition()
 			}
 			if (!knotCondition->knotExpressionsElse)
 			{
-				error("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1]->line);
+				warning("in %s at line %d, condition has no effect.", filePath, tokens[currentToken - 1]->line);
 			}
 			currentIndentationLevel--;
 		} else {

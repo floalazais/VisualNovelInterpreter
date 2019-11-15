@@ -106,9 +106,17 @@ bool is_input_key_pressed(InputKey inputKey)
 	return !inputKeysBefore[inputKey] && inputKeysNow[inputKey];
 }
 
+bool mouseScrollThisFrame = false;
+
 void update_input_keys()
 {
 	memcpy(inputKeysBefore, inputKeysNow, sizeof (inputKeysBefore));
+	if (mouseScrollThisFrame)
+	{
+		mouseScrollThisFrame = false;
+	} else {
+		mouseScrollOffset = 0;
+	}
 }
 
 #ifndef GET_XBUTTON_WPARAM
@@ -117,6 +125,7 @@ void update_input_keys()
 
 ivec2 mousePosition = {0, 0};
 ivec2 mouseOffset = {0, 0};
+int mouseScrollOffset = 0;
 
 bool isWindowActive;
 
@@ -293,9 +302,7 @@ static LRESULT WINAPI WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 		if (button == XBUTTON1)
 		{
 			inputKeysNow[INPUT_KEY_SIDE_MOUSE_BUTTON_1] = false;
-		}
-		else if (button == XBUTTON2)
-		{
+		} else if (button == XBUTTON2) {
 			inputKeysNow[INPUT_KEY_SIDE_MOUSE_BUTTON_2] = false;
 		}
 	} else if (message == WM_MOUSEMOVE) {
@@ -305,6 +312,9 @@ static LRESULT WINAPI WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 		mouseOffset.y = y - mousePosition.y;
 		mousePosition.x = x;
 		mousePosition.y = y;
+	} else if (message == WM_MOUSEWHEEL) {
+		mouseScrollOffset = GET_WHEEL_DELTA_WPARAM(wParam);
+		mouseScrollThisFrame = true;
 	} else {
 		return DefWindowProc(hwnd, message, wParam, lParam);
 	}
@@ -609,8 +619,8 @@ void resize_window(int width, int height)
 	realWindowDimensions.y = height;
 	if (currentWindowMode == WINDOW_MODE_WINDOWED)
 	{
-		windowDimensions.x -= windowBorderDimensions.x;
-		windowDimensions.y -= windowBorderDimensions.y;
+		realWindowDimensions.x += windowBorderDimensions.x;
+		realWindowDimensions.y += windowBorderDimensions.y;
 	}
 
 	if (currentWindowMode == WINDOW_MODE_FULLSCREEN)

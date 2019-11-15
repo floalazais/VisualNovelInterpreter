@@ -30,6 +30,7 @@ static Sprite *oldBackgroundSprite;
 static Sprite *backgroundSprite;
 static Sprite *choiceMarker;
 static Sprite *characterNameBox;
+static int characterNamePosition;
 static Sprite *sentenceBox;
 static Text *currentSpeaker;
 static Text *currentSentence;
@@ -58,6 +59,7 @@ static AudioSource *oldSound;
 static AudioSource *blipSound;
 static bool fadingMusic;
 static bool fadingSound;
+static int textScrollOffset;
 
 void init_dialog_ui()
 {
@@ -65,9 +67,6 @@ void init_dialog_ui()
 
 	currentSentence = create_text();
 	set_text_font(currentSentence, "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_NORMAL);
-	set_text_width_limit(currentSentence, 0.97f * windowDimensions.x);
-	currentSentence->position.x = 0.015f * windowDimensions.x;
-	currentSentence->position.y = 0.8f * windowDimensions.y - 4;
 	currentSentence->color = COLOR_WHITE;
 
 	currentSpeaker = create_text();
@@ -75,9 +74,6 @@ void init_dialog_ui()
 	currentSpeaker->color = COLOR_WHITE;
 
 	sentenceBox = create_sprite(SPRITE_COLOR);
-	sentenceBox->position.y = 0.8f * windowDimensions.y;
-	sentenceBox->width = windowDimensions.x;
-	sentenceBox->height = 0.2f * windowDimensions.y;
 	sentenceBox->color = COLOR_BLACK;
 	sentenceBox->opacity = 0.75f;
 
@@ -86,18 +82,11 @@ void init_dialog_ui()
 	characterNameBox->opacity = 0.75f;
 
 	choiceMarker = create_sprite(SPRITE_COLOR);
-	choiceMarker->position.x = 0.005f * windowDimensions.x;
-	choiceMarker->width = 0.005f * windowDimensions.x;
-	choiceMarker->height = choiceMarker->width;
 	choiceMarker->color = COLOR_WHITE;
 
 	oldBackgroundSprite = create_sprite(SPRITE_ANIMATED);
-	oldBackgroundSprite->width = windowDimensions.x;
-	oldBackgroundSprite->height = windowDimensions.y;
 	oldBackgroundSprite->fixedSize = true;
 	backgroundSprite = create_sprite(SPRITE_ANIMATED);
-	backgroundSprite->width = windowDimensions.x;
-	backgroundSprite->height = windowDimensions.y;
 	backgroundSprite->fixedSize = true;
 
 	for (int i = 0; i < 7; i++)
@@ -111,6 +100,10 @@ void init_dialog_ui()
 	currentChoices = NULL;
 	goToCommands = NULL;
 
+	currentSpeakerSpriteIndex = -1;
+
+	reset_dialog_ui();
+
 	waitTimer = 0.0f;
 
 	music = NULL;
@@ -119,6 +112,93 @@ void init_dialog_ui()
 	oldSound = NULL;
 
 	blipSound = create_audio_source("Sounds/blip normal.wav");
+}
+
+void reset_dialog_ui()
+{
+	set_text_position(currentSentence, (ivec2){0.015f * windowDimensions.x, 0.8f * windowDimensions.y - 4});
+	set_text_width_limit(currentSentence, 0.97f * windowDimensions.x);
+
+	sentenceBox->position.y = 0.8f * windowDimensions.y;
+	sentenceBox->width = windowDimensions.x;
+	sentenceBox->height = 0.2f * windowDimensions.y;
+
+	choiceMarker->position.x = 0.005f * windowDimensions.x;
+	choiceMarker->width = 0.005f * windowDimensions.x;
+	choiceMarker->height = choiceMarker->width;
+
+	oldBackgroundSprite->width = windowDimensions.x;
+	oldBackgroundSprite->height = windowDimensions.y;
+
+	backgroundSprite->width = windowDimensions.x;
+	backgroundSprite->height = windowDimensions.y;
+
+	for (int position = 0; position < 7; position++)
+	{
+		Sprite *characterSprite = charactersSprites[position];
+		if (!characterSprite->animations)
+		{
+			continue;
+		}
+		Animation *currentAnimation = characterSprite->animations[characterSprite->currentAnimation];
+		if (currentAnimation->animationPhases[0]->responsive)
+		{
+			characterSprite->position.x = (windowDimensions.x * position / 6.0f) - (currentAnimation->animationPhases[0]->responsiveWidth * windowDimensions.x / 2);
+			characterSprite->position.y = windowDimensions.y - (currentAnimation->animationPhases[0]->responsiveHeight * windowDimensions.y);
+		} else {
+			characterSprite->position.x = (windowDimensions.x * position / 6.0f) - (currentAnimation->animationPhases[0]->pixelWidth / 2);
+			characterSprite->position.y = windowDimensions.y - currentAnimation->animationPhases[0]->pixelHeight;
+		}
+	}
+
+	if (currentSpeakerSpriteIndex != -1)
+	{
+		Sprite *currentSpeakerSprite = charactersSprites[currentSpeakerSpriteIndex];
+		if (currentSpeakerSprite->currentAnimation != -1 && currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->currentAnimationPhase != -1)
+		{
+			AnimationPhase *currentAnimationPhase = currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->animationPhases[currentSpeakerSprite->animations[currentSpeakerSprite->currentAnimation]->currentAnimationPhase];
+			if (currentAnimationPhase->responsive)
+			{
+				currentSpeakerSprite->position.x = (windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentAnimationPhase->responsiveWidth * windowDimensions.x / 2);
+				currentSpeakerSprite->position.y = windowDimensions.y - (currentAnimationPhase->responsiveHeight * windowDimensions.y);
+			} else {
+				currentSpeakerSprite->position.x = (windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentAnimationPhase->pixelWidth / 2);
+				currentSpeakerSprite->position.y = windowDimensions.y - currentAnimationPhase->pixelHeight;
+			}
+		}
+	}
+
+	for (int i = 0; i < nbChoices; i++)
+	{
+		int x = 0.015f * windowDimensions.x;
+		int y;
+		if (i == 0)
+		{
+			y = 0.8f * windowDimensions.y + 2;
+		} else {
+			y = currentChoices[i - 1]->position.y + currentChoices[i - 1]->height + 4;
+		}
+		set_text_position(currentChoices[i], (ivec2){x, y});
+		set_text_width_limit(currentChoices[i], 0.985f * windowDimensions.x);
+		if (currentChoice == i)
+		{
+			choiceMarker->position.y = y + ((currentChoices[currentChoice]->height - choiceMarker->height) / 2) - currentChoices[currentChoice]->font->descent + 2;
+		}
+	}
+
+	ivec2 currentSpeakerPosition;
+	if (characterNamePosition == 1)
+	{
+		currentSpeakerPosition.x = 0.015f * windowDimensions.x;
+	} else {
+		currentSpeakerPosition.x = windowDimensions.x * 0.985f - currentSpeaker->width;
+	}
+	currentSpeakerPosition.y = windowDimensions.y * 0.8f - currentSpeaker->height - 8;
+	set_text_position(currentSpeaker, currentSpeakerPosition);
+	characterNameBox->position.x = currentSpeaker->position.x - 2;
+	characterNameBox->position.y = currentSpeaker->position.y - currentSpeaker->font->descent + 6;
+	characterNameBox->width = currentSpeaker->width + 4;
+	characterNameBox->height = currentSpeaker->height + currentSpeaker->font->descent + 4;
 }
 
 void free_dialog_ui()
@@ -133,6 +213,7 @@ void free_dialog_ui()
 		free_text(currentChoices[i]);
 	}
 	buf_free(currentChoices);
+	buf_free(goToCommands);
 	oldBackgroundSprite->animations = NULL;
 	backgroundSprite->animations = NULL;
 	free_sprite(oldBackgroundSprite);
@@ -335,8 +416,14 @@ static bool update_command(Command *command)
 						Animation *currentAnimation = characterSprite->animations[j];
 						if (strmatch(animationName, currentAnimation->name))
 						{
-							characterSprite->position.x = (windowDimensions.x * position / 6.0f) - (currentAnimation->animationPhases[0]->width / 2);
-							characterSprite->position.y = windowDimensions.y - currentAnimation->animationPhases[0]->height;
+							if (currentAnimation->animationPhases[0]->responsive)
+							{
+								characterSprite->position.x = (windowDimensions.x * position / 6.0f) - (currentAnimation->animationPhases[0]->responsiveWidth * windowDimensions.x / 2);
+								characterSprite->position.y = windowDimensions.y - (currentAnimation->animationPhases[0]->responsiveHeight * windowDimensions.y);
+							} else {
+								characterSprite->position.x = (windowDimensions.x * position / 6.0f) - (currentAnimation->animationPhases[0]->pixelWidth / 2);
+								characterSprite->position.y = windowDimensions.y - currentAnimation->animationPhases[0]->pixelHeight;
+							}
 							characterSprite->currentAnimation = j;
 							characterSprite->animations[characterSprite->currentAnimation]->currentAnimationPhase = 0;
 							if (characterSprite->animations == oldCharacterSprite->animations && oldCharacterSprite->currentAnimation == j && oldCharacterSprite->animations[j]->currentAnimationPhase == 0)
@@ -581,6 +668,7 @@ static bool update_sentence(Sentence *sentence)
 
 	if (sentenceFirstUpdate)
 	{
+		textScrollOffset = 0;
 		sentenceFirstUpdate = false;
 		timeDuringCurrentChar = 0.0f;
 		timeDuringCurrentBlip = 0.0f;
@@ -637,8 +725,14 @@ static bool update_sentence(Sentence *sentence)
 
 	if (currentSpeakerSpriteIndex != -1)
 	{
-		currentSpeakerSprite->position.x = (windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentAnimationPhase->width / 2);
-		currentSpeakerSprite->position.y = windowDimensions.y - currentAnimationPhase->height;
+		if (currentAnimationPhase->responsive)
+		{
+			currentSpeakerSprite->position.x = (windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentAnimationPhase->responsiveWidth * windowDimensions.x / 2);
+			currentSpeakerSprite->position.y = windowDimensions.y - (currentAnimationPhase->responsiveHeight * windowDimensions.y);
+		} else {
+			currentSpeakerSprite->position.x = (windowDimensions.x * currentSpeakerSpriteIndex / 6.0f) - (currentAnimationPhase->pixelWidth / 2);
+			currentSpeakerSprite->position.y = windowDimensions.y - currentAnimationPhase->pixelHeight;
+		}
 	}
 	return false;
 }
@@ -714,6 +808,7 @@ static bool update_cue_expression(CueExpression *cueExpression)
 	{
 		return update_sentence(cueExpression->sentence);
 	} else if (cueExpression->type == CUE_EXPRESSION_CHOICE) {
+		textScrollOffset = 0;
 		choosing = true;
 	} else if (cueExpression->type == CUE_EXPRESSION_CUE_CONDITION) {
 		return update_cue_condition(cueExpression->cueCondition);
@@ -737,6 +832,7 @@ static void display_choice(CueExpression *cueExpression)
 		{
 			buf_add(currentChoices, create_text());
 			set_text_font(currentChoices[nbChoices], "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_NORMAL);
+			set_text_width_limit(currentChoices[nbChoices], 0.985f * windowDimensions.x);
 			currentChoices[nbChoices]->position.x = 0.015f * windowDimensions.x;
 			if (nbChoices == 0)
 			{
@@ -834,7 +930,8 @@ static bool update_cue(Cue *cue)
 					currentSpeaker->color = nameColor;
 				}
 				ivec2 currentSpeakerPosition;
-				if (cue->characterNamePosition == 1)
+				characterNamePosition = cue->characterNamePosition;
+				if (characterNamePosition == 1)
 				{
 					currentSpeakerPosition.x = 0.015f * windowDimensions.x;
 				} else {
@@ -922,7 +1019,7 @@ static bool update_cue(Cue *cue)
 			currentSpeaker->color = COLOR_WHITE;
 			return true;
 		}
-		choiceMarker->position.y = currentChoices[currentChoice]->position.y + ((currentChoices[currentChoice]->height - choiceMarker->height) / 2) - currentChoices[currentChoice]->font->descent;
+		choiceMarker->position.y = currentChoices[currentChoice]->position.y + ((currentChoices[currentChoice]->height - choiceMarker->height) / 2) - currentChoices[currentChoice]->font->descent + 2;
 	}
 	return false;
 }
@@ -1074,6 +1171,8 @@ bool interpret_current_dialog()
 		nbChoices = 0;
 		currentChoice = 0;
 		choicesDisplayed = false;
+		buf_free(goToCommands);
+		goToCommands = NULL;
 		moving = false;
 		end = false;
 		displayedSpeakerName = false;
@@ -1084,6 +1183,7 @@ bool interpret_current_dialog()
 		sentenceFirstUpdate = true;
 		fadingSound = false;
 		fadingMusic = false;
+		textScrollOffset = 0;
 
 		if (nextDialogStartKnotName)
 		{
@@ -1152,14 +1252,52 @@ bool interpret_current_dialog()
 	if (displayDialogUI)
 	{
 		add_sprite_to_draw_list(sentenceBox, DRAW_LAYER_UI);
-		if (!choosing)
+		if (!choosing && currentSentence->height > sentenceBox->height - 4 && mouseScrollOffset != 0)
 		{
-			add_text_to_draw_list(currentSentence, DRAW_LAYER_UI);
-		} else {
-			add_sprite_to_draw_list(choiceMarker, DRAW_LAYER_UI);
+			textScrollOffset += mouseScrollOffset;
+			if (textScrollOffset > 0)
+			{
+				textScrollOffset = 0;
+			}
+			if (textScrollOffset < (currentSentence->font->ascent - currentSentence->font->descent) - 4 - currentSentence->height)
+			{
+				textScrollOffset = (currentSentence->font->ascent - currentSentence->font->descent) - 4 - currentSentence->height;
+			}
+			set_text_position(currentSentence, (ivec2){0.015f * windowDimensions.x, 0.8f * windowDimensions.y - 4 + textScrollOffset});
+		} else if (choosing && nbChoices != 0 && currentChoices[nbChoices - 1]->position.y + currentChoices[nbChoices - 1]->height > sentenceBox->height - 4 && mouseScrollOffset != 0) {
+			textScrollOffset += mouseScrollOffset;
+			if (textScrollOffset > 0)
+			{
+				textScrollOffset = 0;
+			}
+			int choicesHeight = 0;
 			for (int i = 0; i < nbChoices; i++)
 			{
-				add_text_to_draw_list(currentChoices[i], DRAW_LAYER_UI);
+				choicesHeight += currentChoices[i]->height;
+			}
+			if (textScrollOffset < currentChoices[nbChoices - 1]->height - 4 - choicesHeight)
+			{
+				textScrollOffset = currentChoices[nbChoices - 1]->height - 4 - choicesHeight;
+			}
+			int choiceYOffset = 0;
+			for (int i = 0; i < nbChoices; i++)
+			{
+				set_text_position(currentChoices[i], (ivec2){0.015f * windowDimensions.x, 0.8f * windowDimensions.y + choiceYOffset - 4 + textScrollOffset});
+				if (currentChoice == i)
+				{
+					choiceMarker->position.y = currentChoices[currentChoice]->position.y + ((currentChoices[currentChoice]->height - choiceMarker->height) / 2) - currentChoices[currentChoice]->font->descent + 2;
+				}
+				choiceYOffset += currentChoices[i]->height + 4;
+			}
+		}
+		if (!choosing)
+		{
+			add_text_to_draw_list(currentSentence, DRAW_LAYER_UI_SCISSOR);
+		} else {
+			add_sprite_to_draw_list(choiceMarker, DRAW_LAYER_UI_SCISSOR);
+			for (int i = 0; i < nbChoices; i++)
+			{
+				add_text_to_draw_list(currentChoices[i], DRAW_LAYER_UI_SCISSOR);
 			}
 		}
 

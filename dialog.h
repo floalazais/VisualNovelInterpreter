@@ -79,6 +79,8 @@ typedef struct GoTo
 	buf(char) knotToGo;
 } GoTo;
 
+void free_go_to(GoTo *goTo);
+
 typedef struct Assignment
 {
 	buf(char) identifier;

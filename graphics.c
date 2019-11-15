@@ -23,6 +23,7 @@ static buf(Sprite *) backgroundSprites;
 static buf(Sprite *) middlegroundSprites;
 static buf(Sprite *) foregroundSprites;
 static buf(Sprite *) UISprites;
+static buf(Sprite *) UISpritesScissor;
 
 static buf(buf(char)) texturesPaths;
 static buf(unsigned int) texturesIds;
@@ -153,6 +154,7 @@ void free_graphics()
 	buf_free(middlegroundSprites);
 	buf_free(foregroundSprites);
 	buf_free(UISprites);
+	buf_free(UISpritesScissor);
 
 	for (unsigned int i = 0; i < buf_len(ttfBuffers); i++)
 	{
@@ -451,6 +453,7 @@ static void update_text(Text *text)
 
 				if (text->codes[currentCodeIndex] == ' ')
 				{
+					displayedSpriteCount++;
 					newLine = true;
 					break;
 				}
@@ -610,8 +613,14 @@ static void draw(Sprite *sprite)
 		currentAnimationPhase = sprite->animations[sprite->currentAnimation]->animationPhases[sprite->animations[sprite->currentAnimation]->currentAnimationPhase];
 		if (!sprite->fixedSize)
 		{
-			sprite->width = currentAnimationPhase->width;
-			sprite->height = currentAnimationPhase->height;
+			if (currentAnimationPhase->responsiveHeight)
+			{
+				sprite->width = (int)(currentAnimationPhase->responsiveWidth * windowDimensions.x);
+				sprite->height = (int)(currentAnimationPhase->responsiveHeight * windowDimensions.y);
+			} else {
+				sprite->width = currentAnimationPhase->pixelWidth;
+				sprite->height = currentAnimationPhase->pixelHeight;
+			}
 		}
 		update_animation(sprite->animations[sprite->currentAnimation]);
 	}
@@ -698,6 +707,14 @@ void draw_all()
 		draw(UISprites[i]);
 	}
 	buf_clear(UISprites);
+	glScissor(0, 0, windowDimensions.x, 0.2f * windowDimensions.y);
+	glEnable(GL_SCISSOR_TEST);
+	for (unsigned int i = 0; i < buf_len(UISpritesScissor); i++)
+	{
+		draw(UISpritesScissor[i]);
+	}
+	glDisable(GL_SCISSOR_TEST);
+	buf_clear(UISpritesScissor);
 }
 
 void add_sprite_to_draw_list(Sprite *sprite, DrawLayer drawLayer)
@@ -711,6 +728,8 @@ void add_sprite_to_draw_list(Sprite *sprite, DrawLayer drawLayer)
 		buf_add(foregroundSprites, sprite);
 	} else if (drawLayer == DRAW_LAYER_UI) {
 		buf_add(UISprites, sprite);
+	} else if (drawLayer == DRAW_LAYER_UI_SCISSOR) {
+		buf_add(UISpritesScissor, sprite);
 	} else {
 		error("unsupported draw layer %d.", drawLayer);
 	}
@@ -740,6 +759,11 @@ void add_text_to_draw_list(Text *text, DrawLayer drawLayer)
 			for (int i = 0; i < text->nbCharToDisplay; i++)
 			{
 				buf_add(UISprites, text->sprites[i]);
+			}
+		} else if (drawLayer == DRAW_LAYER_UI_SCISSOR) {
+			for (int i = 0; i < text->nbCharToDisplay; i++)
+			{
+				buf_add(UISpritesScissor, text->sprites[i]);
 			}
 		} else {
 			error("unsupported draw layer %d.", drawLayer);

@@ -81,7 +81,7 @@ static AnimationPhase *parse_animation_phase(const char *spriteName)
 			strappend(&textureFilePath, spriteName);
 			strappend(&textureFilePath, "/");
 			strappend(&textureFilePath, tokens[currentToken]->string);
-			animationPhase->textureId = get_texture_id_from_path(textureFilePath, &animationPhase->width, &animationPhase->height);
+			animationPhase->textureId = get_texture_id_from_path(textureFilePath, &animationPhase->pixelWidth, &animationPhase->pixelHeight);
 			animationPhase->length = -1;
 			buf_free(textureFilePath);
 			step_in_tokens();
@@ -93,7 +93,7 @@ static AnimationPhase *parse_animation_phase(const char *spriteName)
 		strappend(&textureFilePath, spriteName);
 		strappend(&textureFilePath, "/");
 		strappend(&textureFilePath, tokens[currentToken]->string);
-		animationPhase->textureId = get_texture_id_from_path(textureFilePath, &animationPhase->width, &animationPhase->height);
+		animationPhase->textureId = get_texture_id_from_path(textureFilePath, &animationPhase->pixelWidth, &animationPhase->pixelHeight);
 		if (tokens[currentToken + 1]->numeric == 0)
 		{
 			error("in %s at line %d, cannot specify a no-time length animtion phase.", filePath, tokens[currentToken]->line);
@@ -111,9 +111,12 @@ static AnimationPhase *parse_animation_phase(const char *spriteName)
 	}
 	if (token_match_on_line(tokens[currentToken - 1]->line, 2, ANIMATION_TOKEN_NUMERIC, ANIMATION_TOKEN_NUMERIC))
 	{
-		animationPhase->width = (int)(tokens[currentToken]->numeric * windowDimensions.x);
-		animationPhase->height = (int)(tokens[currentToken + 1]->numeric * windowDimensions.y);
+		animationPhase->responsiveWidth = tokens[currentToken]->numeric;
+		animationPhase->responsiveHeight = tokens[currentToken + 1]->numeric;
+		animationPhase->responsive = true;
 		steps_in_tokens(2);
+	} else {
+		animationPhase->responsive = false;
 	}
 	if (tokens[currentToken - 1]->line == tokens[currentToken]->line && tokens[currentToken]->type != ANIMATION_TOKEN_END_OF_FILE)
 	{

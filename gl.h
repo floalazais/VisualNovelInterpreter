@@ -15,6 +15,8 @@
 
 #define GL_BLEND				0x0BE2
 
+#define GL_SCISSOR_TEST			0x0C11
+
 #define GL_UNPACK_ALIGNMENT		0x0CF5
 
 #define GL_TEXTURE_2D			0x0DE1
@@ -83,6 +85,7 @@
 	GL_FUNCTION(void,			glClearColor,				float red, float green, float blue, float alpha) \
 	GL_FUNCTION(void,			glDrawArrays,				int mode, int first, int count) \
 	GL_FUNCTION(void,			glEnable,					int cap) \
+	GL_FUNCTION(void,			glDisable,					int cap) \
 	GL_FUNCTION(void,			glGenTextures,				int n, unsigned int *textures) \
 	GL_FUNCTION(void,			glPixelStorei,				int pname, int param) \
 	GL_FUNCTION(void,			glTexImage2D,				int target, int level,	int internalFormat, int width, int height, int border, int format, int type, const void *data) \
@@ -90,6 +93,7 @@
 	GL_FUNCTION(void,			glViewport,					int x, int y, int width, int height) \
 	GL_FUNCTION(int,			glGetError) \
 	GL_FUNCTION(void,			glGetIntegerv,				int pname, int *params) \
+	GL_FUNCTION(void,			glScissor,					int x, int y, unsigned int width, unsigned int height) \
 
 
 #define GL_CALL_CONVENTION __stdcall

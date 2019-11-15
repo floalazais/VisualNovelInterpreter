@@ -4,9 +4,10 @@
 typedef struct AnimationPhase
 {
 	int textureId;
-	int width;
-	int height;
+	union {int pixelWidth; float responsiveWidth;};
+	union {int pixelHeight; float responsiveHeight;};
 	double length;
+	bool responsive;
 } AnimationPhase;
 
 typedef enum AnimationType

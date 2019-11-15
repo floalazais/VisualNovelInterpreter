@@ -39,7 +39,7 @@ int main(int argc, char** argv)
 	init_graphics();
 
 	fpsDisplayText = create_text();
-	fpsDisplayText->position.y = -4;
+	set_text_position(fpsDisplayText, (ivec2){0, -4});
 	set_text_font(fpsDisplayText, "Fonts/OpenSans-Regular.ttf", TEXT_SIZE_SMALL);
 	fpsDisplayText->color = COLOR_GREEN;
 	fpsDisplayString = xmalloc(sizeof (*fpsDisplayString) * 8);
@@ -79,6 +79,21 @@ int main(int argc, char** argv)
 		{
 			buf_free(nextDialogName);
 			nextDialogName = interpretingDialogName;
+		} else if (is_input_key_pressed(INPUT_KEY_1)) {
+			set_window_mode(WINDOW_MODE_WINDOWED);
+			reset_dialog_ui();
+		} else if (is_input_key_pressed(INPUT_KEY_2)) {
+			set_window_mode(WINDOW_MODE_BORDERLESS);
+			reset_dialog_ui();
+		} else if (is_input_key_pressed(INPUT_KEY_3)) {
+			set_window_mode(WINDOW_MODE_FULLSCREEN);
+			reset_dialog_ui();
+		} else if (is_input_key_pressed(INPUT_KEY_ADD)) {
+			resize_window(windowDimensions.x + 8, windowDimensions.y + 6);
+			reset_dialog_ui();
+		} else if (is_input_key_pressed(INPUT_KEY_SUBTRACT)) {
+			resize_window(windowDimensions.x - 8, windowDimensions.y - 6);
+			reset_dialog_ui();
 		}
 
 		if (nextDialogName)
