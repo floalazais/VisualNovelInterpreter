@@ -18,6 +18,7 @@ static char *fileString;
 static int currentLine = 1;
 static int currentIndentationLevel = 0;
 static int currentCharIndex = 0;
+static int currentCommentDepth = 0;
 
 static buf(DialogToken *) dialogTokens;
 
@@ -121,9 +122,32 @@ static buf(char) get_sentence()
 	return result;
 }
 
+#define stack(a) buf(a)
+
+static stack(int) multilineCommentsLines = NULL;
+
+static void stack_push(stack(int) *stack, int value)
+{
+	buf_add(*stack, value);
+}
+
+static int stack_pop(stack(int) *stack)
+{
+	int result = (*stack)[buf_len(*stack) - 1];
+	_buf_header(*stack)->count--;
+	return result;
+}
+
+static int stack_top(stack(int) *stack)
+{
+	return (*stack)[buf_len(*stack) - 1];
+}
+
 static DialogToken *get_next_dialog_token()
 {
 	DialogToken *token = xmalloc(sizeof (*token));
+
+	startlex:
 
 	while (isspace(fileString[currentCharIndex]))
 	{
@@ -133,7 +157,7 @@ static DialogToken *get_next_dialog_token()
 			currentLine++;
 			currentIndentationLevel = 0;
 		} else if (fileString[currentCharIndex] == '\t') {
-			if (currentLexMode == LEX_MODE_TEXT && dialogTokens[buf_len(dialogTokens) - 1]->line != currentLine)
+			if (currentLexMode == LEX_MODE_TEXT && (buf_len(dialogTokens) == 0 || dialogTokens[buf_len(dialogTokens) - 1]->line != currentLine))
 			{
 				currentIndentationLevel++;
 			} else {
@@ -141,6 +165,43 @@ static DialogToken *get_next_dialog_token()
 			}
 		}
 		step_in_source();
+	}
+
+	if (fileString[currentCharIndex] == '/' && fileString[currentCharIndex + 1] == '/')
+	{
+		steps_in_source(2);
+		while (fileString[currentCharIndex] != '\n' && fileString[currentCharIndex] != '\0')
+		{
+			step_in_source();
+		}
+		goto startlex;
+	} else if (fileString[currentCharIndex] == '/' && fileString[currentCharIndex + 1] == '*') {
+		stack_push(&multilineCommentsLines, currentLine);
+		steps_in_source(2);
+		currentCommentDepth = 1;
+		while (currentCommentDepth != 0)
+		{
+			if (fileString[currentCharIndex] == '/' && fileString[currentCharIndex + 1] == '*')
+			{
+				currentCommentDepth++;
+				stack_push(&multilineCommentsLines, currentLine);
+				steps_in_source(2);
+			} else if (fileString[currentCharIndex] == '*' && fileString[currentCharIndex + 1] == '/') {
+				currentCommentDepth--;
+				stack_pop(&multilineCommentsLines);
+				steps_in_source(2);
+			} else if (fileString[currentCharIndex] == '\n') {
+				currentLexMode = LEX_MODE_TEXT;
+				currentLine++;
+				currentIndentationLevel = 0;
+				step_in_source();
+			} else if (fileString[currentCharIndex] == '\0') {
+				error("in %s unclosed multiline comment at line %d.", filePath, stack_top(&multilineCommentsLines));
+			} else {
+				step_in_source();
+			}
+		}
+		goto startlex;
 	}
 
 	token->line = currentLine;
@@ -353,6 +414,9 @@ buf(DialogToken *) lex_dialog(const char *_filePath)
 
 	xfree(fileString);
 
+	buf_free(multilineCommentsLines);
+	multilineCommentsLines = NULL;
+
 	return dialogTokens;
 }
 
@@ -367,7 +431,7 @@ static AnimationToken *get_next_animation_token()
 			currentLine++;
 			currentIndentationLevel = 0;
 		} else if (fileString[currentCharIndex] == '\t') {
-			if (animationTokens[buf_len(animationTokens) - 1]->line != currentLine)
+			if (buf_len(animationTokens) == 0 || animationTokens[buf_len(animationTokens) - 1]->line != currentLine)
 			{
 				currentIndentationLevel++;
 			} else {
