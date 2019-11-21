@@ -157,9 +157,14 @@ static DialogToken *get_next_dialog_token()
 			currentLine++;
 			currentIndentationLevel = 0;
 		} else if (fileString[currentCharIndex] == '\t') {
-			if (currentLexMode == LEX_MODE_TEXT && (buf_len(dialogTokens) == 0 || dialogTokens[buf_len(dialogTokens) - 1]->line != currentLine))
+			if (currentLexMode == LEX_MODE_TEXT)
 			{
-				currentIndentationLevel++;
+				if ((buf_len(dialogTokens) == 0 || dialogTokens[buf_len(dialogTokens) - 1]->line != currentLine))
+				{
+					currentIndentationLevel++;
+				} else {
+					currentLexMode = LEX_MODE_CODE;
+				}
 			} else {
 				error("in %s at line %d tab character is reserved for indentation, its use in the middle of a line is forbidden.", filePath, currentLine);
 			}

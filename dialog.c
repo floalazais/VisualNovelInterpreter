@@ -856,8 +856,8 @@ static Choice *parse_choice()
 	choice->sentence = xmalloc(sizeof (*choice->sentence));
 	choice->sentence->string = strclone(tokens[currentToken]->string);
 	choice->sentence->autoSkip = false;
-
 	step_in_tokens();
+
 	if (!token_match_on_line(tokens[currentToken - 1]->line + 1, 1, DIALOG_TOKEN_GO_TO))
 	{
 		error("in %s at line %d, expected a go to indicator \"->\" and a knot identifier on the line below a choice declaration.", filePath, tokens[currentToken - 1]->line + 1);
@@ -865,14 +865,6 @@ static Choice *parse_choice()
 	if (tokens[currentToken]->indentationLevel != currentIndentationLevel + 1)
 	{
 		error("in %s at line %d, expected an indentation level of %d after a choice declaration, got an indentation level of %d instead.", filePath, tokens[currentToken]->line, currentIndentationLevel + 1, tokens[currentToken]->indentationLevel);
-	}
-	if (buf_len(choice->sentence->string) >= 6)
-	{
-		if (strmatch(&choice->sentence->string[buf_len(choice->sentence->string) - 6], " AUTO"))
-		{
-			choice->sentence->string[buf_len(choice->sentence->string) - 6] = '\0';
-			choice->sentence->autoSkip = true;
-		}
 	}
 	choice->goToCommand = parse_go_to();
 	return choice;
@@ -957,17 +949,15 @@ static CueExpression *parse_cue_expression()
 		} else if (tokens[currentToken]->type == DIALOG_TOKEN_SENTENCE) {
 			cueExpression->type = CUE_EXPRESSION_SENTENCE;
 			cueExpression->sentence = xmalloc(sizeof (*cueExpression->sentence));
-			cueExpression->sentence->autoSkip = false;
 			cueExpression->sentence->string = strclone(tokens[currentToken]->string);
-			if (buf_len(cueExpression->sentence->string) >= 6)
-			{
-				if (strmatch(&cueExpression->sentence->string[buf_len(cueExpression->sentence->string) - 6], " AUTO"))
-				{
-					cueExpression->sentence->string[buf_len(cueExpression->sentence->string) - 6] = '\0';
-					cueExpression->sentence->autoSkip = true;
-				}
-			}
 			step_in_tokens();
+			if (token_match_on_line(tokens[currentToken - 1]->line, 1, DIALOG_TOKEN_IDENTIFIER) && strmatch(tokens[currentToken]->string, "auto"))
+			{
+				cueExpression->sentence->autoSkip = true;
+				step_in_tokens();
+			} else {
+				cueExpression->sentence->autoSkip = false;
+			}
 		} else {
 			error("in %s at line %d, expected a cue expression, got a %s instead.", filePath, tokens[currentToken]->line, dialog_token_to_string(tokens[currentToken]));
 		}
