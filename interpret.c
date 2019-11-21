@@ -50,6 +50,8 @@ static bool displaySpeakerName;
 static bool sentenceFirstUpdate;
 static float timeDuringCurrentChar;
 static float timeDuringCurrentBlip;
+static float currentCodeWaitTime;
+static float currentDisplayedCode;
 static float waitTimer;
 static buf(char) nextDialogStartKnotName;
 static AudioSource *music;
@@ -653,6 +655,10 @@ static bool update_command(Command *command)
 	return true;
 }
 
+const float WAIT_TIME_NORMAL_CHARACTER = 0.02f;
+const float WAIT_TIME_COMMA = 0.15f;
+const float WAIT_TIME_DOT = 0.4f;
+
 static bool update_sentence(Sentence *sentence)
 {
 	Sprite *currentSpeakerSprite = NULL;
@@ -672,8 +678,18 @@ static bool update_sentence(Sentence *sentence)
 		sentenceFirstUpdate = false;
 		timeDuringCurrentChar = 0.0f;
 		timeDuringCurrentBlip = 0.0f;
+		currentCodeWaitTime = 0.0f;
 		set_text_string(currentSentence, sentence->string);
 		currentSentence->nbCharToDisplay = 0;
+		currentDisplayedCode = currentSentence->codes[0];
+		if (currentDisplayedCode == '.')
+		{
+			currentCodeWaitTime = WAIT_TIME_DOT;
+		} else if (currentDisplayedCode == ',') {
+			currentCodeWaitTime = WAIT_TIME_COMMA;
+		} else {
+			currentCodeWaitTime = WAIT_TIME_NORMAL_CHARACTER;
+		}
 		if (currentSpeakerSpriteIndex != -1)
 		{
 			currentAnimation->animationState = ANIMATION_STATE_PLAY;
@@ -687,15 +703,38 @@ static bool update_sentence(Sentence *sentence)
 			currentSentence->nbCharToDisplay = currentSentence->nbMaxCharToDisplay;
 		} else {
 			timeDuringCurrentChar += deltaTime;
-			if (timeDuringCurrentChar >= 0.02f)
+			while (timeDuringCurrentChar > currentCodeWaitTime)
 			{
-				int nbCharToSkip = timeDuringCurrentChar / 0.02f;
-				currentSentence->nbCharToDisplay += nbCharToSkip;
-				if (currentSentence->nbCharToDisplay >= currentSentence->nbMaxCharToDisplay)
+				if (timeDuringCurrentChar >= currentCodeWaitTime)
 				{
-					currentSentence->nbCharToDisplay = currentSentence->nbMaxCharToDisplay;
+					currentSentence->nbCharToDisplay++;
+					if (currentSentence->nbCharToDisplay == currentSentence->nbMaxCharToDisplay)
+					{
+						break;
+					}
+					timeDuringCurrentChar -= currentCodeWaitTime;
 				}
-				timeDuringCurrentChar -= nbCharToSkip * 0.02f;
+				currentDisplayedCode = currentSentence->codes[currentSentence->nbCharToDisplay - 1];
+				if ((currentDisplayedCode == '.' || currentDisplayedCode == '?' || currentDisplayedCode == '!' || currentDisplayedCode == ';') && currentSentence->nbCharToDisplay < currentSentence->nbMaxCharToDisplay - 1)
+				{
+					currentCodeWaitTime = WAIT_TIME_DOT;
+					if (currentAnimation && currentAnimation->animationState == ANIMATION_STATE_PLAY)
+					{
+						currentAnimation->animationState = ANIMATION_STATE_STOPPING;
+					}
+				} else if (currentDisplayedCode == ',' && currentSentence->nbCharToDisplay < currentSentence->nbMaxCharToDisplay - 1) {
+					currentCodeWaitTime = WAIT_TIME_COMMA;
+					if (currentAnimation && currentAnimation->animationState == ANIMATION_STATE_PLAY)
+					{
+						currentAnimation->animationState = ANIMATION_STATE_STOPPING;
+					}
+				} else {
+					currentCodeWaitTime = WAIT_TIME_NORMAL_CHARACTER;
+					if (currentAnimation)
+					{
+						currentAnimation->animationState = ANIMATION_STATE_PLAY;
+					}
+				}
 			}
 			timeDuringCurrentBlip += deltaTime;
 			if (timeDuringCurrentBlip >= 0.075f)
