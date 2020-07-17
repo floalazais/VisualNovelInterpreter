@@ -328,7 +328,8 @@ Accessible in gameplay code.
 
 ---
 ### Hot reload
-When pressing the `R` key, the game is reloaded, taking into account saved changes in dialog script.  
+When pressing the `R` key, the game is reloaded, taking into account saved changes in dialog script.
+
 <img src="https://cdn.discordapp.com/attachments/522499136449413123/733492691186352168/VNI_-_hot_reload_light.gif" width="960" height="360"/>
 
 ---
