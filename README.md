@@ -1,11 +1,12 @@
 # Visual Novel Interpreter
-Visual Novel engine inspired by Ren'Py.
-Games are made using a custom script language.
+A Visual Novel engine inspired by Ren'Py. Games are made using a custom script language.
 
 Personal project written in C to discover low-level programming, game engine programming, OpenGL, language lexing-parsing and design.
 
 ![](https://cdn.discordapp.com/attachments/522499136449413123/732652083831898132/VNI-pres.gif)
-*A "999 : Nine Hours, Nine Persons, Nine Doors" fan game I made to test my engine.*
+*A "999: Nine Hours, Nine Persons, Nine Doors" fan game I'm doing to test my engine.*
+
+This scene is created by this script:
 ```
 #set_window_name "999 fan-made game"
 #set_background "First class cabin"::"piano"
@@ -16,48 +17,38 @@ Personal project written in C to discover low-level programming, game engine pro
 >"Seven" right "thinking" center
 	I still don't understand the purpose of this killing game.
 ```
-*The script used to create this scene.*
 ## Status
-This is a personal project I work on during my free time, so it isn't updated regularly.  
-It is in early development, don't expect advanced features, but you can still create a simple Visual Novel game with it, and I have some ideas for future features and improvements.  
-However I try to keep it functional, so if you're experiencing bugs, unwanted behaviours or having any question please contact me !
+This is a personal project I work on during my free time, I update it from time to time.  
+It is in early development, only basic features are available, and the syntax may change over time, but you can still create a simple Visual Novel game with it, and I have some ideas for future features and improvements.  
+However I keep it functional, so if you're experiencing bugs, unwanted behaviours or having any question please contact me !
 ## Build and use
 **Windows - MinGW**
 
-There is no dependencies.  
-Clone the repository and run build.bat.  
-VisualNovelInterpreter.exe should have been generated.  
-Dialogs/start.dlg is the game starting point and is editable with any text editor.  
+There is no dependencies, so just clone the repository and run `build.bat` to compile the project.  
+You can then launch the game with `VisualNovelInterpreter.exe`.  
+`Dialogs/start.dlg` is the game starting point and is editable with any text editor.  
 ## Language features
 ### Dialog
 #### Basic dialog
-To make someone talk the syntax is the following :
+To make someone talk the syntax is the following:
 ```
 >"Junpei" left
 	We've finally completed this puzzle.
 ```
 The speaker's name is introduced by the `>` symbol and demarcated by `"`.  
-The `left` keyword is mandatory : it specifies the speaker's name display location.
+The `left` keyword specifies the speaker's name display location. It can be displayed either at the `left` or the `right` of the screen.  
+The position is mandatory.
 
 <img src="https://cdn.discordapp.com/attachments/522499136449413123/732674822567362640/unknown.png" width="480" height="360"/>
 
-The speaker's name can be displayed either at the left or the right of the screen.
-
----
-You can easily use any printable character in a sentence, like `\`, `'` or `"`, since there is no need to use quotation marks to demarcate text.
-
-<img src="https://cdn.discordapp.com/attachments/522499136449413123/733443572518617128/unknown.png" width="480" height="360"/>
-
----
-It is also possible to display text without any speaker name, like with a narrator :
+It is also possible to display text without any speaker name, like with a narrator:
 ```
 >
 	Snake didn't answered, maybe he didn't heard Junpei at all.
 ```
 <img src="https://cdn.discordapp.com/attachments/522499136449413123/733444343595139202/unknown.png" width="480" height="360"/>
 
----
-Successives sentences can be assigned to the same character :
+Successives sentences can be assigned to the same character:
 ```
 >"Junpei" left
 	I'll ask you in case.
@@ -71,26 +62,23 @@ Sentences must be indented one level further than the corresponding speaker decl
 
 ---
 #### Animated dialog
-To play a character **animation** while he is talking, use the following syntax :
+To display a character, you need to specify its **animation** and its position on the screen:
 ```
 >"Seven" right "thinking" center
 	I still don't understand the purpose of this killing game.
 ```
-Seven will be displayed at the right of the screen.  
-Its sprite will be drawn on the center of the screen, with its "thinking" **animation** playing while he's talking.
-
 <img src="https://cdn.discordapp.com/attachments/522499136449413123/732688634712686722/VNI_-_animated_dialog.gif" width="480" height="360"/>
 
-There are 7 drawing locations for the character sprites : `full-left`, `left`, `center-left`,`center`,`center-right`,`right` and `full-right`.  
+
+Seven's name is displayed at the right of the screen.  
+Its sprite is drawn on the center of the screen, with its "thinking" **animation** playing while he's talking.
+
+There are 7 drawing locations for the character sprites: `full-left`, `left`, `center-left`,`center`,`center-right`,`right` and `full-right`.  
 We'll see later how to add character **animations** to the game.
 
 ---
 ### Choices
-This sequence contains a **choice** :
-
-<img src="https://cdn.discordapp.com/attachments/506035655206502410/731573090018132089/VNI-choice.gif" width="480" height="360"/>
-
-This is the script used to create it :
+This sequence contains a **choice**:
 ```
 >"Seven" right "thinking" right
 	Then we should've missed something in this room that will permit us to open this safe.
@@ -105,8 +93,10 @@ This is the script used to create it :
 	-Get out of here to meet the others.
 		->get_out
 ```
+<img src="https://cdn.discordapp.com/attachments/506035655206502410/731573090018132089/VNI-choice.gif" width="480" height="360"/>
+
 A **choice option** is declared in a **cue** as normal sentences, prepended by a `-`.  
-It must be followed one the next line by a **go-to** operator `->` with its **knot** destination, which are both indented one level further than the **choice option**.  
+It must be followed on the next line by a **go-to** operator `->` with its **knot** destination, which are both indented one level further than the **choice option**.  
 ***Knots** and **go-tos** are explained just below.*  
 Once a **cue** contains a **choice**, only other **choice options** can follow.  
 
@@ -114,7 +104,7 @@ Once a **cue** contains a **choice**, only other **choice options** can follow.
 ### Flow
 A way to control the flow of your script is to use **knots** and **go-tos**.
 
-A **knot** is a named part of the script, the user can declare one with the `@` symbol :
+A **knot** is a named part of the script, the user can declare one with the `@` symbol:
 ```
 @my_knot
 ```
@@ -138,7 +128,7 @@ You can go to a **knot** by using the **go-to** operator `->` anywhere in the sc
 ```
 A **knot** named `start` is implicitly declared at the top of any script file, which means that a user-declared **knot** cannot be named `start`.
 
-It is also possible to access **knots** from other script files using the following syntax :
+It is also possible to access **knots** from other script files using the following syntax:
 ```
 ->"file.ext"::my_knot
 ```
@@ -161,7 +151,7 @@ When the interpreter comes to the end of a script file, the game closes.
 As you may have already seen, it is possible to control the script's flow by **conditions**.
 
 #### Conditions
-A **condition** can be used with the following syntax :
+A **condition** can be used with the following syntax:
 ```
 #if sevenTrustsJunpei
 	->reveal_scene
@@ -173,7 +163,7 @@ A **branch** is a group of **cues**, **commands**, **choice options**, **go-tos*
 
 **Conditions** can be used from a **knot**, inside a **cue** or another **condition**.
 
-The syntax for conditional **choice options** is the following :
+The syntax for conditional **choice options** is the following:
 ```
 >
 	-Fist choice
@@ -190,24 +180,24 @@ The identifier is the keyword you will be refering to when using the variable.
 The value is either a numeric value, or a string value.  
 There are `true` and `false` keywords, but they are just aliases to respectively `1` and `0`.  
 
-You can assign a value to a variable with the following syntax :
+You can assign a value to a variable with the following syntax:
 ```
 #assign keyPartsFound 5
 
 #assign murder'sName "unknown"
 ```
-You can perform some operations on variables :
+You can perform some operations on variables:
 ```
 assign canPassDoor hasKey && (foundClues + foundPapers > 3)
 ```
-The available operators list is : `(`, `)`, `&&`, `||`, `!`, `==`, `!=`, `+`, `-`, `*`, `/`, `<`, `<=`, `>`, `>=`.
+The available operators list is: `(`, `)`, `&&`, `||`, `!`, `==`, `!=`, `+`, `-`, `*`, `/`, `<`, `<=`, `>`, `>=`.
 
 You can't perform operations between string variables and numeric variables.
 
 ---
 ### Commands
 **Commands** are ways to interact with the engine, like playing music, display sprites, adjust timing etc.  
-The syntax of a **command** is the following :
+The syntax of a **command** is the following:
 ```
 #command_name
 #another_command_name argument1 argument2
@@ -215,7 +205,7 @@ The syntax of a **command** is the following :
 #### Animations commands
 <img src="https://cdn.discordapp.com/attachments/506035655206502410/731573091314040872/VNI-backgrounds.gif" width="480" height="360"/>
 
-You can set the background sprite with the following **command** :
+You can set the background sprite with the following **command**:
 ```
 #set_background "First class cabin"::"piano"
 ```
@@ -223,19 +213,19 @@ It will search the **animation** "piano" of background **pack** "First class cab
 This means you can have an animated background!  
 The fade transition is automatic.
 
-To set a character **animation** that will be played while talking, use the following **command** :
+To set a character **animation** that will be played while talking, use the following **command**:
 ```
 #set_character center "Snake"::"thinking"
 ```
 It will display at the center of the screen the first sprite of the "thinking" **animation** of the "Snake" character **animation pack**.  
 The **animation** will be played when "Snake" will speak.
 
-The dialog syntax :
+The dialog syntax:
 ```
 >"Snake" center "thinking" center
 	Hmm..
 ```
-is equivalent to :
+is equivalent to:
 ```
 #set_character center "Snake"::"thinking"
 >"Snake" center
@@ -247,7 +237,7 @@ To use an **animation** in a script, you must create a descriptive **animation**
 It describes a character **animation pack** or a background **pack**.  
 Those files are placed in the "Animation files" folder, and are named "**pack**.anm".
 
-Here is an example :
+Here is an example:
 ```
 // Seven.anm
 
@@ -266,14 +256,14 @@ Here is an example :
 This file describes 2 **animations** of the "Seven" character, they are composed of **animation frames**, which are indented one level further than their corresponding animation.  
 The identifier `loop` specifies that these are **looped animations**.
 
-The syntax of an **animation frame** is the following :
+The syntax of an **animation frame** is the following:
 ```
 "name of frame file.ext" duration screenWidth screenHeight
 ```
-Duration is in seconds, width and height are between 0 and 1 and are screen proportions.  
+Duration is in seconds, width and height are between `0` and `1` and are screen proportions.  
 If the dimensions aren't specified, the pixel dimensions will be used, but it won't be responsive.
 
-There is another type of **animations** :
+There is another type of **animations**:
 ```
 // First class cabin.anm
 
@@ -315,10 +305,10 @@ There is only one sound at a time, like backgounds, an automatic cross fade is m
 ## Engine features
 ### Window
 Window with OpenGL 3.3 context using Win32 API.  
-3 window modes : Fullscreen - Borderless - Windowed.  
+3 window modes: Fullscreen - Borderless - Windowed.  
 Dynamic resize, focus-aware, make these informations accessibles in gameplay code.
 
-#### Example : responsivity
+#### Example: responsivity
 <img src="https://cdn.discordapp.com/attachments/506035655206502410/731573086876336137/VNI-resize.gif" width="480" height="360"/>
 
 ---
@@ -359,7 +349,7 @@ Reads audio assets thanks to [miniaudio](https://github.com/dr-soft/miniaudio).
 	-Search this room again.
 		->search_again
 	-Get out of here to meet the others.
-			->get_out 						// too many tabulations
+			->get_out 					// too many tabulations
 ```
 produces
 
@@ -373,9 +363,7 @@ produces
 #### Memory leak tracking.
 ```c
 int *integer = xmalloc(sizeof (*integer));
-
-buf(int) integers = NULL;
-buf_add(integers, 2);
+// xfree(integer);
 
 print_leaks();
 ```
@@ -383,6 +371,5 @@ produces
 ```
 --- Memory leaks ---
         -main.c:148 &205199872
-        -main.c:150 &59156928 BUF
-2 memory leaks.
+1 memory leaks.
 ```
