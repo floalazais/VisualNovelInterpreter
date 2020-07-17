@@ -229,6 +229,19 @@ To set a character **animation** that will be played while talking, use the foll
 ```
 It will display at the center of the screen the first sprite of the "thinking" **animation** of the "Snake" character **animation pack**.  
 The **animation** will be played when "Snake" will speak.
+
+The dialog syntax :
+```
+>"Snake" center "thinking" center
+	Hmm..
+```
+is equivalent to :
+```
+#set_character center "Snake"::"thinking"
+>"Snake" center
+	Hmm..
+```
+
 #### Animation files
 To use an **animation** in a script, you must create a descriptive **animation** file.  
 It describes a character **animation pack** or a background **pack**.  
