@@ -18,16 +18,16 @@ Personal project written in C to discover low-level programming, game engine pro
 ```
 *The script used to create this scene.*
 ## Status
-This is a personal project I work on during my free time, so it isn't updated regularly.
-It is in early development, don't expect advanced features, but you can still create a simple Visual Novel game with it, and I have some ideas for future features and improvements.
+This is a personal project I work on during my free time, so it isn't updated regularly.  
+It is in early development, don't expect advanced features, but you can still create a simple Visual Novel game with it, and I have some ideas for future features and improvements.  
 However I try to keep it functional, so if you're experiencing bugs, unwanted behaviours or having any question please contact me !
 ## Build and use
 **Windows - MinGW**
 
-There is no dependencies.
-Clone the repository and run build.bat.
-VisualNovelInterpreter.exe should have been generated.
-Dialogs/start.dlg is the game starting point and is editable with any text editor.
+There is no dependencies.  
+Clone the repository and run build.bat.  
+VisualNovelInterpreter.exe should have been generated.  
+Dialogs/start.dlg is the game starting point and is editable with any text editor.  
 ## Language features
 ### Dialog
 #### Basic dialog
@@ -36,7 +36,7 @@ To make someone talk the syntax is the following :
 >"Junpei" left
 	We've finally completed this puzzle.
 ```
-The speaker's name is introduced by the `>` symbol and demarcated by `"`.
+The speaker's name is introduced by the `>` symbol and demarcated by `"`.  
 The `left` keyword is mandatory : it specifies the speaker's name display location.
 
 <img src="https://cdn.discordapp.com/attachments/522499136449413123/732674822567362640/unknown.png" width="480" height="360"/>
@@ -63,8 +63,8 @@ Successives sentences can be assigned to the same character :
 	I'll ask you in case.
 	Thank you Seven.
 ```
-Tabulations are part of the language, as in Python.
-Sentences must be indented one level further than the corresponding speaker declaration.
+Tabulations are part of the language, as in Python.  
+Sentences must be indented one level further than the corresponding speaker declaration.  
 *The speaker declaration and the following indented sentences form a **cue**.*
 
 <img src="https://cdn.discordapp.com/attachments/522499136449413123/733445975737106532/VNI_-_multiline_no_anim.gif" width="480" height="360"/>
@@ -76,12 +76,12 @@ To play a character **animation** while he is talking, use the following syntax 
 >"Seven" right "thinking" center
 	I still don't understand the purpose of this killing game.
 ```
-Seven will be displayed at the right of the screen
-Its sprite will be drawn on the center of the screen, with its "thinking" **animation** playing while he's talking
+Seven will be displayed at the right of the screen.  
+Its sprite will be drawn on the center of the screen, with its "thinking" **animation** playing while he's talking.
 
 <img src="https://cdn.discordapp.com/attachments/522499136449413123/732688634712686722/VNI_-_animated_dialog.gif" width="480" height="360"/>
 
-There are 7 drawing locations for the character sprites : `full-left`, `left`, `center-left`,`center`,`center-right`,`right` and `full-right`.
+There are 7 drawing locations for the character sprites : `full-left`, `left`, `center-left`,`center`,`center-right`,`right` and `full-right`.  
 We'll see later how to add character **animations** to the game.
 
 ---
@@ -105,10 +105,10 @@ This is the script used to create it :
 	-Get out of here to meet the others.
 		->get_out
 ```
-A **choice option** is declared in a **cue** as normal sentences, prepended by a `-`.
-It must be followed one the next line by a **go-to** operator `->` with its **knot** destination, which are both indented one level further than the **choice option**.
-***Knots** and **go-tos** are explained just below.*
-Once a **cue** contains a **choice**, only other **choice options** can follow.
+A **choice option** is declared in a **cue** as normal sentences, prepended by a `-`.  
+It must be followed one the next line by a **go-to** operator `->` with its **knot** destination, which are both indented one level further than the **choice option**.  
+***Knots** and **go-tos** are explained just below.*  
+Once a **cue** contains a **choice**, only other **choice options** can follow.  
 
 ---
 ### Flow
@@ -168,7 +168,7 @@ A **condition** can be used with the following syntax :
 #else
 	->end_of_investigation
 ```
-When encountering a **condition**, the interpreter evaluates the expression following the `#if` keyword, and then goes into the corresponding **branch**. The `#else` **branch** is optional.
+When encountering a **condition**, the interpreter evaluates the expression following the `#if` keyword, and then goes into the corresponding **branch**. The `#else` **branch** is optional.  
 A **branch** is a group of **cues**, **commands**, **choice options**, **go-tos**, or even another **conditions** that are indented one level further their corresponding **condition**.
 
 **Conditions** can be used from a **knot**, inside a **cue** or another **condition**.
@@ -185,10 +185,10 @@ The syntax for conditional **choice options** is the following :
 			->third_outcome
 ```
 #### Variables
-Variables have *an identifier* and *a value*.
-The identifier is the keyword you will be refering to when using the variable.
-The value is either a numeric value, or a string value.
-There are `true` and `false` keywords, but they are just aliases to respectively `1` and `0`.
+Variables have *an identifier* and *a value*.  
+The identifier is the keyword you will be refering to when using the variable.  
+The value is either a numeric value, or a string value.  
+There are `true` and `false` keywords, but they are just aliases to respectively `1` and `0`.  
 
 You can assign a value to a variable with the following syntax :
 ```
@@ -206,7 +206,7 @@ You can't perform operations between string variables and numeric variables.
 
 ---
 ### Commands
-**Commands** are ways to interact with the engine, like playing music, display sprites, adjust timing etc.
+**Commands** are ways to interact with the engine, like playing music, display sprites, adjust timing etc.  
 The syntax of a **command** is the following :
 ```
 #command_name
@@ -219,19 +219,19 @@ You can set the background sprite with the following **command** :
 ```
 #set_background "First class cabin"::"piano"
 ```
-It will search the **animation** "piano" of background **pack** "First class cabin".
-This means you can have an animated background!
+It will search the **animation** "piano" of background **pack** "First class cabin".  
+This means you can have an animated background!  
 The fade transition is automatic.
 
 To set a character **animation** that will be played while talking, use the following **command** :
 ```
 #set_character center "Snake"::"thinking"
 ```
-It will display at the center of the screen the first sprite of the "thinking" **animation** of the "Snake" character **animation pack**.
+It will display at the center of the screen the first sprite of the "thinking" **animation** of the "Snake" character **animation pack**.  
 The **animation** will be played when "Snake" will speak.
 #### Animation files
-To use an **animation** in a script, you must create a descriptive **animation** file.
-It describes a character **animation pack** or a background **pack**.
+To use an **animation** in a script, you must create a descriptive **animation** file.  
+It describes a character **animation pack** or a background **pack**.  
 Those files are placed in the "Animation files" folder, and are named "**pack**.anm".
 
 Here is an example :
@@ -250,14 +250,14 @@ Here is an example :
 	"laughing3.gif" 0.1 0.6 0.75
 	"laughing2.gif" 0.1 0.6 0.75
 ```
-This file describes 2 **animations** of the "Seven" character, they are composed of **animation frames**, which are indented one level further than their corresponding animation.
+This file describes 2 **animations** of the "Seven" character, they are composed of **animation frames**, which are indented one level further than their corresponding animation.  
 The identifier `loop` specifies that these are **looped animations**.
 
 The syntax of an **animation frame** is the following :
 ```
 "name of frame file.ext" duration screenWidth screenHeight
 ```
-Duration is in seconds, width and height are between 0 and 1 and are screen proportions.
+Duration is in seconds, width and height are between 0 and 1 and are screen proportions.  
 If the dimensions aren't specified, the pixel dimensions will be used, but it won't be responsive.
 
 There is another type of **animations** :
@@ -267,8 +267,8 @@ There is another type of **animations** :
 "piano" static
 	"piano.png"
 ```
-**Static animations** are marked by the `static` keyword, and composed of only one **animation frame**.
-The duration cannot be specified (it would have no sense).
+**Static animations** are marked by the `static` keyword, and composed of only one **animation frame**.  
+The duration cannot be specified (it would have no sense).  
 The frame dimensions aren't specified, but since it's a background, it will be adjusted to cover all the screen.
 
 #### Other commands
@@ -301,10 +301,8 @@ There is only one sound at a time, like backgounds, an automatic cross fade is m
 `set_speaker_name_color "speaker name" red green blue` changes the display color of the corresponding speaker's name, color arguments are between `0` and `1`.
 ## Engine features
 ### Window
-Window with OpenGL 3.3 context using Win32 API.
-
-3 window modes : Fullscreen - Borderless - Windowed.
-
+Window with OpenGL 3.3 context using Win32 API.  
+3 window modes : Fullscreen - Borderless - Windowed.  
 Dynamic resize, focus-aware, make these informations accessibles in gameplay code.
 
 #### Example : responsivity
@@ -312,36 +310,30 @@ Dynamic resize, focus-aware, make these informations accessibles in gameplay cod
 
 ---
 ### Graphics
-Displays static and animated sprites.
-
+Displays static and animated sprites.  
 Images read thanks to [stb_image](https://github.com/nothings/stb).
 
-Displays Unicode text with TrueType fonts.
-
-Text can have a display width limit, so it can dynamically adjust himself.
-
+Displays Unicode text with TrueType fonts.  
+Text can have a display width limit, so it can dynamically adjust himself.  
 Fonts read thanks to [stb_truetype](https://github.com/nothings/stb).
 
 <img src="https://cdn.discordapp.com/attachments/506035655206502410/731573091314040872/VNI-backgrounds.gif" width="480" height="360"/>
 
 ---
 ### User input
-Mouse, keyboard, scroll wheel, mouse side buttons input with Win32 API.
-
+Mouse, keyboard, scroll wheel, mouse side buttons input with Win32 API.  
 Accessible in gameplay code.
 
 <img src="https://cdn.discordapp.com/attachments/522499136449413123/733432898388099192/VNI_-_input.gif" width="480" height="360"/>
 
 ---
 ### Hot reload
-When pressing the `R` key, the game is reloaded, taking into account saved changes in dialog script.
-
+When pressing the `R` key, the game is reloaded, taking into account saved changes in dialog script.  
 <img src="https://cdn.discordapp.com/attachments/522499136449413123/733492691186352168/VNI_-_hot_reload_light.gif" width="960" height="360"/>
 
 ---
 ### Audio
-Plays, pauses, stops sounds and musics at wanted volume.
-
+Plays, pauses, stops sounds and musics at wanted volume.  
 Reads audio assets thanks to [miniaudio](https://github.com/dr-soft/miniaudio).
 
 ---
