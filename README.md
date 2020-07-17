@@ -302,17 +302,24 @@ There is only one sound at a time, like backgounds, an automatic cross fade is m
 ## Engine features
 ### Window
 Window with OpenGL 3.3 context using Win32 API.
-3 window modes : Fullscreen - Borderless - Windowed
+
+3 window modes : Fullscreen - Borderless - Windowed.
+
 Dynamic resize, focus-aware, make these informations accessibles in gameplay code.
+
 #### Example : responsivity
 <img src="https://cdn.discordapp.com/attachments/506035655206502410/731573086876336137/VNI-resize.gif" width="480" height="360"/>
 
 ---
 ### Graphics
 Displays static and animated sprites.
+
 Images read thanks to [stb_image](https://github.com/nothings/stb).
+
 Displays Unicode text with TrueType fonts.
+
 Text can have a display width limit, so it can dynamically adjust himself.
+
 Fonts read thanks to [stb_truetype](https://github.com/nothings/stb).
 
 <img src="https://cdn.discordapp.com/attachments/506035655206502410/731573091314040872/VNI-backgrounds.gif" width="480" height="360"/>
@@ -320,6 +327,7 @@ Fonts read thanks to [stb_truetype](https://github.com/nothings/stb).
 ---
 ### User input
 Mouse, keyboard, scroll wheel, mouse side buttons input with Win32 API.
+
 Accessible in gameplay code.
 
 <img src="https://cdn.discordapp.com/attachments/522499136449413123/733432898388099192/VNI_-_input.gif" width="480" height="360"/>
@@ -328,11 +336,12 @@ Accessible in gameplay code.
 ### Hot reload
 When pressing the `R` key, the game is reloaded, taking into account saved changes in dialog script.
 
-<img src="https://cdn.discordapp.com/attachments/522499136449413123/733422815931269236/VNI_-_hot_reload.gif" width="960" height="360"/>
+<img src="https://cdn.discordapp.com/attachments/522499136449413123/733492691186352168/VNI_-_hot_reload_light.gif" width="960" height="360"/>
 
 ---
 ### Audio
 Plays, pauses, stops sounds and musics at wanted volume.
+
 Reads audio assets thanks to [miniaudio](https://github.com/dr-soft/miniaudio).
 
 ---
