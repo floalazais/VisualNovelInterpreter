@@ -3,7 +3,7 @@ A Visual Novel engine inspired by Ren'Py. Games are made using a custom script l
 
 Personal project written in C to discover low-level programming, game engine programming, OpenGL, language lexing-parsing and design.
 
-![](https://cdn.discordapp.com/attachments/522499136449413123/732652083831898132/VNI-pres.gif)
+![](https://cdn.discordapp.com/attachments/522499136449413123/732652083831898132/VNI-pres.gif)  
 *A "999: Nine Hours, Nine Persons, Nine Doors" fan game I'm doing to test my engine.*
 
 This scene is created by this script:
