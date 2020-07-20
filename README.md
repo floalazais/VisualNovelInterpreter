@@ -277,31 +277,31 @@ The frame dimensions aren't specified, but since it's a background, it will be a
 #### Other commands
 `#clear_background` clears background, revealing the window's clear color.
 
-`clear_character_position position` removes the character at the specified position.
+`#clear_character_position position` removes the character at the specified position.
 
-`clear_character_positions` removes all characters on the screen.
+`#clear_character_positions` removes all characters on the screen.
 
-`play_music "music_name.ext` plays a music.
+`#play_music "music_name.ext` plays a music.
 There is only one music at a time, like backgounds, an automatic cross fade is made.
 
-`stop_music` stops the playing music.
+`#stop_music` stops the playing music.
 
-`set_music_volume volume` changes the music volume, volume's value is between `0` and `1`.
+`#set_music_volume volume` changes the music volume, volume's value is between `0` and `1`.
 
-`play_sound "sound_name.ext` plays a sound.
+`#play_sound "sound_name.ext` plays a sound.
 There is only one sound at a time, like backgounds, an automatic cross fade is made.
 
-`stop_sound` stops the playing sound.
+`#stop_sound` stops the playing sound.
 
-`set_sound_volume volume` changes the sound volume, volume's value is between `0` and `1`.
+`#set_sound_volume volume` changes the sound volume, volume's value is between `0` and `1`.
 
-`hide_ui` hides UI until it has to be displayed again.
+`#hide_ui` hides UI until it has to be displayed again.
 
-`wait duration` make the script wait, duration is in seconds.
+`#wait duration` make the script wait, duration is in seconds.
 
-`set_window_name "new window name"` changes the window name.
+`#set_window_name "new window name"` changes the window name.
 
-`set_speaker_name_color "speaker name" red green blue` changes the display color of the corresponding speaker's name, color arguments are between `0` and `1`.
+`#set_speaker_name_color "speaker name" red green blue` changes the display color of the corresponding speaker's name, color arguments are between `0` and `1`.
 ## Engine features
 ### Window
 Window with OpenGL 3.3 context using Win32 API.  
