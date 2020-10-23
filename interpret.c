@@ -705,15 +705,13 @@ static bool update_sentence(Sentence *sentence)
 			timeDuringCurrentChar += deltaTime;
 			while (timeDuringCurrentChar > currentCodeWaitTime)
 			{
-				if (timeDuringCurrentChar >= currentCodeWaitTime)
+				currentSentence->nbCharToDisplay++;
+				if (currentSentence->nbCharToDisplay == currentSentence->nbMaxCharToDisplay)
 				{
-					currentSentence->nbCharToDisplay++;
-					if (currentSentence->nbCharToDisplay == currentSentence->nbMaxCharToDisplay)
-					{
-						break;
-					}
-					timeDuringCurrentChar -= currentCodeWaitTime;
+					break;
 				}
+				timeDuringCurrentChar -= currentCodeWaitTime;
+
 				currentDisplayedCode = currentSentence->codes[currentSentence->nbCharToDisplay - 1];
 				if ((currentDisplayedCode == '.' || currentDisplayedCode == '?' || currentDisplayedCode == '!' || currentDisplayedCode == ';') && currentSentence->nbCharToDisplay < currentSentence->nbMaxCharToDisplay - 1)
 				{
@@ -736,12 +734,19 @@ static bool update_sentence(Sentence *sentence)
 					}
 				}
 			}
-			timeDuringCurrentBlip += deltaTime;
-			if (timeDuringCurrentBlip >= 0.075f)
+			if (currentCodeWaitTime == WAIT_TIME_NORMAL_CHARACTER)
+			{
+				timeDuringCurrentBlip += deltaTime;
+				if (timeDuringCurrentBlip >= 0.075f)
+				{
+					timeDuringCurrentBlip = 0.0f;
+					reset_audio_source(blipSound);
+					blipSound->playing = true;
+				}
+			}
+			else
 			{
 				timeDuringCurrentBlip = 0.0f;
-				reset_audio_source(blipSound);
-				blipSound->playing = true;
 			}
 		}
 
