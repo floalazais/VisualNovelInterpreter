@@ -1,18 +1,47 @@
 #set_window_name "999 fan-made game"
 
-#play_music "14 Imaginary.mp3"
+#play_music "04 Binary Game.mp3"
 
 #assign sevenTrustsJunpei true
 
 #set_background "First class cabin"::"piano"
 
+>"Snake" left "smiling" left
+	Westminster Chime.. brings back school days.
+
 >"Junpei" left
-	We've finally completed this puzzle.
+	I'm amazed by this locking device.
 
->"Seven" right "thinking" center
-	I still don't understand the purpose of this killing game.
+>"Seven" right "laughing" right
+	I'm amazed it recognized what you were playing!
 
-#clear_character_position center
+>
+	Junpei was embarrassed, he indeed took many tries to play the song correctly.
+	Snake gave an amused look at Junpei.
+
+>"Snake" left "smiling" left
+	But thanks to you we could open this door.
+
+>
+	This polite stimilus moved Junpei out of his discomfort.
+	He shifted his thoughts on their current situation.
+
+#hide_ui
+#play_music "14 Imaginary.mp3"
+
+>"Junpei" left
+	Why do we had to do this to escape these rooms?
+	Are some people entertained seeing us solving these riddles?
+	Is this bracelet a monitoring device?
+
+>"Seven" right "thinking" right
+	Yeah.. I still don't get the point of this "Nonary Game".
+
+>"Snake" left "thinking" left
+	...
+	Sadly, I don't think we'll be able to figure out that early.
+
+#clear_character_positions
 #set_background "First class cabin"::"escape door"
 
 >"Junpei" left
@@ -28,7 +57,7 @@
 	Well, let's get out of here and confirm this with our own eyes.
 
 >"Snake" left "shocked" left
-	Wait, what about that safe we didn't open ?
+	Wait, what about that safe we didn't open?
 
 >"Seven" right "shocked" right
 	I almost forgot it! We didn't need to open that safe to escape this room.
@@ -308,6 +337,7 @@
 
 @let's_go
 
+#play_music "07 Foreboding.mp3"
 #wait 1
 #clear_background
 
